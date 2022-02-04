@@ -1,0 +1,200 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+USER_GUIDE_SRC = doc/doxygen-user/manual
+
+
+## Extra distribution files (i.e., sources)
+EXTRA_DIST += \
+    $(USER_GUIDE_SRC)/mainpage.dox \
+    $(USER_GUIDE_SRC)/introduction.dox \
+    $(USER_GUIDE_SRC)/getting_started.dox \
+    $(USER_GUIDE_SRC)/commands.dox \
+    $(USER_GUIDE_SRC)/reporting_bugs.dox \
+    $(USER_GUIDE_SRC)/references.bib \
+    $(USER_GUIDE_SRC)/footer.tex \
+    $(USER_GUIDE_SRC)/title.tex \
+    $(USER_GUIDE_SRC)/doxygen-layout.xml \
+    $(USER_GUIDE_SRC)/logs/doxygen-versions.cfg \
+    $(USER_GUIDE_SRC)/logs/npb-bt.filt \
+    $(USER_GUIDE_SRC)/logs/start_initial.log \
+    $(USER_GUIDE_SRC)/logs/start_instrument.log \
+    $(USER_GUIDE_SRC)/logs/start_make.log \
+    $(USER_GUIDE_SRC)/logs/start_reference.log \
+    $(USER_GUIDE_SRC)/logs/start_score.log \
+    $(USER_GUIDE_SRC)/logs/start_score_filt.log \
+    $(USER_GUIDE_SRC)/logs/start_summary.log \
+    $(USER_GUIDE_SRC)/logs/start_summary_exam.log \
+    $(USER_GUIDE_SRC)/logs/start_trace.log \
+    $(USER_GUIDE_SRC)/logs/start_trace_correct.log \
+    $(USER_GUIDE_SRC)/logs/start_trace_exam.log \
+    $(USER_GUIDE_SRC)/images/start_summary.png \
+    $(USER_GUIDE_SRC)/images/start_trace.png
+
+
+##--- User guide rules (HTML) -----------------------------------------------
+
+if GIT_CONTROLLED
+if HAVE_DOXYGEN
+
+USER_DOCS_TARGETS += \
+    user-guide-html
+user-guide-html: \
+    doc/doxygen-user/manual/doxygen-manual.cfg \
+    doc/doxygen-common/doxygen-common.cfg \
+    doc/doxygen-at-make-time.cfg \
+    doc/doxygen-common/config.tex
+	$(STT_V_DOXYGEN)$(DOXYGEN) $(USER_GUIDE_SRC)/doxygen-manual.cfg
+
+COPY_USER_DOCS_TARGETS += \
+    copy-user-guide-html-to-dist
+copy-user-guide-html-to-dist: user-guide-html
+	$(AM_V_at)$(MKDIR_P) "$(DISTDIR)/doc"
+	@$(am__tty_colors); \
+	if $(AM_V_P); then echo "cd '$(USER_GUIDE_SRC)' && tardir=html && $(am__tar) | eval GZIP= gzip $(GZIP_ENV) -c >'$(DISTDIR)/doc/UserGuide-html.tar.gz'"; \
+	              else echo "  PACK     $${grn}UserGuide-html.tar.gz$$std"; fi; \
+	$(am__cd) "$(USER_GUIDE_SRC)"; \
+	tardir=html && $(am__tar) | eval GZIP= gzip $(GZIP_ENV) -c >"$(abs_builddir)/$(DISTDIR)/doc/UserGuide-html.tar.gz"
+
+CLEAN_USER_DOCS_TARGETS += \
+    clean-user-guide-html
+clean-user-guide-html:
+	rm -rf "$(USER_GUIDE_SRC)/html"
+
+endif HAVE_DOXYGEN
+else !GIT_CONTROLLED
+
+## Extra distribution files (i.e., generated documentation)
+EXTRA_DIST += \
+    doc/UserGuide-html.tar.gz
+
+INSTALL_USER_DOCS_TARGETS += \
+    install-user-guide-html
+install-user-guide-html:
+	@$(am__tty_colors); \
+	test -n "$(manualdir)" || exit 0; \
+	if $(AM_V_P); then echo " $(MKDIR_P) '$(DESTDIR)$(manualdir)'"; \
+	              else echo "  MKDIR    $${mgn}$(DESTDIR)$(manualdir)$$std"; fi; \
+	$(MKDIR_P) "$(DESTDIR)$(manualdir)" || exit 1; \
+	if $(AM_V_P); then echo "cd '$(DESTDIR)$(manualdir)' && eval GZIP= gzip $(GZIP_ENV) -dc '$(abs_srcdir)/doc/UserGuide-html.tar.gz' | $(am__untar)"; \
+	              else echo "  UNPACK   $${grn}UserGuide-html.tar.gz$$std"; fi; \
+	$(am__cd) "$(DESTDIR)$(manualdir)"; \
+	eval GZIP= gzip $(GZIP_ENV) -dc "$(abs_srcdir)/doc/UserGuide-html.tar.gz" | $(am__untar)
+
+UNINSTALL_USER_DOCS_TARGETS += \
+    uninstall-user-guide-html
+uninstall-user-guide-html:
+	rm -rf "$(DESTDIR)$(manualdir)/html"
+
+endif !GIT_CONTROLLED
+
+
+##--- User guide rules (PDF) ------------------------------------------------
+
+if GIT_CONTROLLED
+if HAVE_DOXYGEN_LATEX
+
+USER_DOCS_TARGETS += \
+    user-guide-pdf
+user-guide-pdf: \
+    user-guide-html \
+    user-guide-frontcover-pdf
+	$(AM_V_at)cp -f "$(USER_GUIDE_SRC)/latex-frontcover/frontcover.pdf" "$(USER_GUIDE_SRC)/latex/"
+	$(AM_V_at)$(am__cd) "$(USER_GUIDE_SRC)/latex" \
+	    && $(SED) -e '/\\chapter{Scalasca v2 License Agreement}/{N;N;d;}' \
+	              -e '/\\chapter{Scalasca User Guide}/{N;d;}' \
+	              refman.tex >refman.sed \
+	    && mv -f refman.sed refman.tex || exit 1
+	$(STT_V_LATEX)$(am__cd) "$(USER_GUIDE_SRC)/latex" \
+	    && $(MAKE) $(AM_MAKEFLAGS) $(STT_V_DEVNULL)
+
+COPY_USER_DOCS_TARGETS += \
+    copy-user-guide-pdf-to-dist
+copy-user-guide-pdf-to-dist: user-guide-pdf
+	$(AM_V_at)$(MKDIR_P) "$(DISTDIR)/doc"
+	$(AM_V_at)cp -fp "$(USER_GUIDE_SRC)/latex/refman.pdf" \
+	       "$(DISTDIR)/doc/UserGuide.pdf"
+
+CLEAN_USER_DOCS_TARGETS += \
+    clean-user-guide-pdf
+clean-user-guide-pdf:
+	rm -rf "$(USER_GUIDE_SRC)/latex"
+
+endif HAVE_DOXYGEN_LATEX
+else !GIT_CONTROLLED
+
+## Extra distribution files (i.e., generated documentation)
+EXTRA_DIST += \
+    doc/UserGuide.pdf
+
+## Documentation to (un)install
+manual_DATA += \
+    doc/UserGuide.pdf
+
+endif !GIT_CONTROLLED
+
+
+##--- User guide frontcover rules (PDF) -------------------------------------
+
+if GIT_CONTROLLED
+if HAVE_DOXYGEN_LATEX
+
+USER_GUIDE_FRONTCOVER_FILES = \
+    doc/doxygen-common/config.tex \
+    doc/doxygen-common/imgsrc/corporate.tex \
+    doc/doxygen-user/manual/title.tex \
+    doc/doxygen-common/imgsrc/frontcover.tex \
+    doc/doxygen-common/imgsrc/FZJ_LogoInvert.pdf \
+    doc/doxygen-common/imgsrc/ScalascaLogo.pdf
+
+USER_DOCS_TARGETS += \
+    user-guide-frontcover-pdf
+user-guide-frontcover-pdf: \
+    doc/doxygen-common/config.tex \
+    doc/doxygen-common/imgsrc/corporate.tex
+	$(AM_V_at)$(MKDIR_P) "$(USER_GUIDE_SRC)/latex-frontcover"
+	$(AM_V_at)list='$(USER_GUIDE_FRONTCOVER_FILES)'; test -n "$$list" || exit 0; \
+	for p in $$list; do \
+	    if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	    cp -f $$d$$p "$(USER_GUIDE_SRC)/latex-frontcover/" || exit 1; \
+	done
+	$(STT_V_LATEX)$(am__cd) "$(USER_GUIDE_SRC)/latex-frontcover" \
+	    && pdflatex -file-line-error $(STT_V_pdflatex) frontcover.tex $(STT_V_DEVNULL) \
+	    && pdflatex -file-line-error $(STT_V_pdflatex) frontcover.tex $(STT_V_DEVNULL) \
+	    && pdflatex -file-line-error $(STT_V_pdflatex) frontcover.tex $(STT_V_DEVNULL)
+
+COPY_USER_DOCS_TARGETS += \
+    copy-user-guide-frontcover-pdf-to-dist
+copy-user-guide-frontcover-pdf-to-dist: user-guide-frontcover-pdf
+	$(AM_V_at)$(MKDIR_P) "$(DISTDIR)/$(USER_GUIDE_SRC)"
+	$(AM_V_at)cp -fp "$(USER_GUIDE_SRC)/latex-frontcover/frontcover.pdf" \
+	       "$(DISTDIR)/$(USER_GUIDE_SRC)/"
+
+CLEAN_USER_DOCS_TARGETS += \
+    clean-user-guide-frontcover-pdf
+clean-user-guide-frontcover-pdf:
+	rm -rf "$(USER_GUIDE_SRC)/latex-frontcover"
+
+endif HAVE_DOXYGEN_LATEX
+else !GIT_CONTROLLED
+
+## Extra distribution files (i.e., generated documentation)
+EXTRA_DIST += \
+    $(USER_GUIDE_SRC)/frontcover.pdf
+
+endif !GIT_CONTROLLED

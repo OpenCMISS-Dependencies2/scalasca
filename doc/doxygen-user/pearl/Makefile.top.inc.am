@@ -1,0 +1,52 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+PEARL_USER_API_DOCS_SRC = doc/doxygen-user/pearl
+
+
+## Extra distribution files (i.e., sources)
+EXTRA_DIST += \
+    $(PEARL_USER_API_DOCS_SRC)/pearl.dox \
+    $(PEARL_USER_API_DOCS_SRC)/pearl_base.dox \
+    $(PEARL_USER_API_DOCS_SRC)/pearl_mpi.dox \
+    $(PEARL_USER_API_DOCS_SRC)/pearl_replay.dox \
+    $(PEARL_USER_API_DOCS_SRC)/pearl_utils.dox \
+    $(PEARL_USER_API_DOCS_SRC)/pearl_writer.dox
+
+
+##--- PEARL end-user API documentation rules --------------------------------
+
+if GIT_CONTROLLED
+if HAVE_DOXYGEN
+
+PHONY_TARGETS += \
+    pearl-user-api-docs-html \
+    clean-pearl-user-api-docs-html
+
+pearl-user-api-docs-html: \
+    doc/doxygen-user/pearl/doxygen-pearl-user.cfg \
+    doc/doxygen-common/doxygen-pearl.cfg \
+    doc/doxygen-common/doxygen-common.cfg \
+    doc/doxygen-at-make-time.cfg
+	$(STT_V_DOXYGEN)$(DOXYGEN) $(PEARL_API_DOCS_USER_SRC)/doxygen-pearl-user.cfg
+
+clean-pearl-user-api-docs-html:
+	rm -rf "$(PEARL_API_DOCS_USER_SRC)/html"
+
+endif HAVE_DOXYGEN
+endif GIT_CONTROLLED

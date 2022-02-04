@@ -1,0 +1,98 @@
+/****************************************************************************
+**  SCALASCA    http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 1998-2014                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  Copyright (c) 2009-2013                                                **
+**  German Research School for Simulation Sciences GmbH,                   **
+**  Laboratory for Parallel Programming                                    **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * PEARL.base
+ *
+ *---------------------------------------------------------------------------
+ */
+
+
+//--- Library description ---------------------------------------------------
+
+/**
+@defgroup PEARL_base PEARL.base
+@ingroup  PEARL
+@brief    Base part of the PEARL library
+
+This part of the PEARL library provides all functions and classes that are
+independent of a multi-process parallelization paradigm. This includes the
+entire functionality to handle traces of serial as well as multi-threaded
+applications.
+
+The following code snippet shows the basic steps required to load and set up
+the PEARL data structures to handle serial traces. To handle traces of
+multi-threaded applications, the steps between loading and freeing the trace
+data can be executed in parallel by multiple analysis threads. For information
+on how to handle pure MPI or hybrid MPI+threads traces, see the @ref
+PEARL_mpi part of PEARL.
+
+@code
+  using namespace pearl;
+
+  ...
+
+  // Initialize PEARL
+  PEARL_init();
+
+  // Open trace archive
+  TraceArchive* archive = TraceArchive::open(archive_name);
+
+  // Load global definitions
+  GlobalDefs* defs = archive->getDefinitions();
+
+  // Open trace container
+  const LocationGroup& process = defs->getLocationGroup(0);
+  archive->openTraceContainer(process);
+
+  // Load trace data of the master thread
+  const Location& location = process.getLocation(0);
+  LocalTrace*     trace    = archive->getTrace(*defs, location);
+
+  // Preprocessing
+  PEARL_verify_calltree(*defs, *trace);
+  PEARL_preprocess_trace(*defs, *trace);
+
+  // Process trace data
+  ...
+
+  // Free trace data
+  delete trace;
+
+  // Close trace container & archive
+  archive->closeTraceContainer();
+  delete archive;
+
+  // Free definition data
+  delete defs;
+
+  // Finalize PEARL
+  PEARL_finalize();
+@endcode
+
+Note that the trace container can be closed immediately after all trace data
+has been loaded. However, this operation must only be performed by the master
+thread in a multi-threaded context. We therefore deliberately moved this
+function call near the end of the code snippet to simplify the description
+of how to handle traces in a multi-threaded context.
+
+Also, all of the aforementioned PEARL API calls may throw exceptions in
+case of errors. This has to be taken into account to avoid deadlocks, for
+example, if one thread is failing with an exception while the other threads
+wait in a thread synchronization operation.
+*/

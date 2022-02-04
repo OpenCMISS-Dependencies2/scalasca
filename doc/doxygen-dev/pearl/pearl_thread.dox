@@ -1,0 +1,83 @@
+/****************************************************************************
+**  SCALASCA    http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 1998-2017                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  Copyright (c) 2009-2013                                                **
+**  German Research School for Simulation Sciences GmbH,                   **
+**  Laboratory for Parallel Programming                                    **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+// --- Library description --------------------------------------------------
+
+/**
+@defgroup PEARL_thread PEARL.thread
+@ingroup  PEARL
+@brief    Threading abstractions of the PEARL Library
+*/
+
+
+// --- Memory management ----------------------------------------------------
+
+/**
+@page PEARL_memory Custom memory management for small objects
+
+The typical usage of the PEARL library involves the creation of a large
+number of small objects, for example, the in-memory representation of
+events.  However, basically every general-purpose memory allocation algorithm
+that could be used by C++'s default allocation functions `operator new` and
+`operator new[]` store some additional information (e.g., the block size)
+along with each allocated memory block.  Such "header information" is usually
+in the order of four to eight bytes, but can be even larger.  In addition,
+alignment requirements for `operator new` (@cite ISOcpp:1998, &sect;3.7.3.1,
+clause 2) may introduce additional gaps between two subsequent allocations.
+Thus, a significant amount of memory can be wasted by using the default
+allocation functions to dynamically allocate such small objects on the free
+store.
+
+The PEARL library addresses this issue by providing its own custom memory
+management for small objects.  It is loosely based on the techniques for
+implementing memory pools presented in various C++ textbooks (e.g.,
+@cite Alexandrescu:2001, @cite BulkaMayhew:1999), but tailored to work
+efficiently for the prevalent memory allocation patterns found in PEARL-based
+applications:
+
+ - bulk allocations while reading the trace data,
+ - bulk deallocations while deleting the in-memory trace data structures
+   (typically at program finalization), and
+ - allocations and deallocations of objects happening on the same thread
+   in multi-threaded applications.
+
+
+PEARL's custom memory management consists of multiple layers:
+
+ - On the lowest level, memory for small objects of a given fixed size is
+   allocated in larger chunks to amortize the per-allocation memory
+   overhead of the general-purpose allocator.  This functionality is
+   provided by the class pearl::detail::MemoryChunk.
+ - Since each %MemoryChunk instance can only handle a limited number of
+   memory blocks, PEARL provides the class pearl::detail::ChunkAllocator
+   to efficiently manage allocations and deallocations across multiple
+   chunks.
+ - On the next layer, pearl::detail::SmallBlockAllocator provides the
+   functionality to manage memory blocks of variable size.  Allocations
+   of small memory blocks are handled using a set of %ChunkAllocator
+   instances, while larger allocations are transparently forwarded to the
+   default allocator `operator new`.
+ - Finally, the memory management API declared in the pearl_memory.h
+   header file provides the common interface of different implementations
+   for both single- and multi-threaded scenarios.  In multi-threaded
+   setups, PEARL uses one %SmallBlockAllocator instance per thread,
+   efficiently accessed through thread-local storage.
+
+To avoid code duplication, PEARL also provides the class pearl::SmallObject,
+which provides custom `new` and `delete` operators based on the aforementioned
+memory management API.  That is, small objects can simply be derived from
+this helper class and automatically inherit this functionality.
+*/

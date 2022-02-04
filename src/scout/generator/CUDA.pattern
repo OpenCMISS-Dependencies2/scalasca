@@ -1,0 +1,104 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 2020                                                     ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+PATTERN "CUDA_KERNEL_EXECUTIONS" = [
+    PARENT    = "COMP"
+    NAME      = "CUDA kernels"
+    DOCNAME   = "CUDA Kernel Time"
+    CLASS     = "PatternCuda_Kernels"
+    INFO      = "Time spent executing CUDA kernels"
+    DESCR     = {
+        Time spent executing CUDA kernels.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "CUDA_TIME" = [
+    PARENT    = "EXECUTION"
+    NAME      = "CUDA"
+    DOCNAME   = "CUDA Time"
+    CLASS     = "PatternCuda"
+    INFO      = "Time spent in the CUDA run-time system, API calls and on device"
+    DESCR     = {
+        Time spent in the CUDA run-time system, API calls and on device.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "CUDA_SETUP" = [
+    PARENT    = "CUDA_TIME"
+    NAME      = "CUDA General Management"
+    DOCNAME   = "CUDA General Management Time"
+    CLASS     = "PatternCuda_Setup"
+    INFO      = "Time needed for general CUDA setup, e.g. initialization, control of version, device, primary context, context, streams, events, occupancy, etc."
+    DESCR     = {
+        Time needed for general CUDA setup, e.g. initialization, control of
+        version, device, primary context, context, streams, events, occupancy,
+        etc.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "CUDA_COMM" = [
+    PARENT    = "CUDA_TIME"
+    NAME      = "CUDA Memory Management"
+    DOCNAME   = "CUDA Memory Management Time"
+    CLASS     = "PatternCuda_MemoryMgmt"
+    INFO      = "Time spent on memory management including data transfer from host to device and vice versa. (Note: 'memset' operations are considered in 'Kernel launches')."
+    DESCR     = {
+        Time spent on memory management including data transfer from host to
+        device and vice versa. Note that "memset" operations are considered
+        in @ref(CUDA_KERNEL_LAUNCHES).
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "CUDA_SYNC" = [
+    PARENT    = "CUDA_TIME"
+    NAME      = "CUDA Synchronization"
+    DOCNAME   = "CUDA Synchronization Time"
+    CLASS     = "PatternCuda_Sync"
+    INFO      = "Time spent on CUDA synchronization"
+    DESCR     = {
+        Time spent on CUDA synchronization.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "CUDA_KERNEL_LAUNCHES" = [
+    PARENT    = "CUDA_TIME"
+    NAME      = "CUDA Kernel launches"
+    DOCNAME   = "CUDA Kernel Launch Time"
+    CLASS     = "PatternCuda_KernelLaunch"
+    INFO      = "Time spent to launch CUDA kernels, including 'memset' operations."
+    DESCR     = {
+        Time spent to launch CUDA kernels, including "memset" operations.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]

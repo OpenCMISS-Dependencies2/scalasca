@@ -1,0 +1,127 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+#--- Common thread-related performance patterns -----------------------------
+
+PROLOG {
+    #include "LockTracking.h"
+}
+
+
+
+PATTERN "THREAD_LOCK_CONTENTION" = [
+    NAME    = "Thread Lock Contention"
+    DOCNAME = "Thread Lock Contention Time"
+    CLASS   = "PatternThread_LockContention"
+    INFO    = "Time spent in thread lock contention"
+    TYPE    = "OMP"
+    MODE    = "exclusive"
+    NODOCS
+    UNIT    = "sec"
+    HIDDEN
+    DATA    = {
+        LockTracking*
+        getLockTrackingVariant(Paradigm paradigm)
+        {
+            switch (native_value(paradigm))
+            {
+                case Paradigm::OPENMP:
+                    return mOpenmpLockTracking;
+
+                case Paradigm::PTHREAD:
+                    return mPthreadLockTracking;
+
+                default:
+                    return NULL;
+            }
+        }
+
+        static LockTracking* mOpenmpLockTracking;
+        static LockTracking* mPthreadLockTracking;
+    }
+    STATICINIT = {
+        LockTracking* PatternThread_LockContention::mOpenmpLockTracking;
+        LockTracking* PatternThread_LockContention::mPthreadLockTracking;
+    }
+    INIT = {
+        if (PEARL_GetThreadNumber() == 0)
+        {
+            mOpenmpLockTracking  = new scout::LockTracking();
+            mPthreadLockTracking = new scout::LockTracking();
+        }
+        PEARL_Barrier();
+    }
+    CLEANUP= {
+        PEARL_Barrier();
+        if (PEARL_GetThreadNumber() == 0)
+        {
+            delete mOpenmpLockTracking;
+            delete mPthreadLockTracking;
+        }
+    }
+    CALLBACKS = [
+        "THREAD_ACQUIRE_LOCK" = {
+            Paradigm paradigm = getLockParadigm(event);
+
+            LockTracking* lockMap = getLockTrackingVariant(paradigm);
+            if (lockMap == NULL)
+            {
+                // unsupported paradigm
+                return;
+            }
+
+            // wait time=last release time  - respective Enter timestamp
+            data->mIdle = lockMap->acquireLock(event)
+                          - event.enterptr()->getTimestamp();
+
+            LockType lockType = getLockType(event);
+
+            // distribute time dependent on lock type
+            if (lockType == LockType::OMP_LOCK_API)
+            {
+                cbmanager.notify(OMP_CONTENTION_API, event, data);
+            }
+            else if (lockType == LockType::OMP_CRITICAL)
+            {
+                cbmanager.notify(OMP_CONTENTION_CRITICAL, event, data);
+            }
+            else if (lockType == LockType::PTHREAD_MUTEX_LOCK)
+            {
+                cbmanager.notify(PTHREAD_CONTENTION_MUTEX_LOCK, event, data);
+            }
+            else if (lockType == LockType::PTHREAD_MUTEX_TRYLOCK)
+            {
+                cbmanager.notify(PTHREAD_CONTENTION_MUTEX_LOCK, event, data);
+            }
+            else if (lockType == LockType::PTHREAD_CONDITION_WAIT)
+            {
+                cbmanager.notify(PTHREAD_CONTENTION_CONDITIONAL, event, data);
+            }
+        }
+
+        "THREAD_RELEASE_LOCK" = {
+            Paradigm paradigm = getLockParadigm(event);
+
+            LockTracking* lockMap = getLockTrackingVariant(paradigm);
+            if (lockMap == NULL)
+            {
+                // unsupported paradigm
+                return;
+            }
+            lockMap->releaseLock(event);
+        }
+    ]
+]

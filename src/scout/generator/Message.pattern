@@ -1,0 +1,752 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2016                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+#--- MPI message statistics -------------------------------------------------
+
+PATTERN "SYNCS" = [
+    NAME    = "MPI synchronizations"
+    DOCNAME = "MPI Synchronization Operations"
+    TYPE    = "MPI"
+    CLASS   = "PatternMPI_Syncs"
+    INFO    = "Number of MPI synchronization operations"
+    DESCR   = {
+        Provides the total number of MPI synchronization operations
+        that were executed.  This not only includes barrier calls, but also
+        communication operations which transfer no data (i.e., zero-sized
+        messages are considered to be used for coordination synchronization).
+    }
+    UNIT    = "occ"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "SYNCS_P2P" = [
+    PARENT    = "SYNCS"
+    NAME      = "MPI P2P synchronizations"
+    DOCNAME   = "MPI Point-to-point Synchronization Operations"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_SyncsP2P"
+    INFO      = "Number of MPI point-to-point synchronization operations"
+    DESCR     = {
+        Total number of MPI point-to-point synchronization operations, i.e.,
+        point-to-point transfers of zero-sized messages used for coordination.
+    }
+    DIAGNOSIS = {
+        Locate the most costly synchronizations and determine whether they are
+        necessary to ensure correctness or could be safely removed (based on
+        algorithm analysis).
+    }
+    UNIT      = "occ"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "SYNCS_SEND" = [
+    PARENT    = "SYNCS_P2P"
+    NAME      = "MPI P2P send synchronizations"
+    DOCNAME   = "MPI Point-to-point Send Synchronization Operations"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_SyncsSend"
+    INFO      = "Number of MPI point-to-point send synchronization operations"
+    DESCR     = {
+        Number of MPI point-to-point synchronization operations sending
+        a zero-sized message.
+    }
+    UNIT      = "occ"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "GROUP_SEND" = {
+            if (event->getBytesSent() == 0)
+            {
+                ++m_severity[event.get_cnode()];
+            }
+        }
+    ]
+]
+
+
+PATTERN "SYNCS_RECV" = [
+    PARENT    = "SYNCS_P2P"
+    NAME      = "MPI P2P recv synchronizations"
+    DOCNAME   = "MPI Point-to-point Receive Synchronization Operations"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_SyncsRecv"
+    INFO      = "Number of MPI point-to-point receive synchronization operations"
+    DESCR     = {
+        Number of MPI point-to-point synchronization operations receiving
+        a zero-sized message.
+    }
+    UNIT      = "occ"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "POST_RECV" = {
+            RemoteEvent send = data->mRemote->get_event(ROLE_SEND);
+
+            if (send->getBytesSent() == 0)
+            {
+                ++m_severity[event.get_cnode()];
+            }
+        }
+    ]
+]
+
+
+PATTERN "SYNCS_COLL" = [
+    PARENT    = "SYNCS"
+    NAME      = "MPI collective synchronizations"
+    DOCNAME   = "MPI Collective Synchronizations"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_SyncsColl"
+    INFO      = "Number of MPI collective synchronization operations"
+    DESCR     = {
+        The number of MPI collective synchronization operations.  This
+        does not only include barrier calls, but also calls to collective
+        communication operations that are neither sending nor receiving any
+        data.  Each process participating in the operation is counted, as
+        defined by the associated MPI communicator.
+    }
+    DIAGNOSIS = {
+        Locate synchronizations with the largest @ref(MPI_SYNC_COLLECTIVE) and
+        determine whether they are necessary to ensure correctness or could be
+        safely removed (based on algorithm analysis).  Collective communication
+        operations that neither send nor receive data, yet are required for
+        synchronization, can be replaced with the more efficient
+        <tt>MPI_Barrier</tt>.
+    }
+    UNIT      = "occ"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_COLLECTIVE_END" = {
+            if (  (event->getBytesSent() == 0)
+               && (event->getBytesReceived() == 0))
+            {
+                ++m_severity[event.get_cnode()];
+            }
+        }
+    ]
+]
+
+
+PATTERN "SYNCS_RMA" = [
+    PARENT  = "SYNCS"
+    NAME    = "MPI one-sided synchronizations"
+    DOCNAME = "MPI One-sided Synchronization Operations"
+    TYPE    = "MPI_RMA"
+    CLASS   = "PatternMPI_SyncsRma"
+    INFO    = "Number of MPI one-sided synchronization operations"
+    DESCR   = {
+        Total number of MPI one-sided synchronization operations.
+    }
+    UNIT    = "occ"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "SYNCS_RMA_ACTIVE" = [
+    PARENT  = "SYNCS_RMA"
+    NAME    = "MPI one-sided active target synchronizations"
+    DOCNAME = "MPI One-sided Active Target Synchronization Operations"
+    TYPE    = "MPI_RMA"
+    CLASS   = "PatternMPI_SyncsRmaActive"
+    INFO    = "Number of MPI one-sided active target synchronization operations"
+    DESCR = {
+        Total number of MPI one-sided active target synchronization operations.
+    }
+    UNIT    = "occ"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "SYNCS_RMA_PASSIVE" = [
+    PARENT  = "SYNCS_RMA"
+    NAME    = "MPI one-sided passive target synchronizations"
+    DOCNAME = "MPI One-sided Passive Target Synchronization Operations"
+    TYPE    = "MPI_RMA"
+    CLASS   = "PatternMPI_SyncsRmaActive"
+    INFO    = "Number of MPI one-sided passive target synchronization operations"
+    DESCR = {
+        Total number of MPI one-sided passive target synchronization operations.
+    }
+    UNIT    = "occ"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "COMMS" = [
+    NAME    = "MPI communications"
+    DOCNAME = "MPI Communication Operations"
+    TYPE    = "MPI"
+    CLASS   = "PatternMPI_Comms"
+    INFO    = "Number of MPI communication operations"
+    DESCR   = {
+        Total number of MPI communication operations, excluding calls transferring
+        no payload data (which are considered @ref(SYNCS)).
+    }
+    UNIT    = "occ"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "COMMS_P2P" = [
+    PARENT  = "COMMS"
+    NAME    = "MPI P2P communications"
+    DOCNAME = "MPI Point-to-point Communication Operations"
+    TYPE    = "MPI"
+    CLASS   = "PatternMPI_CommsP2P"
+    INFO    = "Number of MPI point-to-point communication operations"
+    DESCR   = {
+        Total number of MPI point-to-point communication operations, excluding
+        calls transferring zero-sized messages.
+    }
+    UNIT    = "occ"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "COMMS_SEND" = [
+    PARENT    = "COMMS_P2P"
+    NAME      = "MPI P2P send communications"
+    DOCNAME   = "MPI Point-to-point Send Communication Operations"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_CommsSend"
+    INFO      = "Number of MPI point-to-point send communication operations"
+    DESCR     = {
+        Number of MPI point-to-point send operations, excluding calls transferring
+        zero-sized messages.
+    }
+    UNIT      = "occ"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "GROUP_SEND" = {
+            if (event->getBytesSent() != 0)
+            {
+                ++m_severity[event.get_cnode()];
+            }
+        }
+    ]
+]
+
+
+PATTERN "COMMS_RECV" = [
+    PARENT    = "COMMS_P2P"
+    NAME      = "MPI P2P recv communications"
+    DOCNAME   = "MPI Point-to-point Receive Communication Operations"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_CommsRecv"
+    INFO      = "Number of MPI point-to-point receive communication operations"
+    DESCR     = {
+        Number of MPI point-to-point receive operations, excluding calls
+        transferring zero-sized messages.
+    }
+    UNIT      = "occ"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "POST_RECV" = {
+            RemoteEvent send = data->mRemote->get_event(ROLE_SEND);
+
+            if (send->getBytesSent() != 0)
+            {
+                ++m_severity[event.get_cnode()];
+            }
+        }
+    ]
+]
+
+
+PATTERN "COMMS_COLL" = [
+    PARENT  = "COMMS"
+    NAME    = "MPI collective communications"
+    DOCNAME = "MPI Collective Communications"
+    TYPE    = "MPI"
+    CLASS   = "PatternMPI_CommsColl"
+    INFO    = "Number of MPI collective communication operations"
+    DESCR   = {
+        The number of MPI collective communication operations, excluding
+        calls neither sending nor receiving any data.  Each process participating
+        in the operation is counted, as defined by the associated MPI communicator.
+    }
+    DIAGNOSIS = {
+        Locate operations with the largest @ref(MPI_COLLECTIVE) and compare
+        @ref(BYTES_COLL).  Where multiple collective operations of the same type
+        are used in series with single values or small payloads, aggregation may
+        be beneficial in amortizing transfer overhead.
+    }
+    UNIT    = "occ"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "COMMS_CXCH" = [
+    PARENT    = "COMMS_COLL"
+    NAME      = "MPI collective exchange communications"
+    DOCNAME   = "MPI Collective Exchange Communications"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_CommsExch"
+    INFO      = "Number of MPI collective communications as source and destination"
+    DESCR     = {
+        The number of MPI collective communication operations which are both
+        sending and receiving data.  In addition to all-to-all and scan operations,
+        root processes of certain collectives transfer data from their source to
+        destination buffer.
+    }
+    UNIT      = "occ"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_COLLECTIVE_END" = {
+            if (  (event->getBytesSent() != 0)
+               && (event->getBytesReceived() != 0))
+            {
+                ++m_severity[event.get_cnode()];
+            }
+        }
+    ]
+]
+
+
+PATTERN "COMMS_CSRC" = [
+    PARENT    = "COMMS_COLL"
+    NAME      = "MPI collective communications as source"
+    DOCNAME   = "MPI Collective Communications as Source"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_CommsSrc"
+    INFO      = "Number of MPI collective communications as source"
+    DESCR     = {
+        The number of MPI collective communication operations that are
+        only sending but not receiving data.  Examples are the non-root
+        processes in gather and reduction operations.
+    }
+    UNIT      = "occ"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_COLLECTIVE_END" = {
+            if (  (event->getBytesSent() != 0)
+               && (event->getBytesReceived() == 0))
+            {
+                ++m_severity[event.get_cnode()];
+            }
+        }
+    ]
+]
+
+
+PATTERN "COMMS_CDST" = [
+    PARENT    = "COMMS_COLL"
+    NAME      = "MPI collective communications as destination"
+    DOCNAME   = "MPI Collective Communications as Destination"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_CommsDst"
+    INFO      = "Number of MPI collective communications as destination"
+    DESCR     = {
+        The number of MPI collective communication operations that are
+        only receiving but not sending data.  Examples are broadcasts
+        and scatters (for ranks other than the root).
+    }
+    UNIT      = "occ"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_COLLECTIVE_END" = {
+            if (  (event->getBytesSent() == 0)
+               && (event->getBytesReceived() != 0))
+            {
+                ++m_severity[event.get_cnode()];
+            }
+        }
+    ]
+]
+
+
+PATTERN "COMMS_RMA" = [
+    PARENT  = "COMMS"
+    NAME    = "MPI one-sided communications"
+    DOCNAME = "MPI One-sided Communication Operations"
+    TYPE    = "MPI_RMA"
+    CLASS   = "PatternMPI_CommsRma"
+    INFO    = "Number of MPI one-sided communication operations"
+    DESCR   = {
+        Total number of MPI one-sided communication operations.
+    }
+    UNIT    = "occ"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "COMMS_RMA_PUTS" = [
+    PARENT  = "COMMS_RMA"
+    NAME    = "MPI one-sided put communications"
+    DOCNAME = "MPI One-sided Put Communication Operations"
+    TYPE    = "MPI_RMA"
+    CLASS   = "PatternMPI_CommsRmaPuts"
+    INFO    = "Number of MPI one-sided put communication operations"
+    DESCR   = {
+        Total number of MPI one-sided put communication operations.
+    }
+    UNIT    = "occ"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "COMMS_RMA_GETS" = [
+    PARENT  = "COMMS_RMA"
+    NAME    = "MPI one-sided get communications"
+    DOCNAME = "MPI One-sided Get Communication Operations"
+    TYPE    = "MPI_RMA"
+    CLASS   = "PatternMPI_CommsRmaGets"
+    INFO    = "Number of MPI one-sided get communication operations"
+    DESCR   = {
+        Total number of MPI one-sided get communication operations.
+    }
+    UNIT    = "occ"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "COMMS_RMA_ATOMICS" = [
+    PARENT  = "COMMS_RMA"
+    NAME    = "MPI one-sided atomic communications"
+    DOCNAME = "MPI One-sided Atomic Communication Operations"
+    TYPE    = "MPI_RMA"
+    CLASS   = "PatternMPI_CommsRmaAtomics"
+    INFO    = "Number of MPI one-sided atomic communication operations"
+    DESCR   = {
+        Total number of MPI one-sided atomic communication operations.
+    }
+    UNIT    = "occ"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "BYTES" = [
+    NAME      = "MPI bytes transferred"
+    DOCNAME   = "MPI Bytes Transferred"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Bytes"
+    INFO      = "Number of bytes transferred in MPI communication/synchronization operations"
+    DESCR     = {
+        The total number of bytes that were notionally processed in MPI
+        communication and synchronization operations (i.e., the sum of the bytes
+        that were sent and received).  Note that the actual number of bytes
+        transferred is typically not determinable, as this is dependant on the MPI
+        internal implementation, including message transfer and failed delivery
+        recovery protocols.
+    }
+    DIAGNOSIS = {
+        Expand the metric tree to break down the bytes transferred into
+        constituent classes.  Expand the call tree to identify where most data
+        is transferred and examine the distribution of data transferred by each
+        process.
+    }
+    UNIT      = "bytes"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "BYTES_P2P" = [
+    PARENT    = "BYTES"
+    NAME      = "MPI P2P bytes transferred"
+    DOCNAME   = "MPI Point-to-point Bytes Transferred"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_BytesP2P"
+    INFO      = "Number of bytes transferred in MPI point-to-point communication operations"
+    DESCR     = {
+        The total number of bytes that were notionally processed by
+        MPI point-to-point communication operations.
+    }
+    DIAGNOSIS = {
+        Expand the calltree to identify where the most data is transferred
+        using point-to-point communication and examine the distribution of data
+        transferred by each process.  Compare with the number of @ref(COMMS_P2P)
+        and resulting @ref(MPI_POINT2POINT).
+        </dd><p><dd>
+        Average message size can be determined by dividing by the number of MPI
+        @ref(COMMS_P2P) (for all call paths or for particular call paths or
+        communication operations).  Instead of large numbers of small
+        communications streamed to the same destination, it may be more
+        efficient to pack data into fewer larger messages (e.g., using MPI
+        datatypes).  Very large messages may require a rendezvous between
+        sender and receiver to ensure sufficient transmission and receipt
+        capacity before sending commences: try splitting large messages into
+        smaller ones that can be transferred asynchronously and overlapped with
+        computation.  (Some MPI implementations allow tuning of the rendezvous
+        threshold and/or transmission capacity, e.g., via environment
+        variables.)
+    }
+    UNIT      = "bytes"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "BYTES_SENT" = [
+    PARENT    = "BYTES_P2P"
+    NAME      = "MPI P2P bytes sent"
+    DOCNAME   = "MPI Point-to-point Bytes Sent"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_BytesSent"
+    INFO      = "Number of bytes sent in MPI point-to-point communication operations"
+    DESCR     = {
+        The number of bytes that were notionally sent using MPI
+        point-to-point communication operations.
+    }
+    DIAGNOSIS = {
+        Expand the calltree to see where the most data is sent using
+        point-to-point communication operations and examine the distribution of
+        data sent by each process.  Compare with the number of @ref(COMMS_SEND)
+        and resulting @ref(MPI_POINT2POINT).
+        </dd><p><dd>
+        If the <em>aggregate</em> @ref(BYTES_RCVD) is less than the amount
+        sent, some messages were cancelled, received into buffers which were
+        too small, or simply not received at all.  (Generally only aggregate
+        values can be compared, since sends and receives take place on
+        different callpaths and on different processes.)  Sending more data than
+        is received wastes network bandwidth.  Applications do not conform to
+        the MPI standard when they do not receive all messages that are sent,
+        and the unreceived messages degrade performance by consuming network
+        bandwidth and/or occupying message buffers.  Cancelling send operations
+        is typically expensive, since it usually generates one or more internal
+        messages.
+    }
+    UNIT      = "bytes"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "GROUP_SEND" = {
+            if (event->getBytesSent() > 0)
+            {
+                m_severity[event.get_cnode()] += event->getBytesSent();
+            }
+        }
+    ]
+]
+
+
+PATTERN "BYTES_RCVD" = [
+    PARENT    = "BYTES_P2P"
+    NAME      = "MPI P2P bytes received"
+    DOCNAME   = "MPI Point-to-point Bytes Received"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_BytesRcvd"
+    INFO      = "Number of bytes received in MPI point-to-point communication operations"
+    DESCR     = {
+        The number of bytes that were notionally received using MPI
+        point-to-point communication operations.
+    }
+    DIAGNOSIS = {
+        Expand the calltree to see where the most data is received using
+        point-to-point communication and examine the distribution of data
+        received by each process.  Compare with the number of @ref(COMMS_RECV)
+        and resulting @ref(MPI_POINT2POINT).
+        </dd><p><dd>
+        If the <em>aggregate</em> @ref(BYTES_SENT) is greater than the amount
+        received, some messages were cancelled, received into buffers which
+        were too small, or simply not received at all.  (Generally only
+        aggregate values can be compared, since sends and receives take place
+        on different callpaths and on different processes.)  Applications do
+        not conform to the MPI standard when they do not receive all messages
+        that are sent, and the unreceived messages degrade performance by
+        consuming network bandwidth and/or occupying message buffers.
+        Cancelling receive operations may be necessary where speculative
+        asynchronous receives are employed, however, managing the associated
+        requests also involves some overhead.
+    }
+    UNIT      = "bytes"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "POST_RECV" = {
+            RemoteEvent send = data->mRemote->get_event(ROLE_SEND);
+
+            if (send->getBytesSent() > 0)
+            {
+                m_severity[event.get_cnode()] += send->getBytesSent();
+            }
+        }
+    ]
+]
+
+
+PATTERN "BYTES_COLL" = [
+    PARENT    = "BYTES"
+    NAME      = "MPI Collective bytes transferred"
+    DOCNAME   = "MPI Collective Bytes Transferred"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_BytesColl"
+    INFO      = "Number of bytes transferred in MPI collective communication operations"
+    DESCR     = {
+        The total number of bytes that were notionally processed in
+        MPI collective communication operations.  This assumes that collective
+        communications are implemented naively using point-to-point
+        communications, e.g., a broadcast being implemented as sends to each
+        member of the communicator (including the root itself).  Note that
+        effective MPI implementations use optimized algorithms and/or special
+        hardware, such that the actual number of bytes transferred may be very
+        different.
+    }
+    DIAGNOSIS = {
+        Expand the calltree to see where the most data is transferred using
+        collective communication and examine the distribution of data
+        transferred by each process.  Compare with the number of
+        @ref(COMMS_COLL) and resulting @ref(MPI_COLLECTIVE).
+    }
+    UNIT      = "bytes"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "BYTES_COUT" = [
+    PARENT    = "BYTES_COLL"
+    NAME      = "MPI collective bytes outgoing"
+    DOCNAME   = "MPI Collective Bytes Outgoing"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_BytesCout"
+    INFO      = "Number of bytes outgoing in MPI collective communication operations"
+    DESCR     = {
+        The number of bytes that were notionally sent by MPI collective
+        communication operations.
+    }
+    DIAGNOSIS = {
+        Expand the calltree to see where the most data is transferred using
+        collective communication and examine the distribution of data outgoing
+        from each process.
+    }
+    UNIT      = "bytes"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_COLLECTIVE_END" = {
+            uint64_t bytesSent = event->getBytesSent();
+            if (bytesSent > 0)
+            {
+                m_severity[event.get_cnode()] += bytesSent;
+            }
+        }
+    ]
+]
+
+
+PATTERN "BYTES_CIN" = [
+    PARENT    = "BYTES_COLL"
+    NAME      = "MPI collective bytes incoming"
+    DOCNAME   = "MPI Collective Bytes Incoming"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_BytesCin"
+    INFO      = "Number of bytes incoming in MPI collective communication operations"
+    DESCR     = {
+        The number of bytes that were notionally received by MPI collective
+        communication operations.
+    }
+    DIAGNOSIS = {
+        Expand the calltree to see where the most data is transferred using
+        collective communication and examine the distribution of data incoming
+        to each process.
+    }
+    UNIT      = "bytes"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_COLLECTIVE_END" = {
+            uint64_t bytesReceived = event->getBytesReceived();
+            if (bytesReceived > 0)
+            {
+                m_severity[event.get_cnode()] += bytesReceived;
+            }
+        }
+    ]
+]
+
+
+PATTERN "BYTES_RMA" = [
+    PARENT  = "BYTES"
+    NAME    = "MPI one-sided bytes transferred"
+    DOCNAME = "MPI One-Sided Bytes Transferred"
+    TYPE    = "MPI"
+    CLASS   = "PatternMPI_BytesRMA"
+    INFO    = "Number of bytes transferred in MPI one-sided communication operations"
+    DESCR   = {
+        The number of bytes that were notionally processed in MPI one-sided
+        communication operations.
+    }
+    DIAGNOSIS = {
+        Expand the calltree to see where the most data is transferred using
+        one-sided communication and examine the distribution of data transferred
+        by each process.  Compare with the number of @ref(COMMS_RMA) and resulting
+        @ref(MPI_RMA_COMMUNICATION).
+    }
+    UNIT    = "bytes"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "BYTES_PUT" = [
+    PARENT    = "BYTES_RMA"
+    NAME      = "MPI one-sided bytes sent"
+    DOCNAME   = "MPI One-sided Bytes Sent"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_BytesPut"
+    INFO      = "Number of bytes sent in MPI one-sided communication operations"
+    DESCR     = {
+        The number of bytes that were notionally sent in MPI one-sided
+        communication operations.
+    }
+    DIAGNOSIS = {
+        Expand the calltree to see where the most data is transferred using
+        one-sided communication and examine the distribution of data sent by
+        each process.
+    }
+    UNIT      = "bytes"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_PUT_START" = {
+            m_severity[event.get_cnode()] += event->getBytesSent();
+        }
+    ]
+]
+
+
+PATTERN "BYTES_GET" = [
+    PARENT    = "BYTES_RMA"
+    NAME      = "MPI one-sided bytes received"
+    DOCNAME   = "MPI One-sided Bytes Received"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_BytesGet"
+    INFO      = "Number of bytes received in MPI one-sided communication operations"
+    DESCR     = {
+        The number of bytes that were notionally received in MPI one-sided
+        communication operations.
+    }
+    DIAGNOSIS = {
+        Expand the calltree to see where the most data is transferred using
+        one-sided communication and examine the distribution of data received by
+        each process.
+    }
+    UNIT      = "bytes"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_GET_START" = {
+            m_severity[event.get_cnode()] += event->getBytesReceived();
+        }
+    ]
+]

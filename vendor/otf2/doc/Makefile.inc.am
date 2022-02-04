@@ -1,0 +1,260 @@
+## -*- mode: makefile -*-
+
+##
+## This file is part of the Score-P software (http://www.score-p.org)
+##
+## Copyright (c) 2009-2011,
+## RWTH Aachen University, Germany
+##
+## Copyright (c) 2009-2011,
+## Gesellschaft fuer numerische Simulation mbH Braunschweig, Germany
+##
+## Copyright (c) 2009-2011, 2019-2020,
+## Technische Universitaet Dresden, Germany
+##
+## Copyright (c) 2009-2011,
+## University of Oregon, Eugene, USA
+##
+## Copyright (c) 2009-2011, 2015,
+## Forschungszentrum Juelich GmbH, Germany
+##
+## Copyright (c) 2009-2011,
+## German Research School for Simulation Sciences GmbH, Juelich/Aachen, Germany
+##
+## Copyright (c) 2009-2011,
+## Technische Universitaet Muenchen, Germany
+##
+## This software may be modified and distributed under the terms of
+## a BSD-style license.  See the COPYING file in the package base
+## directory for details.
+##
+
+## file doc/doxygen-user/Makefile.inc.am
+
+
+###############################################################################
+## doxygen related targets
+##
+
+## In the following conditional we must distinguish if we are in "developer
+## mode", i.e. if we are working on a svn working copy, or if we are in "user
+## mode", i.e. we are working on a tarball.
+##
+## In developer mode we can create doxygen and pdf user documentation (make
+## doxygen-user) that will be (automatically) included in the distribution at
+## make dist. When creating a distribution, the developer should make sure
+## that she has doxygen and related tools e.g. pdflatex in PATH in order to
+## generate a complete documentation, see also
+## build-config/common/m4/ac_scorep_doxygen.m4.
+##
+## make install is ignorant of documentation issues in developer mode.
+##
+## The user gets ready to install documentation in the tarball, i.e. there is no
+## need to run doxygen and pdflatex in user mode. In user mode the provided
+## documentation is just copied to a subdirectory of $prefix.
+
+DOC_SRC_DIR = $(srcdir)/doc
+
+doxygen-uninstall:
+	$(AM_V_at)rm -rf $(DESTDIR)$(docdir)
+
+if GIT_CONTROLLED #-----------------------------------------------------------
+
+USER_DOC_DIR = $(top_distdir)$(ac_scorep_doxygen_distdir)/doc
+
+doxygen-user-install:
+
+DIST_HOOK += doxygen-user-pdf doxygen-user-html-compress copy-revision-file-to-dist sphinx-user-generate
+
+update-revision:
+	@$(am__tty_colors); \
+	if $(AM_V_P); then echo "cd $(srcdir) && git describe --long --always --dirty | $(SED) 's/.*-g//' > 'build-config/REVISION'"; \
+	else               echo "  GEN      $${mgn}$(srcdir)/build-config/REVISION$$std"; fi; \
+	cd $(srcdir) && git describe --long --always --dirty | $(SED) 's/.*-g//' > "build-config/REVISION"
+
+copy-revision-file-to-dist:
+	$(AM_V_at)$(MKDIR_P) "$(distdir)/build-config/"
+	$(AM_V_at)cp -p "$(srcdir)/build-config/REVISION" "$(distdir)/build-config/"
+	$(AM_V_at)case `cat "$(distdir)/build-config/REVISION"` in *-dirty)                  \
+            echo >&2 "WARNING: distribution does not match a single, unmodified revision.";; \
+        esac
+
+doxygen-user-html-compress:
+	$(AM_V_at)if test -d "$(USER_DOC_DIR)/html"; then                     \
+	    cd "$(USER_DOC_DIR)"; tar czf html.tar.gz html; rm -rf html/;     \
+	fi
+
+doxygen-project-number: update-revision
+	$(AM_V_at)echo "PROJECT_NUMBER = \"@PACKAGE_VERSION@ (revision `cat $(srcdir)/build-config/REVISION`)\"" > doc/doxygen-project-number.cfg
+
+CLEANFILES += doc/doxygen-project-number.cfg
+
+CLEAN_LOCAL += doxygen-user-clean
+doxygen-user-clean:
+	$(AM_V_at)rm -rf $(USER_DOC_DIR)/*
+
+
+if HAVE_DOXYGEN #-----------------------------------------------------
+
+DIST_HOOK += doc/doxygen-user/main.dox
+
+OTF2_V_DOXYGEN = $(otf2__v_DOXYGEN_@AM_V@)
+otf2__v_DOXYGEN_ = $(otf2__v_DOXYGEN_@AM_DEFAULT_V@)
+otf2__v_DOXYGEN_0 = @$(am__tty_colors); echo "  DOXYGEN  $${blu}$@$$std";
+otf2__v_DOXYGEN_1 = 
+
+OTF2_V_DEVNULL = $(otf2__v_DEVNULL_@AM_V@)
+otf2__v_DEVNULL_ = $(otf2__v_DEVNULL_@AM_DEFAULT_V@)
+otf2__v_DEVNULL_0 = >/dev/null
+otf2__v_DEVNULL_1 = 
+
+doxygen-user: doxygen-project-number doc/doxygen-user/main.dox doc/doxygen-user.cfg
+	$(AM_V_at)$(MKDIR_P) "$(USER_DOC_DIR)/tags"
+	$(AM_V_at)echo "OUTPUT_DIRECTORY = $(USER_DOC_DIR)" > doc/doxygen-user-at-make-time.cfg
+	$(AM_V_at)echo "GENERATE_TAGFILE = $(USER_DOC_DIR)/tags/@PACKAGE@.tag" >> doc/doxygen-user-at-make-time.cfg
+	$(AM_V_at)cat doc/doxygen-user.cfg doc/doxygen-project-number.cfg doc/doxygen-user-at-make-time.cfg > doc/doxygen-user-html.cfg
+	$(AM_V_at)if $(AM_V_P); then echo "QUIET = NO"; \
+	          else               echo "QUIET = YES"; fi >>doc/doxygen-user-html.cfg
+	$(AM_V_at)$(MKDIR_P) "$(USER_DOC_DIR)/html"
+	$(AM_V_at)cp $(abs_srcdir)/doc/images/* $(USER_DOC_DIR)/html
+	$(OTF2_V_DOXYGEN)$(DOXYGEN) doc/doxygen-user-html.cfg
+
+doxygen-dev: doxygen-project-number doc/doxygen-user/main.dox doc/doxygen-user.cfg
+	$(AM_V_at)$(MKDIR_P) "$(USER_DOC_DIR)/tags"
+	$(AM_V_at)( \
+		echo "OUTPUT_DIRECTORY = $(USER_DOC_DIR)"; \
+		echo "GENERATE_TAGFILE = $(USER_DOC_DIR)/tags/@PACKAGE@.tag"; \
+		echo "INTERNAL_DOCS = YES"; \
+		echo "INPUT += @abs_top_srcdir@/src"; \
+	) > doc/doxygen-user-at-make-time.cfg
+	$(AM_V_at)cat doc/doxygen-user.cfg doc/doxygen-project-number.cfg doc/doxygen-user-at-make-time.cfg > doc/doxygen-user-html.cfg
+	$(AM_V_at)if $(AM_V_P); then echo "QUIET = NO"; \
+	          else               echo "QUIET = YES"; fi >>doc/doxygen-user-html.cfg
+	$(AM_V_at)$(MKDIR_P) "$(USER_DOC_DIR)/html"
+	$(AM_V_at)cp $(abs_srcdir)/doc/images/* $(USER_DOC_DIR)/html
+	$(OTF2_V_DOXYGEN)$(DOXYGEN) doc/doxygen-user-html.cfg
+
+CLEANFILES += doc/doxygen-user-html.cfg doc/doxygen-user-at-make-time.cfg doxygen.err
+
+else # i.e. ! HAVE_DOXYGEN -------------------------------------------
+
+doxygen-user:
+	@echo "WARNING: doxygen not available. Cannot generate documentation." >&2
+
+doxygen-dev:
+	@echo "WARNING: doxygen not available. Cannot generate documentation." >&2
+
+endif # HAVE_DOXYGEN -------------------------------------------------
+
+if HAVE_DOXYGEN_LATEX #-----------------------------------------------
+
+OTF2_V_pdflatex    = $(otf2__v_pdflatex_@AM_V@)
+otf2__v_pdflatex_  = $(otf2__v_pdflatex_@AM_DEFAULT_V@)
+otf2__v_pdflatex_0 = -interaction batchmode
+otf2__v_pdflatex_1 = -interaction nonstopmode
+
+doxygen-user-pdf: doxygen-user
+	$(AM_V_at)cat doc/doxygen-user-html.cfg > doc/doxygen-user-pdf.cfg
+	$(AM_V_at)echo "ENABLED_SECTIONS = LATEX" >> doc/doxygen-user-pdf.cfg
+	$(AM_V_at)echo "GENERATE_HTML    = NO"    >> doc/doxygen-user-pdf.cfg
+	$(AM_V_at)echo "FILE_PATTERNS    = *.dox" >> doc/doxygen-user-pdf.cfg
+	$(AM_V_at)cp $(DOC_SRC_DIR)/license.tex $(USER_DOC_DIR)/pdf/
+	$(AM_V_at)-cp $(DOC_SRC_DIR)/images/project_logo.pdf $(USER_DOC_DIR)/pdf/
+	$(AM_V_at)echo "LATEX_CMD_NAME = \"pdflatex -file-line-error $(OTF2_V_pdflatex)\"" >>doc/doxygen-user-pdf.cfg
+	$(AM_V_at)if $(AM_V_P); then echo "QUIET = NO"; \
+	          else               echo "QUIET = YES"; \
+	                             echo "MAKEINDEX_CMD_NAME = \"makeindex -q\""; \
+	          fi >>doc/doxygen-user-pdf.cfg
+	$(OTF2_V_DOXYGEN)$(DOXYGEN) doc/doxygen-user-pdf.cfg
+	$(AM_V_at)cd "$(USER_DOC_DIR)/pdf" && \
+	make $(OTF2_V_DEVNULL) &&   \
+	mv refman.pdf ../ &&        \
+	rm -f * &&                  \
+	mv ../refman.pdf @PACKAGE@.pdf
+
+else # i.e. ! HAVE_DOXYGEN_LATEX -------------------------------------
+
+doxygen-user-pdf: doxygen-user
+	$(AM_V_at)echo "WARNING: pdflatex not available. Cannot generate doxygen pdf documentation." >&2
+	$(AM_V_at)if test -d "$(USER_DOC_DIR)/pdf"; then rm -rf "$(USER_DOC_DIR)/pdf"; fi
+
+endif # HAVE_DOXYGEN_LATEX -------------------------------------------
+
+sphinx-user-install:
+
+if HAVE_PYTHON_SPHINX
+
+sphinx-user-generate: sphinx-user sphinx-user-html-compress
+
+sphinx-project-number: update-revision
+	$(AM_V_at)echo "version = \"@PACKAGE_VERSION@\"" > doc/sphinx_project_number.py
+	$(AM_V_at)echo "release = \"@PACKAGE_VERSION@ (revision `cat $(srcdir)/build-config/REVISION`)\"" >> doc/sphinx_project_number.py
+
+CLEANFILES += doc/sphinx_project_number.py
+
+sphinx-user: sphinx-project-number
+	$(AM_V_at)if test -f "build-backend/python_bindings_supported" || test -f "build-frontend/python_bindings_supported"; then \
+	  OTF2_PYTHON_SPHINX_GENERATOR_RUN=yes PYTHONPATH="$$PYTHONPATH:$(abs_srcdir)/src/python:$$PWD/doc" \
+	  make -C $(DOC_SRC_DIR)/python SPHINXBUILD=$(SPHINX) SPHINX_V=@AM_V@ SPHINX_DEFAULT_V=@AM_DEFAULT_V@ BUILDDIR=$$PWD/$(USER_DOC_DIR)/python html; \
+	else \
+	  echo "WARNING: python bindings not available, cannot build otf2 python bindings documentation" >&2; \
+	fi
+
+sphinx-user-html-compress:
+	$(AM_V_at)if test -d "$(USER_DOC_DIR)/python"; then                     \
+	    cd "$(USER_DOC_DIR)"; tar czf python.tar.gz python; rm -rf python/;	\
+	fi
+
+else # i.e. ! HAVE_PYTHON_SPHINX
+
+sphinx-user-generate:
+	 echo "WARNING: sphinx-build not available. Cannot generate python documentation." >&2
+
+endif # HAVE_PYTHON_SPHINX -------------------------------------------
+
+else # i.e. ! GIT_CONTROLLED -----------------------------------------
+
+doxygen-user-pdf:
+
+doxygen-user-install: sphinx-user-install
+	$(AM_V_at)if test -f "$(DOC_SRC_DIR)/html.tar.gz"; then                         \
+            $(MKDIR_P) $(DESTDIR)$(docdir);                                             \
+            $(INSTALL_DATA) $(DOC_SRC_DIR)/html.tar.gz $(DESTDIR)$(docdir)/html.tar.gz; \
+            cd $(DESTDIR)$(docdir);                                                     \
+            tar xzf html.tar.gz;                                                        \
+            rm -f html.tar.gz;                                                          \
+        fi
+	$(AM_V_at)if test -d "$(DOC_SRC_DIR)"; then                                         \
+            cd $(DOC_SRC_DIR);                                                              \
+            dirs="pdf tags";                                                                \
+            cd -;                                                                           \
+            for i in $$dirs; do                                                             \
+                if test -d "$(DOC_SRC_DIR)/$$i"; then                                       \
+                    $(MKDIR_P) $(DESTDIR)$(docdir)/$$i;                                     \
+                    cd $(DOC_SRC_DIR)/$$i;                                                  \
+                    files=`find . -type f`;                                                 \
+                    cd -;                                                                   \
+                    for j in $$files; do                                                    \
+                        $(INSTALL_DATA) $(DOC_SRC_DIR)/$$i/$$j $(DESTDIR)$(docdir)/$$i/$$j; \
+                    done;                                                                   \
+                fi;                                                                         \
+            done;                                                                           \
+        fi
+
+copy-revision-file-to-dist:
+
+sphinx-user-generate:
+
+sphinx-user-install:
+	$(AM_V_at)if test -f "$(DOC_SRC_DIR)/python.tar.gz"; then                           \
+            $(MKDIR_P) $(DESTDIR)$(docdir);                                                 \
+            $(INSTALL_DATA) $(DOC_SRC_DIR)/python.tar.gz $(DESTDIR)$(docdir)/python.tar.gz; \
+            cd $(DESTDIR)$(docdir);                                                         \
+            tar xzf python.tar.gz;                                                          \
+            rm -f python.tar.gz;                                                            \
+        fi
+
+endif # GIT_CONTROLLED
+                                                                             ##
+                                                                             ##
+###############################################################################

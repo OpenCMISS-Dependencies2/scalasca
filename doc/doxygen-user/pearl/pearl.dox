@@ -1,0 +1,69 @@
+/****************************************************************************
+**  SCALASCA    http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 1998-2017                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  Copyright (c) 2009-2013                                                **
+**  German Research School for Simulation Sciences GmbH,                   **
+**  Laboratory for Parallel Programming                                    **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+// --- Library description --------------------------------------------------
+
+/**
+@if INTERNAL
+    @mainpage PEARL Developer Documentation
+@else
+    @mainpage PEARL API Documentation
+@endif
+
+The Parallel %Event Analysis and Replay Library PEARL provides a set of
+parallel abstractions to access trace data from tracing experiments.  It also
+provides the functionality to transfer event data between different processes.
+The PEARL library consists of the following modules:
+
+- @ref PEARL_utils
+- @ref PEARL_base
+- @ref PEARL_mpi
+- @ref PEARL_replay
+- @ref PEARL_writer
+@if INTERNAL
+- @ref PEARL_ipc
+- @ref PEARL_thread
+@endif
+
+The entire functionality is encapsulated in the namespace @ref pearl.
+*/
+
+
+// --- Namespace description ------------------------------------------------
+
+/**
+@namespace pearl
+@brief     Namespace of the PEARL library.
+
+The namespace pearl encapsulates all classes, functions, and identifiers that
+are related to the Parallel %Event Analysis and Replay Library PEARL.
+*/
+
+
+/**
+@namespace pearl::detail
+@brief     Internal namespace of the PEARL library.
+
+The namespace pearl::detail encapsulates all classes, functions, and
+identifiers which are internal to the Parallel %Event Analysis and Replay
+Library PEARL.  Members of this namespace shall only be used to implement
+other functionality of the PEARL library, and therefore must never be called
+directly by end users.
+@if INTERNAL
+The sole purpose of providing internal functionality in a publicly accessible,
+non-anonymous namespace is to allow for proper unit testing.
+@endif
+*/

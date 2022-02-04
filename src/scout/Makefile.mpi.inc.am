@@ -1,0 +1,227 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+SCOUT_SRC = $(SRC_ROOT)src/scout
+
+
+##--- Programs --------------------------------------------------------------
+
+## SCOUT (MPI variant)
+bin_PROGRAMS += \
+    scout.mpi
+scout_mpi_SOURCES = \
+    $(SCOUT_SRC)/AmLockContention.h \
+    $(SCOUT_SRC)/AmLockContention.cpp \
+    $(SCOUT_SRC)/AmSeverityExchange.h \
+    $(SCOUT_SRC)/AmSeverityExchange.cpp \
+    $(SCOUT_SRC)/AmWaitForProgressCache.h \
+    $(SCOUT_SRC)/AmWaitForProgressCache.cpp \
+    $(SCOUT_SRC)/AmWaitForProgressRequest.h \
+    $(SCOUT_SRC)/AmWaitForProgressRequest.cpp \
+    $(SCOUT_SRC)/AmWaitForProgressResponse.h \
+    $(SCOUT_SRC)/AmWaitForProgressResponse.cpp \
+    $(SCOUT_SRC)/AmSyncpointExchange.h \
+    $(SCOUT_SRC)/AmSyncpointExchange.cpp \
+    $(SCOUT_SRC)/AnalyzeTask.h \
+    $(SCOUT_SRC)/AnalyzeTask.cpp \
+    $(SCOUT_SRC)/CbData.h \
+    $(SCOUT_SRC)/CbData.cpp \
+    $(SCOUT_SRC)/CheckedTask.h \
+    $(SCOUT_SRC)/CheckedTask.cpp \
+    $(SCOUT_SRC)/Logging.h \
+    $(SCOUT_SRC)/Logging.cpp \
+    $(SCOUT_SRC)/LockEpochQueue.h \
+    $(SCOUT_SRC)/MpiCommunicationHandler.h \
+    $(SCOUT_SRC)/MpiCommunicationHandler.cpp \
+    $(SCOUT_SRC)/MpiDatatypes.h \
+    $(SCOUT_SRC)/MpiDatatypes.cpp \
+    $(SCOUT_SRC)/MpiDelayOps.h \
+    $(SCOUT_SRC)/MpiDelayOps.cpp \
+    $(SCOUT_SRC)/MpiOperators.h \
+    $(SCOUT_SRC)/MpiOperators.cpp \
+    $(SCOUT_SRC)/MpiPattern.h \
+    $(SCOUT_SRC)/MpiPattern.cpp \
+    $(SCOUT_SRC)/Pattern.h \
+    $(SCOUT_SRC)/Pattern.cpp \
+    $(SCOUT_SRC)/Patterns_gen.h \
+    $(SCOUT_SRC)/Patterns_gen.cpp \
+    $(SCOUT_SRC)/Predicates.h \
+    $(SCOUT_SRC)/PreprocessTask.h \
+    $(SCOUT_SRC)/PreprocessTask.cpp \
+    $(SCOUT_SRC)/ReadDefinitionsTask.h \
+    $(SCOUT_SRC)/ReadDefinitionsTask.cpp \
+    $(SCOUT_SRC)/ReadTraceTask.h \
+    $(SCOUT_SRC)/ReadTraceTask.cpp \
+    $(SCOUT_SRC)/ReportData.h \
+    $(SCOUT_SRC)/ReportData.cpp \
+    $(SCOUT_SRC)/ReportWriterTask.h \
+    $(SCOUT_SRC)/ReportWriterTask.cpp \
+    $(SCOUT_SRC)/Roles.h \
+    $(SCOUT_SRC)/StatisticsTask.h \
+    $(SCOUT_SRC)/StatisticsTask.cpp \
+    $(SCOUT_SRC)/SynchpointHandler.h \
+    $(SCOUT_SRC)/SynchpointHandler.cpp \
+    $(SCOUT_SRC)/SynchronizeTask.h \
+    $(SCOUT_SRC)/SynchronizeTask.cpp \
+    $(SCOUT_SRC)/ThreadCountedLock.h \
+    $(SCOUT_SRC)/Timer.h \
+    $(SCOUT_SRC)/Timer.cpp \
+    $(SCOUT_SRC)/TmapCacheHandler.h \
+    $(SCOUT_SRC)/TmapCacheHandler.cpp \
+    $(SCOUT_SRC)/scout.cpp \
+    $(SCOUT_SRC)/scout_types.h \
+    $(SCOUT_SRC)/user_events.h
+scout_mpi_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -D_MPI \
+    -DPKGDATADIR=\"$(pkgdatadir)\" \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(CLC_INC) \
+    -I$(INC_ROOT)src/epik \
+    $(CUBE_WRITER_CPPFLAGS)
+scout_mpi_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(NOWARN_OMP_PRAGMAS_CXXFLAGS)
+scout_mpi_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS) \
+    $(CUBE_WRITER_LDFLAGS)
+scout_mpi_LDADD = \
+    $(LIB_DIR_BACKEND)/libscout.common.la \
+    libclc.mpi.la \
+    libpearl.mpi.la \
+    $(CUBE_WRITER_LIBS) \
+    $(LIB_DIR_BACKEND)/libpearl.replay.la \
+    $(LIB_DIR_BACKEND)/libpearl.base.la \
+    libpearl.ipc.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.thread.ser.la
+
+# Explicitly add internal CUBE writer library as automake will not
+# generate a dependency for it automatically (due to using AC_SUBST)
+if !HAVE_EXTERNAL_CUBE_WRITER
+scout_mpi_LDADD += ../vendor/cubew/build-backend/libcube4w.la
+endif
+
+
+if OPENMP_SUPPORTED
+
+## SCOUT (hybrid variant)
+bin_PROGRAMS += \
+    scout.hyb
+scout_hyb_SOURCES = \
+    $(SCOUT_SRC)/AmLockContention.h \
+    $(SCOUT_SRC)/AmLockContention.cpp \
+    $(SCOUT_SRC)/AmSeverityExchange.h \
+    $(SCOUT_SRC)/AmSeverityExchange.cpp \
+    $(SCOUT_SRC)/AmWaitForProgressCache.h \
+    $(SCOUT_SRC)/AmWaitForProgressCache.cpp \
+    $(SCOUT_SRC)/AmWaitForProgressRequest.h \
+    $(SCOUT_SRC)/AmWaitForProgressRequest.cpp \
+    $(SCOUT_SRC)/AmWaitForProgressResponse.h \
+    $(SCOUT_SRC)/AmWaitForProgressResponse.cpp \
+    $(SCOUT_SRC)/AmSyncpointExchange.h \
+    $(SCOUT_SRC)/AmSyncpointExchange.cpp \
+    $(SCOUT_SRC)/AnalyzeTask.h \
+    $(SCOUT_SRC)/AnalyzeTask.cpp \
+    $(SCOUT_SRC)/CbData.h \
+    $(SCOUT_SRC)/CbData.cpp \
+    $(SCOUT_SRC)/CheckedTask.h \
+    $(SCOUT_SRC)/CheckedTask.cpp \
+    $(SCOUT_SRC)/LockTracking.h \
+    $(SCOUT_SRC)/LockTracking.cpp \
+    $(SCOUT_SRC)/Logging.h \
+    $(SCOUT_SRC)/Logging.cpp \
+    $(SCOUT_SRC)/LockEpochQueue.h \
+    $(SCOUT_SRC)/MpiCommunicationHandler.h \
+    $(SCOUT_SRC)/MpiCommunicationHandler.cpp \
+    $(SCOUT_SRC)/MpiDatatypes.h \
+    $(SCOUT_SRC)/MpiDatatypes.cpp \
+    $(SCOUT_SRC)/MpiDelayOps.h \
+    $(SCOUT_SRC)/MpiDelayOps.cpp \
+    $(SCOUT_SRC)/MpiOperators.h \
+    $(SCOUT_SRC)/MpiOperators.cpp \
+    $(SCOUT_SRC)/MpiPattern.h \
+    $(SCOUT_SRC)/MpiPattern.cpp \
+    $(SCOUT_SRC)/OmpDelayOps.h \
+    $(SCOUT_SRC)/OmpDelayOps.cpp \
+    $(SCOUT_SRC)/OmpEventHandler.h \
+    $(SCOUT_SRC)/OmpEventHandler.cpp \
+    $(SCOUT_SRC)/Pattern.h \
+    $(SCOUT_SRC)/Pattern.cpp \
+    $(SCOUT_SRC)/Patterns_gen.h \
+    $(SCOUT_SRC)/Patterns_gen.cpp \
+    $(SCOUT_SRC)/Predicates.h \
+    $(SCOUT_SRC)/PreprocessTask.h \
+    $(SCOUT_SRC)/PreprocessTask.cpp \
+    $(SCOUT_SRC)/ReadDefinitionsTask.h \
+    $(SCOUT_SRC)/ReadDefinitionsTask.cpp \
+    $(SCOUT_SRC)/ReadTraceTask.h \
+    $(SCOUT_SRC)/ReadTraceTask.cpp \
+    $(SCOUT_SRC)/ReportData.h \
+    $(SCOUT_SRC)/ReportData.cpp \
+    $(SCOUT_SRC)/ReportWriterTask.h \
+    $(SCOUT_SRC)/ReportWriterTask.cpp \
+    $(SCOUT_SRC)/Roles.h \
+    $(SCOUT_SRC)/StatisticsTask.h \
+    $(SCOUT_SRC)/StatisticsTask.cpp \
+    $(SCOUT_SRC)/SynchpointHandler.h \
+    $(SCOUT_SRC)/SynchpointHandler.cpp \
+    $(SCOUT_SRC)/SynchronizeTask.h \
+    $(SCOUT_SRC)/SynchronizeTask.cpp \
+    $(SCOUT_SRC)/ThreadCountedLock.h \
+    $(SCOUT_SRC)/Timer.h \
+    $(SCOUT_SRC)/Timer.cpp \
+    $(SCOUT_SRC)/TmapCacheHandler.h \
+    $(SCOUT_SRC)/TmapCacheHandler.cpp \
+    $(SCOUT_SRC)/scout.cpp \
+    $(SCOUT_SRC)/scout_types.h \
+    $(SCOUT_SRC)/user_events.h
+scout_hyb_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -D_MPI \
+    -DPKGDATADIR=\"$(pkgdatadir)\" \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(CLC_INC) \
+    -I$(INC_ROOT)src/epik \
+    $(CUBE_WRITER_CPPFLAGS)
+scout_hyb_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(OPENMP_CXXFLAGS)
+scout_hyb_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS) \
+    $(CUBE_WRITER_LDFLAGS)
+scout_hyb_LDADD = \
+    $(LIB_DIR_BACKEND)/libscout.common.la \
+    libclc.hyb.la \
+    libpearl.mpi.la \
+    $(CUBE_WRITER_LIBS) \
+    $(LIB_DIR_BACKEND)/libpearl.replay.la \
+    $(LIB_DIR_BACKEND)/libpearl.base.la \
+    libpearl.ipc.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.thread.omp.la
+
+# Explicitly add internal CUBE writer library as automake will not
+# generate a dependency for it automatically (due to using AC_SUBST)
+if !HAVE_EXTERNAL_CUBE_WRITER
+scout_hyb_LDADD += ../vendor/cubew/build-backend/libcube4w.la
+endif
+
+endif OPENMP_SUPPORTED

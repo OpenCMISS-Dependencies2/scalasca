@@ -1,0 +1,257 @@
+# Doxyfile 1.8.10
+#
+# This file describes the settings to be used by the documentation system
+# doxygen (www.doxygen.org) for the Scalasca User Guide.
+
+
+#--- Include common configuration -------------------------------------------
+
+@INCLUDE = \
+    @abs_top_builddir@/doc/doxygen-common/doxygen-common.cfg
+@INCLUDE = \
+    @abs_top_builddir@/doc/doxygen-user-at-make-time.cfg
+
+
+#--- Project settings -------------------------------------------------------
+
+PROJECT_NAME  = "Cube Writer Library Development Guide"
+PROJECT_BRIEF = "Intoduction in Cube writer library development guide"
+
+
+#--- Input settings ---------------------------------------------------------
+
+INPUT          += \
+    @abs_top_srcdir@/doc/doxygen-user/tools/mainpage.dox \
+    @abs_top_srcdir@/doc/doxygen-user/tools/makefile-examples.dox \
+    @abs_top_srcdir@/doc/doxygen-user/tools/cubew-examples.dox 
+# NOTE:
+#   Since we are using a custom footer, bibTeX files also neeed to be added
+#   to LATEX_EXTRA_FILES below!
+#CITE_BIB_FILES  = \
+#    @abs_top_srcdir@/doc/doxygen-user/tools/references.bib
+#EXAMPLE_PATH    = \
+#    @abs_top_srcdir@/doc/doxygen-user/tools/logs
+#IMAGE_PATH      = \
+#    @abs_top_srcdir@/doc/doxygen-user/tools/images
+
+EXTRACT_PRIVATE       = NO
+EXTRACT_STATIC        = NO
+EXTRACT_LOCAL_CLASSES = NO
+EXTRACT_ANON_NSPACES  = NO
+GENERATE_BUGLIST      = NO
+GENERATE_TESTLIST     = NO
+GENERATE_TODOLIST     = NO
+HIDE_FRIEND_COMPOUNDS = YES
+INLINE_INFO           = NO
+INTERNAL_DOCS         = YES
+SHOW_USED_FILES       = NO
+
+#--- Output settings --------------------------------------------------------
+
+STRIP_FROM_INC_PATH = 
+STRIP_FROM_PATH     = 
+
+
+#--- HTML settings ----------------------------------------------------------
+
+HTML_FOOTER  = \
+    @abs_top_srcdir@/doc/doxygen-common/footer.html
+HTML_OUTPUT  = tools/html
+SEARCHENGINE = NO
+
+
+#--- PDF settings -----------------------------------------------------------
+
+GENERATE_LATEX     = @have_doxygen_latex@
+LATEX_OUTPUT       = tools/latex
+LATEX_HEADER       = \
+    @abs_top_srcdir@/doc/doxygen-common/header.tex
+LATEX_FOOTER       = \
+    @abs_top_srcdir@/doc/doxygen-user/tools/footer.tex
+LATEX_EXTRA_FILES  = \
+    @abs_top_builddir@/doc/doxygen-common/config.tex \
+    @abs_top_srcdir@/doc/doxygen-common/backcover.pdf \
+    @abs_top_srcdir@/doc/doxygen-common/scalasca.sty \
+    @abs_top_srcdir@/doc/doxygen-user/tools/title.tex 
+LAYOUT_FILE        = \
+    @abs_top_srcdir@/doc/doxygen-user/tools/doxygen-layout.xml
+COMPACT_LATEX      = NO
+PDF_HYPERLINKS     = NO
+USE_PDFLATEX       = YES
+LATEX_HIDE_INDICES = YES
+
+
+#--- Custom commands --------------------------------------------------------
+
+# Include aliases for Score-P/Cube versions used for the "Getting started"
+# example.
+#
+#@INCLUDE = 
+
+# figure{<file>, <label>, <caption>, <size>}
+#
+# Generates a figure using <file> with the given <caption> and a <size> hint
+# (for LaTeX output only). <label> can be used to reference the figure via
+# the '@ref' command.
+#
+ALIASES += \
+    figure{4}="\
+        @latexonly \
+          \begingroup \
+            \renewcommand{\label}[1]{\gdef\DoxyImageLabel{#1}} \
+        @endlatexonly \
+        @anchor \2 \
+        @latexonly \
+          \endgroup \
+        @endlatexonly \
+        @image html \1 \"\\"\2\\": \3\" \
+        @image latex \1 \"\3\" \4"
+
+# seclist
+#
+# Starts a list of subsections (i.e., subpages) of the current page. Items
+# have to be listed using @secitem, the list itself is ended by @endseclist.
+#
+# HTML only, no effect for LaTeX.
+#
+ALIASES += \
+    seclist="\
+        @latexonly \
+          \begin{comment} \
+        @endlatexonly \
+        <hr> \
+        @htmlonly \
+          <b>Subsections:</b> \
+          <ul style=\"margin-top: 0\"> \
+        @endhtmlonly"
+
+# endseclist
+#
+# Ends a list of subsections (i.e., subpages), started by the @seclist command.
+#
+# HTML only, no effect for LaTeX.
+#
+ALIASES += \
+    endseclist="\
+        @htmlonly \
+          </ul> \
+        @endhtmlonly \
+        @latexonly \
+          \end{comment}\n \
+        @endlatexonly"
+
+# secitem{<label>}
+#
+# Adds a new subsection (i.e., subpage) to a section list. It has to appear
+# in a sectioning list started by @seclist and ended by @endseclist.
+#
+# HTML only, no effect for LaTeX.
+#
+ALIASES += \
+    secitem{1}="\
+        @htmlonly \
+          <li> \
+        @endhtmlonly \
+        @subpage \1 \
+        @htmlonly \
+          </li> \
+        @endhtmlonly"
+
+# navigation_prev{<label>}
+#
+# Generates a navigation footer with a link to a previous page identified by
+# <label>.
+#
+# HTML only, no effect for LaTeX.
+#
+ALIASES += \
+    navigation_prev{1}="\
+        @latexonly \
+          \begin{comment}\n \
+        @endlatexonly \
+        @htmlonly \
+            </div> \
+          </div> \
+          <hr style=\"margin-top: 20px; border-top: 1px solid #004a6e;\"> \
+          <div class=\"pagenav\"> \
+            <span style=\"text-align:left;\"> &lt; \
+        @endhtmlonly \
+        @ref \1 \
+        @htmlonly \
+            </span> \
+          </div> \
+          <div> \
+            <div> \
+        @endhtmlonly \
+        @latexonly \
+          \end{comment}\n \
+        @endlatexonly"
+
+# navigation_next{<label>}
+#
+# Generates a navigation footer with a link to a following page identified by
+# <label>.
+#
+# HTML only, no effect for LaTeX.
+#
+ALIASES += \
+    navigation_next{1}="\
+        @latexonly \
+          \begin{comment}\n \
+        @endlatexonly \
+        @htmlonly \
+            </div> \
+          </div> \
+          <hr style=\"margin-top: 20px; border-top: 1px solid #004a6e;\"> \
+          <div class=\"pagenav\"> \
+            <span style=\"float:right;\"> \
+        @endhtmlonly \
+        @ref \1 \
+        @htmlonly \
+            &gt;</span> \
+          </div> \
+          <br/> \
+          <div> \
+            <div> \
+        @endhtmlonly \
+        @latexonly \
+          \end{comment}\n \
+        @endlatexonly"
+
+# navigation_both{<label_prev>, <label_next>}
+#
+# Generates a navigation footer with a link to a previous page identified by
+# <label_prev> as well as a following page identified by <label_next>.
+#
+# HTML only, no effect for LaTeX.
+#
+ALIASES += \
+    navigation_both{2}="\
+        @latexonly \
+          \begin{comment}\n \
+        @endlatexonly \
+        @htmlonly \
+            </div> \
+          </div> \
+          <hr style=\"margin-top: 20px; border-top: 1px solid #004a6e;\"> \
+          <div class=\"pagenav\"> \
+            <span style=\"text-align:left;\"> &lt; \
+        @endhtmlonly \
+        @ref \1 \
+        @htmlonly \
+            </span> \
+            <span style=\"float:right;\"> \
+        @endhtmlonly \
+        @ref \2 \
+        @htmlonly \
+            &gt;</span> \
+          </div> \
+          <div> \
+            <div> \
+        @endhtmlonly \
+        @latexonly \
+          \end{comment}\n \
+        @endlatexonly"
+
+        
+        

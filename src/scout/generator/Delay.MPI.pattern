@@ -1,0 +1,2591 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2014                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+PROLOG {
+    // #define DELAYDEBUG
+
+    #include <pearl/Buffer.h>
+    #include <pearl/GlobalDefs.h>
+    #include <pearl/Location.h>
+
+    #include "DelayCostMap.h"
+    #include "DelayOps.h"
+    #include "user_events.h"
+
+    #ifdef _MPI
+        #include <pearl/LocalData.h>
+        #include <pearl/RemoteData.h>
+
+        #include "MpiDelayOps.h"
+    #endif    // _MPI
+    #ifdef DELAYDEBUG
+        #include <fstream>
+        #include <sstream>
+    #endif    // DELAYDEBUG
+
+
+    extern bool enableDelayAnalysis;
+}
+
+PATTERN "DELAY" = [
+    NAME      = "Delay Costs"
+    CLASS     = "PatternDelay"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Costs and location of delays causing wait states"
+    DESCR     = {
+        This metric highlights the root causes of wait states.  Root causes of
+        wait states are regions of excess execution time &mdash; delays &mdash;
+        that cause wait states at subsequent synchronization points.  Whereas
+        wait states represent the time spent idling at a synchronization point
+        while waiting for the communication partner(s) to enter the communication
+        operation, delays show which call paths caused the latecomer at a
+        synchronization point to be late.  The delay <i>costs</i> indicate the
+        total amount of waiting time caused by a delay, including indirect
+        effects of wait-states spreading along the communication chain.
+    }
+    DIAGNOSIS = {
+        Call paths and process/threads with high delay costs pinpoint the
+        location of delays.  In general, shift work/communication load from
+        processes/threads with high delay costs to processes/threads with large
+        waiting times.
+        <p>
+        Delays fall into three main categories:
+        <ol>
+            <li>
+                Computational imbalance
+                <br>
+                Delays within computational regions, in call paths that are also
+                present on processes/threads that exhibit wait states, indicates
+                a computational imbalance.  Improve the work load balance by
+                shifting workload within these call paths from processes/threads
+                that are delayed to processes/threads that are waiting.
+            </li>
+            <li>
+                Communication imbalance
+                <br>
+                Delay costs within communication functions indicate an imbalanced
+                communication load or inefficient communication pattern.
+            </li>
+            <li>
+                Inefficient parallelism
+                <br>
+                Delays in call paths that are only present on a single or a small
+                subset of processes/threads indicates inefficient parallelism.
+                Reduce the time spent in such functions.
+            </li>
+        </ol>
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_MPI" = [
+    PARENT    = "DELAY"
+    NAME      = "MPI delay costs"
+    DOCNAME   = "MPI Delay Costs"
+    TYPE      = "MPI"
+    CLASS     = "PatternDelay_MPI"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays causing wait states in MPI operations"
+    DESCR     = {
+        Total costs and locations of delays that cause wait states in MPI
+        operations.
+    }
+    DIAGNOSIS = {
+        See @ref(DELAY) for details.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_P2P" = [
+    PARENT    = "DELAY_MPI"
+    NAME      = "MPI point-to-point delay costs"
+    DOCNAME   = "MPI Point-to-point Delay Costs"
+    TYPE      = "MPI"
+    CLASS     = "PatternDelay_P2P"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays causing wait states in MPI point-to-point communication"
+    DESCR     = {
+        Costs and locations of delays that cause wait states in MPI point-to-point
+        communication.
+    }
+    DIAGNOSIS = {
+        See @ref(DELAY) for details.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_LATESENDER_AGGREGATE" = [
+    PARENT    = "DELAY_P2P"
+    NAME      = "MPI Late Sender delay costs"
+    DOCNAME   = "MPI Late Sender Delay Costs"
+    TYPE      = "MPI"
+    CLASS     = "PatternDelay_LateSenderAggr"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays causing MPI Late Sender wait states"
+    DESCR     = {
+        Costs and locations  of delays that cause Late Sender wait states in MPI
+        point-to-point communication.
+    }
+    DIAGNOSIS = {
+        See @ref(DELAY) for details.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_LATESENDER" = [
+    PARENT    = "DELAY_LATESENDER_AGGREGATE"
+    NAME      = "MPI short-term Late Sender delay costs"
+    DOCNAME   = "Short-term MPI Late Sender Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_LateSender"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that directly cause MPI Late Sender wait states"
+    DESCR     = {
+        Short-term delay costs reflect the direct effect of load or communication
+        imbalance on MPI Late Sender wait states.
+    }
+    DIAGNOSIS = {
+        High short-term delay costs indicate a computation or communication
+        overload in/on the affected call paths and processes/threads.
+        Because of this overload, the affected processes/threads arrive late
+        at subsequent MPI send operations, thus causing Late Sender wait
+        states on the remote processes.
+        </p><br><p>
+        Compare with @ref(MPI_LATESENDER) to identify an imbalance pattern.
+        Try to reduce workload in the affected call paths.
+        Alternatively, shift workload in the affected call paths from
+        processes/threads with delay costs to processes/threads that
+        exhibit late-sender wait states.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    DATA      = {
+        #ifdef DELAYDEBUG
+            std::ofstream m_dbg;
+        #endif
+    }
+    CALLBACKS("bwc") = [
+        "PREPARE" = {
+            #ifdef DELAYDEBUG
+                int rank = 0, thread = 0;
+                #ifdef _MPI
+                    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+                #endif
+                std::ostringstream filename;
+                filename << "delaydbg_r" << rank << "t" << thread << ".out";
+                m_dbg.open(filename.str().c_str());
+            #endif    // DELAYDEBUG
+        }
+
+        "PRE_RECV" = {
+            // Shortcuts
+            const TmapCacheHandler*  TmH = data->mTmapCacheHandler;
+            const SynchpointHandler* SpH = data->mSynchpointHandler;
+
+            // cost-accounting backward replay
+
+            Buffer*        buffer = new Buffer(256);
+            SynchpointInfo spi    = SpH->getSynchpointInfo(event);
+
+            buffer->put_double(spi.waitTime);
+
+            timemap_t tmap;
+
+            if (spi.waitTime > 0)
+            {
+                int rank = event->getComm()->getCommSet().getGlobalRank(event->getSource());
+                tmap = GetMpiDelayTimemap(event, rank, SpH, TmH);
+            }
+
+            PackTimemap(buffer, tmap);
+            data->mLocal->add_buffer(buffer, BUFFER_DELAY);
+        }
+
+        "POST_SEND" = {
+            // Shortcuts
+            const TmapCacheHandler*  TmH = data->mTmapCacheHandler;
+            const SynchpointHandler* SpH = data->mSynchpointHandler;
+
+            // is this a synchpoint?
+            if (!SpH->isSynchpoint(event))
+            {
+                return;
+            }
+
+            // --- get delay info buffer
+
+            Buffer* buffer = data->mRemote->get_buffer(BUFFER_DELAY);
+            data->mRwait = buffer->get_double();
+
+            // was there a late-sender wait state?
+            if (!(data->mRwait > 0))
+            {
+                return;
+            }
+
+            // --- find previous synchronization point
+
+            int rank = event->getComm()->getCommSet().getGlobalRank(event->getDestination());
+            data->mPrevSp = SpH->findPreviousMpiSynchpoint(event, rank);
+
+            // --- get local and remote time maps and calculate delay
+
+            data->mPropSpMap = SpH->getSynchpointsBetween(data->mPrevSp, event);
+            data->mWaitInfo  = CalculateWaitMap(data->mPropSpMap);
+            data->mDelayInfo =
+                CalculateDiff(PruneDelayTimemap(TmH->getRuntimes(data->mPrevSp, event),
+                                                data->mWaitInfo.mMap,
+                                                data->mPrevSp,
+                                                SpH->getSynchpointInfo(data->mPrevSp)),
+                              UnpackTimemap(buffer));
+
+            // shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            // --- calculate delay costs
+
+            double scale = 0.0;
+
+            if ((d.mSum + w.mSum) > 0)
+            {
+                scale = std::min(data->mRwait / (d.mSum + w.mSum), 1.0);
+            }
+
+            #ifdef DELAYDEBUG
+                m_dbg << "\nLate-sender delay rwait = " << data->mRwait
+                      << " delay sum = " << d.mSum << " wait sum = " << w.mSum
+                      << "\nEvent" << event << "\nPrevSp" << data->mPrevSp
+                      << "Delay map\n";
+                for (timemap_t::const_iterator it = d.mMap.begin();
+                     it != d.mMap.end();
+                     ++it)
+                {
+                    m_dbg << " (" << data->mDefs->getCallpath(it->first).getRegion().getDisplayName().getString()
+                          << ", " << it->second << ")\n";
+                }
+            #endif
+
+            // --- set severities
+
+            if (d.mSum > 0)
+            {
+                for (timemap_t::const_iterator it = d.mMap.begin();
+                     it != d.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+                }
+            }
+
+            // --- invoke subsequent handlers
+
+            cbmanager.notify(DELAY_LATE_SENDER, event, data);
+        }
+    ]
+]
+
+
+PATTERN "DELAY_LATESENDER_LONGTERM" = [
+    PARENT    = "DELAY_LATESENDER_AGGREGATE"
+    NAME      = "MPI long-term Late Sender delay costs"
+    DOCNAME   = "Long-term MPI Late Sender Delay Costs"
+    CLASS     = "PatternDelay_LateSender_LT"
+    TYPE      = "MPIDEP"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that indirectly cause MPI Late Sender wait states through wait-state propagation"
+    DESCR     = {
+        Long-term delay costs reflect indirect effects of load or communication
+        imbalance on wait states.  That is, they cover waiting time that was caused
+        indirectly by wait states which themselves delay subsequent communication
+        operations.
+    }
+    DIAGNOSIS = {
+        High long-term delay costs indicate that computation or communication
+        overload in/on the affected call paths and processes/threads has
+        far-reaching effects.  That is, the wait states caused by the original
+        computational overload spread along the communication chain to
+        remote locations.
+        </p><br><p>
+        Try to reduce workload in the affected call paths, or shift workload from
+        processes/threads with delay costs to processes/threads that exhibit
+        Late Sender wait states.
+        Try to implement a more asynchronous communication pattern that can
+        compensate for small imbalances, e.g., by using non-blocking instead
+        of blocking communication.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    DATA      = {
+        DelayCostMap m_cost;
+    }
+    CALLBACKS("bwc") = [
+        "PRE_RECV" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mLocal->add_buffer(buffer, BUFFER_RCOST_LS);
+        }
+
+        "DELAY_LATE_SENDER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost
+
+            double rcost = data->mRemote->get_buffer(BUFFER_RCOST_LS)->get_double();
+
+            // --- set severities
+
+            double scale_w = std::min(data->mRwait / (d.mSum + w.mSum), 1.0);
+            double scale_c = rcost / (d.mSum + w.mSum);
+
+            if (scale_c > 0)
+            {
+                for (timemap_t::const_iterator it = d.mMap.begin();
+                     it != d.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += scale_c * it->second;
+                }
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale_w + scale_c);
+        }
+
+        "PRE_INV_SENDCMP" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mInvLocal->add_buffer(buffer, BUFFER_RCOST_LS);
+        }
+
+        "DELAY_LATE_RECEIVER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mInvRemote->get_buffer(BUFFER_RCOST_LS)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_DELAY_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_LS, m_cost.getCosts(event)));
+        }
+
+        "DELAY_BARRIER" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_LS);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_LS);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N2N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_LS, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N2N" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_LS);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_LS);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_12N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_LS, m_cost.getCosts(event)));
+        }
+
+        "DELAY_12N" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_LS);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_LS);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N21" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_LS, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N21" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_LS);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_LS);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_OMP_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_LS, m_cost.getCosts(event)));
+        }
+
+        "DELAY_OMP_BARRIER" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_LS);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_LS);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+    # "RMA_PRE_WAIT" = {
+    #     Buffer* buffer = new Buffer(16);
+
+    #     costmap_t::iterator it = m_cost.find(event);
+
+    #     buffer->put_double(it == m_cost.end() ? 0.0 : it->second);
+    #     data->m_local->add_buffer(buffer, BUFFER_RCOST_LS);
+    # }
+
+    # "DELAY_LATE_POST" = {
+    #    if (!(data->m_dsum + data->m_wsum > 0))
+    #      return;
+
+    #    // --- get remote cost
+
+    #    double rcost = data->m_remote->get_buffer(BUFFER_RCOST_LS)->get_double();
+
+    #    if (!(rcost > 0))
+    #      return;
+
+    #    // --- set severities
+
+    #    double scale = rcost / (data->m_dsum + data->m_wsum);
+
+    #    for (timemap_t::const_iterator it = data->m_dmap.begin(); it != data->m_dmap.end(); ++it)
+    #      m_severity[data->m_defs->get_cnode(it->first)] += scale * it->second;
+
+
+    #    // --- set propagating long-term costs
+
+    #    synchpoint_map_t::iterator it  = data->m_synchpoints.find(data->m_prevsp);
+    #    synchpoint_map_t::iterator end = data->m_synchpoints.find(event);
+
+    #    assert(it  != data->m_synchpoints.end());
+    #    assert(end != data->m_synchpoints.end());
+
+    #    for (++it; it != end; ++it)
+    #      if (it->second.waittime)
+    #        m_cost[it->first] += scale * it->second.waittime;
+    # }
+
+    # "DELAY_EARLY_WAIT" = {
+    #    if (!(data->m_dsum + data->m_wsum > 0))
+    #      return;
+
+    #    // --- get remote cost
+
+    #    double rcost = data->m_remote->get_buffer(BUFFER_RCOST_LS)->get_double();
+
+    #    if (!(rcost > 0))
+    #      return;
+
+    #    // --- set severities
+
+    #    double scale = rcost / (data->m_dsum + data->m_wsum);
+
+    #    for (timemap_t::const_iterator it = data->m_dmap.begin(); it != data->m_dmap.end(); ++it)
+    #      m_severity[data->m_defs->get_cnode(it->first)] += scale * it->second;
+
+
+    #    // --- set propagating long-term costs
+
+    #    synchpoint_map_t::iterator it  = data->m_synchpoints.find(data->m_prevsp);
+    #    synchpoint_map_t::iterator end = data->m_synchpoints.find(event);
+
+    #    assert(it  != data->m_synchpoints.end());
+    #    assert(end != data->m_synchpoints.end());
+
+    #    for (++it; it != end; ++it)
+    #      if (it->second.waittime)
+    #        m_cost[it->first] += scale * it->second.waittime;
+    # }
+
+    ]
+]
+
+
+PATTERN "DELAY_LATERECEIVER_AGGREGATE" = [
+    PARENT    = "DELAY_P2P"
+    NAME      = "MPI Late Receiver delay costs"
+    DOCNAME   = "MPI Late Receiver Delay Costs"
+    CLASS     = "PatternDelay_LateReceiverAggr"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays causing MPI Late Receiver wait states"
+    DESCR     = {
+        Costs and locations of delays that cause Late Receiver wait states in MPI
+        point-to-point communication.
+    }
+    DIAGNOSIS = {
+        See @ref(DELAY) for details.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_LATERECEIVER" = [
+    PARENT    = "DELAY_LATERECEIVER_AGGREGATE"
+    NAME      = "MPI short-term Late Receiver delay costs"
+    DOCNAME   = "Short-term MPI Late Receiver Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_LateReceiver"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that directly cause MPI Late Receiver wait states"
+    DESCR     = {
+        Short-term delay costs reflect the direct effect of load or communication
+        imbalance on MPI Late Receiver wait states.
+    }
+    DIAGNOSIS = {
+        High short-term delay costs indicate a computation or communication
+        overload in/on the affected call paths and processes/threads.
+        Because of this overload, the affected processes/threads arrive late
+        at subsequent MPI receive operations, thus causing Late Receiver wait
+        states on the remote processes.
+        </p><br><p>
+        Compare with @ref(MPI_LATERECEIVER) to identify an imbalance pattern.
+        Try to reduce workload in the affected call paths.
+        Alternatively, shift workload in the affected call paths from
+        processes/threads with delay costs to processes/threads that
+        exhibit late-receiver wait states.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS("bwc") = [
+        "PRE_INV_SENDCMP" = {
+            // Shortcuts
+            const TmapCacheHandler*  TmH = data->mTmapCacheHandler;
+            const SynchpointHandler* SpH = data->mSynchpointHandler;
+
+            // cost-accounting backward replay
+
+            Buffer*        buffer = new Buffer(256);
+            SynchpointInfo spi    = SpH->getSynchpointInfo(event);
+
+            buffer->put_double(spi.waitTime);
+
+            timemap_t tmap;
+
+            if (spi.waitTime > 0)
+            {
+                Event sendreq = event.request();
+                int   rank    = sendreq->getComm()->getCommSet().getGlobalRank(sendreq->getDestination());
+                tmap = GetMpiDelayTimemap(event, rank, SpH, TmH);
+            }
+
+            PackTimemap(buffer, tmap);
+            data->mInvLocal->add_buffer(buffer, BUFFER_DELAY);
+        }
+
+        "POST_INV_RECVREQ" = {
+            // Shortcuts
+            const TmapCacheHandler*  TmH = data->mTmapCacheHandler;
+            const SynchpointHandler* SpH = data->mSynchpointHandler;
+
+            // is this a synchpoint?
+            if (!SpH->isSynchpoint(event))
+            {
+                return;
+            }
+
+            // --- get delay info buffer
+
+            Buffer* buffer = data->mInvRemote->get_buffer(BUFFER_DELAY);
+            data->mRwait = buffer->get_double();
+
+            // was there a late-receiver wait state?
+            if (!(data->mRwait > 0))
+            {
+                return;
+            }
+
+            // --- find previous synchronization point
+
+            Event recvcmp = event.completion();
+            int   rank    = recvcmp->getComm()->getCommSet().getGlobalRank(recvcmp->getSource());
+            data->mPrevSp = SpH->findPreviousMpiSynchpoint(event, rank);
+
+            // --- get local and remote time maps and calculate delay
+
+            data->mPropSpMap = SpH->getSynchpointsBetween(data->mPrevSp, event);
+            data->mWaitInfo  = CalculateWaitMap(data->mPropSpMap);
+            data->mDelayInfo =
+                CalculateDiff(PruneDelayTimemap(TmH->getRuntimes(data->mPrevSp, event),
+                                                data->mWaitInfo.mMap,
+                                                data->mPrevSp,
+                                                SpH->getSynchpointInfo(data->mPrevSp)),
+                              UnpackTimemap(buffer));
+
+            // shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            // --- calculate delay costs
+
+            double scale = 0.0;
+
+            if ((d.mSum + w.mSum) > 0)
+            {
+                scale = std::min(data->mRwait / (d.mSum + w.mSum), 1.0);
+            }
+
+            // --- set severities
+
+            if (d.mSum > 0)
+            {
+                for (timemap_t::const_iterator it = d.mMap.begin();
+                     it != d.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+                }
+            }
+
+            // --- invoke subsequent handlers
+
+            cbmanager.notify(DELAY_LATE_RECEIVER, event, data);
+        }
+    ]
+]
+
+
+PATTERN "DELAY_LATERECEIVER_LONGTERM" = [
+    PARENT    = "DELAY_LATERECEIVER_AGGREGATE"
+    NAME      = "MPI long-term Late Receiver delay costs"
+    DOCNAME   = "Long-term MPI Late Receiver Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_LateReceiver_LT"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that indirectly cause MPI Late Receiver wait states through wait-state propagation"
+    DESCR     = {
+        Long-term delay costs reflect indirect effects of load or communication
+        imbalance on wait states.  That is, they cover waiting time that was caused
+        indirectly by wait states which themselves delay subsequent communication
+        operations.
+    }
+    DIAGNOSIS = {
+        High long-term delay costs indicate that computation or communication
+        overload in/on the affected call paths and processes/threads has
+        far-reaching effects.  That is, the wait states caused by the original
+        computational overload spread along the communication chain to
+        remote locations.
+        </p><br><p>
+        Try to reduce workload in the affected call paths, or shift workload from
+        processes/threads with delay costs to processes/threads that exhibit
+        Late Receiver wait states.
+        Try to implement a more asynchronous communication pattern that can
+        compensate for small imbalances, e.g. by using non-blocking instead
+        of blocking communication.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    DATA      = {
+        DelayCostMap m_cost;
+    }
+    CALLBACKS("bwc") = [
+        "PRE_RECV" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mLocal->add_buffer(buffer, BUFFER_RCOST_LR);
+        }
+
+        "DELAY_LATE_SENDER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mRemote->get_buffer(BUFFER_RCOST_LR)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_INV_SENDCMP" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mInvLocal->add_buffer(buffer, BUFFER_RCOST_LR);
+        }
+
+        "DELAY_LATE_RECEIVER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost
+
+            double rcost = data->mInvRemote->get_buffer(BUFFER_RCOST_LR)->get_double();
+
+            // --- set severities
+
+            double scale_w = std::min(data->mRwait / (d.mSum + w.mSum), 1.0);
+            double scale_c = rcost / (d.mSum + w.mSum);
+
+            if (scale_c > 0)
+            {
+                for (timemap_t::const_iterator it = d.mMap.begin();
+                     it != d.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += scale_c * it->second;
+                }
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale_w + scale_c);
+        }
+
+        "PRE_DELAY_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_LR, m_cost.getCosts(event)));
+        }
+
+        "DELAY_BARRIER" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_LR);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_LR);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N2N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_LR, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N2N" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_LR);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_LR);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_12N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_LR, m_cost.getCosts(event)));
+        }
+
+        "DELAY_12N" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_LR);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_LR);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N21" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_LR, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N21" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_LR);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_LR);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_OMP_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_LR, m_cost.getCosts(event)));
+        }
+
+        "DELAY_OMP_BARRIER" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_LR);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_LR);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+    # "RMA_PRE_WAIT" = {
+    #     Buffer* buffer = new Buffer(16);
+
+    #     costmap_t::iterator it = m_cost.find(event);
+
+    #     buffer->put_double(it == m_cost.end() ? 0.0 : it->second);
+    #     data->m_local->add_buffer(buffer, BUFFER_RCOST_LR);
+    # }
+
+    # "DELAY_LATE_POST" = {
+    #    if (!(data->m_dsum + data->m_wsum > 0))
+    #      return;
+
+    #    // --- get remote cost
+
+    #    double rcost = data->m_remote->get_buffer(BUFFER_RCOST_LR)->get_double();
+
+    #    if (!(rcost > 0))
+    #      return;
+
+    #    // --- set severities
+
+    #    double scale = rcost / (data->m_dsum + data->m_wsum);
+
+    #    for (timemap_t::const_iterator it = data->m_dmap.begin(); it != data->m_dmap.end(); ++it)
+    #      m_severity[data->m_defs->get_cnode(it->first)] += scale * it->second;
+
+
+    #    // --- set propagating long-term costs
+
+    #    synchpoint_map_t::iterator it  = data->m_synchpoints.find(data->m_prevsp);
+    #    synchpoint_map_t::iterator end = data->m_synchpoints.find(event);
+
+    #    assert(it  != data->m_synchpoints.end());
+    #    assert(end != data->m_synchpoints.end());
+
+    #    for (++it; it != end; ++it)
+    #      if (it->second.waittime)
+    #        m_cost[it->first] += scale * it->second.waittime;
+    # }
+
+    # "DELAY_EARLY_WAIT" = {
+    #    if (!(data->m_dsum + data->m_wsum > 0))
+    #      return;
+
+    #    // --- get remote cost
+
+    #    double rcost = data->m_remote->get_buffer(BUFFER_RCOST_LR)->get_double();
+
+    #    if (!(rcost > 0))
+    #      return;
+
+    #    // --- set severities
+
+    #    double scale = rcost / (data->m_dsum + data->m_wsum);
+
+    #    for (timemap_t::const_iterator it = data->m_dmap.begin(); it != data->m_dmap.end(); ++it)
+    #      m_severity[data->m_defs->get_cnode(it->first)] += scale * it->second;
+
+
+    #    // --- set propagating long-term costs
+
+    #    synchpoint_map_t::iterator it  = data->m_synchpoints.find(data->m_prevsp);
+    #    synchpoint_map_t::iterator end = data->m_synchpoints.find(event);
+
+    #    assert(it  != data->m_synchpoints.end());
+    #    assert(end != data->m_synchpoints.end());
+
+    #    for (++it; it != end; ++it)
+    #      if (it->second.waittime)
+    #        m_cost[it->first] += scale * it->second.waittime;
+    # }
+
+    ]
+]
+
+
+PATTERN "DELAY_COLLECTIVE" = [
+    PARENT    = "DELAY_MPI"
+    NAME      = "MPI collective delay costs"
+    DOCNAME   = "MPI Collective Delay Costs"
+    TYPE      = "MPI"
+    CLASS     = "PatternDelay_Collective"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that cause wait states in MPI collective communication"
+    DESCR     = {
+        Costs and locations of delays causing wait states in MPI collective
+        communication.
+    }
+    DIAGNOSIS = {
+        See @ref(DELAY) for details.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_BARRIER_AGGREGATE" = [
+    PARENT    = "DELAY_COLLECTIVE"
+    NAME      = "MPI Wait at Barrier delay costs"
+    DOCNAME   = "MPI Wait at Barrier Delay Costs"
+    TYPE      = "MPI"
+    CLASS     = "PatternDelay_BarrierAggr"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays causing wait states in front of MPI barriers"
+    DESCR     = {
+        Costs and locations of delays that cause wait states in MPI barrier
+        synchronizations.
+    }
+    DIAGNOSIS = {
+        See @ref(DELAY) for details.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_BARRIER" = [
+    PARENT    = "DELAY_BARRIER_AGGREGATE"
+    NAME      = "MPI short-term barrier delay costs"
+    DOCNAME   = "Short-term MPI Barrier Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_Barrier"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that directly cause wait states in MPI barriers"
+    DESCR     = {
+        Short-term delay costs reflect the direct effect of load or communication
+        imbalance on MPI barrier wait states.
+    }
+    DIAGNOSIS = {
+        High short-term delay costs indicate a computation or communication
+        overload in/on the affected call paths and processes/threads.
+        Refer to @ref(DELAY_LATESENDER) for more information on reducing delay
+        costs in general.
+    }
+    MODE      = "exclusive"
+    UNIT      = "sec"
+    CALLBACKS("bwc") = [
+        "SYNC_COLL" = {
+            const CollectiveInfo& ci = data->mCollinfo;
+
+            data->mInputScales.clear();
+
+            cbmanager.notify(PRE_DELAY_BARRIER, event, data);
+
+            CalculateCollectiveDelay(ci.my, ci.latest, event, data);
+
+            if (ci.my.mRank == ci.latest.mRank)
+            {
+                // algorithm 1, line 24
+                map< uint32_t, TimeMapSum >::const_iterator dWit = data->mCollDelayInfo.find(KEY_WAITTIME);
+                if (  (dWit != data->mCollDelayInfo.end())
+                   && (dWit->second.mSum > 0.0))
+                {
+                    for (timemap_t::const_iterator it = dWit->second.mMap.begin();
+                         it != dWit->second.mMap.end();
+                         ++it)
+                    {
+                        Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                        m_severity[callpath] += it->second;
+
+                        UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                            << get_name() << " @ " << *callpath
+                            << ": " << it->second
+                            << " [total: " << m_severity[callpath] << ']';
+                    }
+                }
+
+                cbmanager.notify(DELAY_BARRIER, event, data);
+            }
+        }
+    ]
+]
+
+
+PATTERN "DELAY_BARRIER_LONGTERM" = [
+    PARENT    = "DELAY_BARRIER_AGGREGATE"
+    NAME      = "MPI long-term barrier delay costs"
+    DOCNAME   = "Long-term MPI Barrier Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_Barrier_LT"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that indirectly cause wait states in MPI barriers through wait-state propagation"
+    DESCR     = {
+        Long-term delay costs reflect indirect effects of load or communication
+        imbalance on wait states.  That is, they cover waiting time that was caused
+        indirectly by wait states which themselves delay subsequent communication
+        operations.
+    }
+    DIAGNOSIS = {
+        High long-term delay costs indicate that computation or communication
+        overload in/on the affected call paths and processes/threads has
+        far-reaching effects.
+        Refer to @ref(DELAY_LATESENDER_LONGTERM) for more information on reducing
+        long-term delay costs in general.
+    }
+    MODE      = "exclusive"
+    UNIT      = "sec"
+    DATA      = {
+        DelayCostMap m_cost;
+    }
+    CALLBACKS("bwc") = [
+        "PRE_RECV" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mLocal->add_buffer(buffer, BUFFER_RCOST_BARRIER);
+        }
+
+        "DELAY_LATE_SENDER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mRemote->get_buffer(BUFFER_RCOST_BARRIER)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_INV_SENDCMP" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mInvLocal->add_buffer(buffer, BUFFER_RCOST_BARRIER);
+        }
+
+        "DELAY_LATE_RECEIVER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mInvRemote->get_buffer(BUFFER_RCOST_BARRIER)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_DELAY_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_BARRIER, m_cost.getCosts(event)));
+        }
+
+        "DELAY_BARRIER" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_BARRIER);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_BARRIER);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+
+            // algorithm 1, line 28 for gamma_short
+            map< uint32_t, ScaleMap >::const_iterator sWit = data->mSumScales.find(KEY_WAITTIME);
+            if (sWit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sWit->second);
+            }
+        }
+
+        "PRE_DELAY_N2N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_BARRIER, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N2N" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_BARRIER);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_BARRIER);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_12N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_BARRIER, m_cost.getCosts(event)));
+        }
+
+        "DELAY_12N" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_BARRIER);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_BARRIER);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N21" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_BARRIER, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N21" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_BARRIER);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_BARRIER);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_OMP_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_BARRIER, m_cost.getCosts(event)));
+        }
+
+        "DELAY_OMP_BARRIER" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_BARRIER);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_BARRIER);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+    ]
+]
+
+
+PATTERN "DELAY_N2N_AGGREGATE" = [
+    PARENT    = "DELAY_COLLECTIVE"
+    NAME      = "MPI Wait at N x N delay costs"
+    DOCNAME   = "MPI Wait at N x N Delay Costs"
+    TYPE      = "MPI"
+    CLASS     = "PatternDelay_NxNAggr"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays causing wait states in front of MPI n-to-n collective communcations"
+    DESCR     = {
+        Costs and locations of delays that cause wait states in MPI n-to-n
+        collective communication operations.
+    }
+    DIAGNOSIS = {
+        See @ref(DELAY) for details.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_N2N" = [
+    PARENT    = "DELAY_N2N_AGGREGATE"
+    NAME      = "MPI short-term N x N delay costs"
+    DOCNAME   = "Short-term MPI N x N Collectives Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_NxN"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that directly cause wait states in MPI n-to-n collective communications"
+    DESCR     = {
+        Short-term costs reflect the direct effect of load or communication
+        imbalance on wait states in MPI n-to-n collective communication operations.
+    }
+    DIAGNOSIS = {
+        High short-term delay costs indicate a computation or communication
+        overload in/on the affected call paths and processes/threads.
+        Refer @ref(DELAY_LATESENDER) for more information on reducing delay
+        costs in general.
+    }
+    MODE      = "exclusive"
+    UNIT      = "sec"
+    CALLBACKS("bwc") = [
+        "COLL_N2N" = {
+            const CollectiveInfo& ci = data->mCollinfo;
+
+            data->mInputScales.clear();
+
+            cbmanager.notify(PRE_DELAY_N2N, event, data);
+
+            CalculateCollectiveDelay(ci.my, ci.latest, event, data);
+
+            if (ci.my.mRank == ci.latest.mRank)
+            {
+                // algorithm 1, line 24
+                map< uint32_t, TimeMapSum >::const_iterator dWit = data->mCollDelayInfo.find(KEY_WAITTIME);
+                if (  (dWit != data->mCollDelayInfo.end())
+                   && (dWit->second.mSum > 0.0))
+                {
+                    for (timemap_t::const_iterator it = dWit->second.mMap.begin();
+                         it != dWit->second.mMap.end();
+                         ++it)
+                    {
+                        Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                        m_severity[callpath] += it->second;
+
+                        UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                            << get_name() << " @ " << *callpath
+                            << ": " << it->second
+                            << " [total: " << m_severity[callpath] << ']';
+                    }
+                }
+
+                cbmanager.notify(DELAY_N2N, event, data);
+            }
+        }
+    ]
+]
+
+
+PATTERN "DELAY_N2N_LONGTERM" = [
+    PARENT    = "DELAY_N2N_AGGREGATE"
+    NAME      = "MPI long-term N x N delay costs"
+    DOCNAME   = "Long-term MPI N x N Collectives Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_NxN_LT"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that indirectly cause wait states in MPI n-to-n collective communications through wait-state propagation"
+    DESCR     = {
+        Long-term delay costs reflect indirect effects of load or communication
+        imbalance on wait states.  That is, they cover waiting time that was caused
+        indirectly by wait states which themselves delay subsequent communication
+        operations.
+    }
+    DIAGNOSIS = {
+        High long-term delay costs indicate that computation or communication
+        overload in/on the affected call paths and processes/threads has
+        far-reaching effects.
+        Refer to @ref(DELAY_LATESENDER_LONGTERM) for more information on reducing
+        long-term delay costs in general.
+    }
+    MODE      = "exclusive"
+    UNIT      = "sec"
+    DATA      = {
+        DelayCostMap m_cost;
+    }
+    CALLBACKS("bwc") = [
+        "PRE_RECV" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mLocal->add_buffer(buffer, BUFFER_RCOST_N2N);
+        }
+
+        "DELAY_LATE_SENDER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mRemote->get_buffer(BUFFER_RCOST_N2N)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_INV_SENDCMP" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mInvLocal->add_buffer(buffer, BUFFER_RCOST_N2N);
+        }
+
+        "DELAY_LATE_RECEIVER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mInvRemote->get_buffer(BUFFER_RCOST_N2N)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_DELAY_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_N2N, m_cost.getCosts(event)));
+        }
+
+        "DELAY_BARRIER" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_N2N);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_N2N);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N2N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_N2N, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N2N" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_N2N);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_N2N);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+
+            // algorithm 1, line 28 for gamma_short
+            map< uint32_t, ScaleMap >::const_iterator sWit = data->mSumScales.find(KEY_WAITTIME);
+            if (sWit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sWit->second);
+            }
+        }
+
+        "PRE_DELAY_12N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_N2N, m_cost.getCosts(event)));
+        }
+
+        "DELAY_12N" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_N2N);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_N2N);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N21" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_N2N, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N21" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_N2N);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_N2N);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_OMP_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_N2N, m_cost.getCosts(event)));
+        }
+
+        "DELAY_OMP_BARRIER" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_N2N);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_N2N);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+    ]
+]
+
+
+PATTERN "DELAY_12N_AGGREGATE" = [
+    PARENT    = "DELAY_COLLECTIVE"
+    NAME      = "MPI Late Broadcast delay costs"
+    DOCNAME   = "MPI Late Broadcast Delay Costs"
+    TYPE      = "MPI"
+    CLASS     = "PatternDelay_NxNAggr"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays causing wait states in MPI 1-to-n collective communications"
+    DESCR     = {
+        Costs of delays that cause wait states in collective MPI 1-to-n
+        communication operations.
+    }
+    DIAGNOSIS = {
+        See @ref(DELAY) for details.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_12N" = [
+    PARENT    = "DELAY_12N_AGGREGATE"
+    NAME      = "MPI short-term 1-to-N delay costs"
+    DOCNAME   = "Short-term MPI 1-to-N Collectives Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_12N"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that directly cause wait states in MPI 1-to-n collective communications"
+    DESCR     = {
+        Short-term costs reflect the direct effect of load or communication
+        imbalance on wait states in on MPI 1-to-n collectives.
+    }
+    DIAGNOSIS = {
+        High short-term delay costs indicate a computation or communication
+        overload in/on the affected call paths and processes/threads.
+        Refer @ref(DELAY_LATESENDER) for more information on reducing delay
+        costs in general.
+    }
+    MODE      = "exclusive"
+    UNIT      = "sec"
+    CALLBACKS("bwc") = [
+        "COLL_12N" = {
+            const CollectiveInfo& ci = data->mCollinfo;
+
+            data->mInputScales.clear();
+
+            cbmanager.notify(PRE_DELAY_12N, event, data);
+
+            CalculateCollectiveDelay(ci.my, ci.root, event, data);
+
+            if (ci.my.mRank == ci.root.mRank)
+            {
+                // algorithm 1, line 24
+                map< uint32_t, TimeMapSum >::const_iterator dWit = data->mCollDelayInfo.find(KEY_WAITTIME);
+                if (  (dWit != data->mCollDelayInfo.end())
+                   && (dWit->second.mSum > 0.0))
+                {
+                    for (timemap_t::const_iterator it = dWit->second.mMap.begin();
+                         it != dWit->second.mMap.end();
+                         ++it)
+                    {
+                        Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                        m_severity[callpath] += it->second;
+
+                        UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                            << get_name() << " @ " << *callpath
+                            << ": " << it->second
+                            << " [total: " << m_severity[callpath] << ']';
+                    }
+                }
+
+                cbmanager.notify(DELAY_12N, event, data);
+            }
+        }
+    ]
+]
+
+
+PATTERN "DELAY_12N_LONGTERM" = [
+    PARENT    = "DELAY_12N_AGGREGATE"
+    NAME      = "MPI long-term 1-to-N delay costs"
+    DOCNAME   = "Long-term MPI 1-to-N Collectives Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_12N_LT"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that indirectly cause wait states in MPI 1-to-n collective communications through wait-state propagation"
+    DESCR     = {
+        Long-term delay costs reflect indirect effects of load or communication
+        imbalance on wait states.  That is, they cover waiting time that was caused
+        indirectly by wait states which themselves delay subsequent communication
+        operations.
+    }
+    DIAGNOSIS = {
+        High long-term delay costs indicate that computation or communication
+        overload in/on the affected call paths and processes/threads has
+        far-reaching effects.
+        Refer to @ref(DELAY_LATESENDER_LONGTERM) for more information on reducing
+        long-term delay costs in general.
+    }
+    MODE      = "exclusive"
+    UNIT      = "sec"
+    DATA      = {
+        DelayCostMap m_cost;
+    }
+    CALLBACKS("bwc") = [
+        "PRE_RECV" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mLocal->add_buffer(buffer, BUFFER_RCOST_12N);
+        }
+
+        "DELAY_LATE_SENDER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mRemote->get_buffer(BUFFER_RCOST_12N)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_INV_SENDCMP" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mInvLocal->add_buffer(buffer, BUFFER_RCOST_12N);
+        }
+
+        "DELAY_LATE_RECEIVER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mInvRemote->get_buffer(BUFFER_RCOST_12N)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_DELAY_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_12N, m_cost.getCosts(event)));
+        }
+
+        "DELAY_BARRIER" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_12N);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_12N);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N2N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_12N, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N2N" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_12N);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_12N);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_12N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_12N, m_cost.getCosts(event)));
+        }
+
+        "DELAY_12N" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_12N);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_12N);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+
+            // algorithm 1, line 28 for gamma_short
+            map< uint32_t, ScaleMap >::const_iterator sWit = data->mSumScales.find(KEY_WAITTIME);
+            if (sWit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sWit->second);
+            }
+        }
+
+        "PRE_DELAY_N21" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_12N, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N21" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_12N);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_12N);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_OMP_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_12N, m_cost.getCosts(event)));
+        }
+
+        "DELAY_OMP_BARRIER" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_12N);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_12N);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+    ]
+]
+
+
+PATTERN "DELAY_N21_AGGREGATE" = [
+    PARENT    = "DELAY_COLLECTIVE"
+    NAME      = "MPI Early Reduce delay costs"
+    DOCNAME   = "MPI Early Reduce Delay Costs"
+    TYPE      = "MPI"
+    CLASS     = "PatternDelay_N21Aggr"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays causing wait states in MPI n-to-1 collective communications"
+    DESCR     = {
+        Costs of delays that cause wait states in collective MPI n-to-1
+        communication operations.
+    }
+    DIAGNOSIS = {
+        See @ref(DELAY) for details.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_N21" = [
+    PARENT    = "DELAY_N21_AGGREGATE"
+    NAME      = "MPI short-term N-to-1 delay costs"
+    DOCNAME   = "Short-term MPI N-to-1 Collectives Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_N21"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that directly cause wait states in MPI n-to-1 collective communications"
+    DESCR     = {
+        Short-term costs reflect the direct effect of load or communication
+        imbalance on wait states in on MPI n-to-1 collectives.
+    }
+    DIAGNOSIS = {
+        High short-term delay costs indicate a computation or communication
+        overload in/on the affected call paths and processes/threads.
+        Refer @ref(DELAY_LATESENDER) for more information on reducing delay
+        costs in general.
+    }
+    MODE      = "exclusive"
+    UNIT      = "sec"
+    CALLBACKS("bwc") = [
+        "COLL_N21" = {
+            const CollectiveInfo& ci = data->mCollinfo;
+
+            data->mInputScales.clear();
+
+            cbmanager.notify(PRE_DELAY_N21, event, data);
+
+            CalculateCollectiveDelay(ci.my, ci.latest, event, data);
+
+            if (ci.my.mRank == ci.latest.mRank)
+            {
+                // algorithm 1, line 24
+                map< uint32_t, TimeMapSum >::const_iterator dWit = data->mCollDelayInfo.find(KEY_WAITTIME);
+                if (  (dWit != data->mCollDelayInfo.end())
+                   && (dWit->second.mSum > 0.0))
+                {
+                    for (timemap_t::const_iterator it = dWit->second.mMap.begin();
+                         it != dWit->second.mMap.end();
+                         ++it)
+                    {
+                        Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                        m_severity[callpath] += it->second;
+
+                        UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                            << get_name() << " @ " << *callpath
+                            << ": " << it->second
+                            << " [total: " << m_severity[callpath] << ']';
+                    }
+                }
+
+                cbmanager.notify(DELAY_N21, event, data);
+            }
+        }
+    ]
+]
+
+
+PATTERN "DELAY_N21_LONGTERM" = [
+    PARENT    = "DELAY_N21_AGGREGATE"
+    NAME      = "MPI long-term N-to-1 delay costs"
+    DOCNAME   = "Long-term MPI N-to-1 Collectives Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_N21_LT"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that indirectly cause wait states in MPI n-to-1 collective communications through wait-state propagation"
+    DESCR     = {
+        Long-term delay costs reflect indirect effects of load or communication
+        imbalance on wait states.  That is, they cover waiting time that was caused
+        indirectly by wait states which themselves delay subsequent communication
+        operations.
+    }
+    DIAGNOSIS = {
+        High long-term delay costs indicate that computation or communication
+        overload in/on the affected call paths and processes/threads has
+        far-reaching effects.
+        Refer to @ref(DELAY_LATESENDER_LONGTERM) for more information on reducing
+        long-term delay costs in general.
+    }
+    MODE      = "exclusive"
+    UNIT      = "sec"
+    DATA      = {
+        DelayCostMap m_cost;
+    }
+    CALLBACKS("bwc") = [
+        "PRE_RECV" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mLocal->add_buffer(buffer, BUFFER_RCOST_N21);
+        }
+
+        "DELAY_LATE_SENDER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mRemote->get_buffer(BUFFER_RCOST_N21)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_INV_SENDCMP" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mInvLocal->add_buffer(buffer, BUFFER_RCOST_N21);
+        }
+
+        "DELAY_LATE_RECEIVER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mInvRemote->get_buffer(BUFFER_RCOST_N21)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_DELAY_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_N21, m_cost.getCosts(event)));
+        }
+
+        "DELAY_BARRIER" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_N21);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_N21);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N2N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_N21, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N2N" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_N21);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_N21);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_12N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_N21, m_cost.getCosts(event)));
+        }
+
+        "DELAY_12N" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_N21);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_N21);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N21" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_N21, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N21" = {
+            // Set severities
+            // algorithm 1, line 25
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_N21);
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                    m_severity[callpath] += it->second;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_ROOT_CAUSE)
+                        << get_name() << " @ " << *callpath
+                        << ": " << it->second
+                        << " [total: " << m_severity[callpath] << ']';
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            // algorithm 1, line 28 for gamma_long
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_N21);
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+
+            // algorithm 1, line 28 for gamma_short
+            map< uint32_t, ScaleMap >::const_iterator sWit = data->mSumScales.find(KEY_WAITTIME);
+            if (sWit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sWit->second);
+            }
+        }
+
+        "PRE_DELAY_OMP_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_N21, m_cost.getCosts(event)));
+        }
+
+        "DELAY_OMP_BARRIER" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_N21);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_N21);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+    ]
+]

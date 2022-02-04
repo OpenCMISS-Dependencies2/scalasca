@@ -1,0 +1,16 @@
+#unknown system - assume it is linux like...
+
+
+CC=gcc
+CXX=g++
+F77=gfortran
+FC=gfortran
+
+
+#CPPFLAGS=
+#CFLAGS=
+#CXXFLAGS=
+#FFLAGS=
+#FCFLAGS=
+#LD_FLAGS=
+#LIBS=

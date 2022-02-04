@@ -1,0 +1,9 @@
+15c408005e232ef4252a3656fbc90686
+82771d8cede0580e2d2fba9296b8b127
+../src/python/otf2/registry.py
+otf2.registry.tmpl.py
+../share/otf2/otf2.types
+../share/otf2/otf2.enums
+../share/otf2/otf2.defs
+../share/otf2/otf2.events
+../share/otf2/otf2.snaps

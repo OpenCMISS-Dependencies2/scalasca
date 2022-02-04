@@ -1,0 +1,45 @@
+# Doxyfile 1.8.10
+#
+# This file describes the settings to be used by the documentation system
+# doxygen (www.doxygen.org) for both the user and developer documentation
+# of the PEARL library.
+
+
+#--- Include common configuration -------------------------------------------
+
+@INCLUDE = \
+    @abs_top_builddir@/doc/doxygen-common/doxygen-common.cfg
+
+
+#--- Project settings -------------------------------------------------------
+
+PROJECT_NAME  = "PEARL"
+PROJECT_BRIEF = "Parallel Event Access and Replay Library"
+
+
+#--- Input settings ---------------------------------------------------------
+
+INPUT += \
+    @abs_top_srcdir@/include \
+    @abs_top_srcdir@/doc/doxygen-user/pearl
+
+
+# --- Preprocessor settings -------------------------------------------------
+
+INCLUDE_PATH = \
+    @abs_top_srcdir@/include
+
+EXPAND_ONLY_PREDEF   = YES
+EXPAND_AS_DEFINED    = PEARL_DEFINE_FLAGS_OPERATORS
+MACRO_EXPANSION      = YES
+SEARCH_INCLUDES      = YES
+
+
+#--- Output settings --------------------------------------------------------
+
+STRIP_FROM_INC_PATH = \
+    @abs_top_srcdir@/include \
+    @abs_top_srcdir@/src/pearl
+STRIP_FROM_PATH     = \
+    @abs_top_srcdir@/include/pearl \
+    @abs_top_srcdir@/src/pearl

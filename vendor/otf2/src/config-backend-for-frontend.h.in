@@ -1,0 +1,14 @@
+/* Generated from src/config-backend.h.in by build-config/common/generate-config-backend-for-frontend.sh.  */
+
+
+/* Define if you have POSIX threads libraries and header files. */
+#undef HAVE_BACKEND_PTHREAD
+
+/* Support for pthread_barrier_t. */
+#undef HAVE_BACKEND_PTHREAD_BARRIER
+
+/* Support for PTHREAD_MUTEX_ERRORCHECK. */
+#undef HAVE_BACKEND_PTHREAD_MUTEX_ERRORCHECK
+
+/* Defined if SIONlib is available. */
+#undef HAVE_BACKEND_SIONLIB_SUPPORT

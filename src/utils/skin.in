@@ -1,0 +1,125 @@
+#!/bin/sh
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2014                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+VERSION="@VERSION@"
+VERBOSE=${SKIN_VERBOSE:+"-v"}
+COMPINST=`echo "$SKIN_COMP" | tr A-Z a-z`
+INSTMODE=`echo "$SKIN_MODE" | tr A-Z a-z`
+
+# Check whether "scorep" is available
+SCOREP=`which scorep 2>/dev/null`
+if [ -z "$SCOREP" ]; then
+    echo "Score-P instrumenter \"scorep\" not found on PATH!"
+    exit 2
+fi
+
+# Validate command line (to some extent)
+if [ $# -eq 0 ]; then
+    echo "Scalasca $VERSION: application instrumenter (using $SCOREP)"
+    echo "usage: `basename $0` [-v] [-comp] [-pdt] [-pomp] [-user] [--*] <compile-or-link-command>"
+#   echo "  -mode={auto|mpi|omp|ompi|none|serial}: measurement mode [default: auto]"
+    echo "  -comp={all|none|...}: routines to be instrumented by compiler [default: all]"
+    echo "                 (... custom instrumentation specification depends on compiler)"
+    echo "  -pdt:  process source files with PDT/TAU instrumenter"
+    echo "  -pomp: process source files for POMP directives"
+    echo "  -user: enable EPIK user instrumentation API macros in source code"
+    echo "  -v:    enable verbose commentary when instrumenting"
+    echo ""
+    echo "  --*:   options to pass to $SCOREP"
+    exit 1
+fi
+
+if [ -n "$COMPINST" ]; then
+    set -- -comp=$COMPINST $@
+fi
+
+if [ -n "$INSTMODE" ]; then
+    set -- -mode=$INSTMODE $@
+fi
+
+# Process options
+unset INST_OPTS
+while [ $# -ne 0 ]; do
+    case $1 in
+        -mode=auto)
+            shift
+            ;;
+        -mode=none)
+            INST_OPTS="${INST_OPTS} --nocompiler --nompi --noopenmp"
+            shift
+            ;;
+        -mode=serial)
+            INST_OPTS="${INST_OPTS} --nompi --noopenmp"
+            shift
+            ;;
+        -mode=mpi)
+            INST_OPTS="${INST_OPTS} --mpi"
+            shift
+            ;;
+        -mode=omp)
+            INST_OPTS="${INST_OPTS} --openmp"
+            shift
+            ;;
+        -mode=ompi)
+            INST_OPTS="${INST_OPTS} --openmp --mpi"
+            shift
+            ;;
+        -comp=all)
+            INST_OPTS="${INST_OPTS} --compiler"
+            shift
+            ;;
+        -comp=none)
+            INST_OPTS="${INST_OPTS} --nocompiler"
+            shift
+            ;;
+        -comp=*)
+            echo "Error: custom compiler instrumentation not supported by scorep"
+            exit 99
+            ;;
+        -pomp)
+            INST_OPTS="${INST_OPTS} --pomp"
+            shift
+            ;;
+        -pdt|-tau)
+            INST_OPTS="${INST_OPTS} --pdt"
+            shift
+            ;;
+        -user)
+            echo "Error: EPIK user instrumentation API not supported by scorep"
+            exit 99
+            ;;
+        -@|-v)
+            VERBOSE="-v"
+            shift
+            ;;
+        -h|-help)
+            exec $0 # usage
+            ;;
+        --[a-z]*) # presumably a Score-P instrumenter option to pass on
+            INST_OPTS="${INST_OPTS} $1"
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [ $# -eq 0 ]; then
+    echo "Error: no compile or link command"
+    exec $0 # usage
+fi
+
+# Execute appropriate instrumenter command
+echo "->" ${SCOREP} ${VERBOSE} ${INST_OPTS} "$@"
+${SCOREP} ${VERBOSE} ${INST_OPTS} "$@"

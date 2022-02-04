@@ -1,0 +1,81 @@
+
+                             SCALASCA v2 README
+                             ==================
+
+The Scalasca project aims to develop a generic automatic performance analysis
+environment for parallel applications.  It focuses on the identification of
+potential performance bottlenecks by automatically recognizing and quantifying
+patterns of inefficient behavior in event traces, and offers guidance in
+exploring their causes.  In particular, Scalasca emphasizes on inefficiencies
+concerning communication and synchronization.
+
+The Scalasca Trace Tools build upon the analysis techniques developed over
+the past years in the Scalasca 1.x release series.  The major difference is
+that Scalasca v2 is now based on the community instrumentation and
+measurement infrastructure Score-P (https://www.score-p.org/) rather than
+providing its own measurement system.  This also means that the common
+Score-P data formats CUBE4 (for profile data) and OTF2 (for trace data) are
+used instead of the old CUBE3 and EPILOG formats provided by Scalasca 1.x.
+However, backwards compatibility is ensured by also being able to read and
+process trace files in EPILOG format (with the exception of traces stored in
+SIONlib containers).  Similarly, the Cube v4 GUI can handle both CUBE3 and
+CUBE4 files.
+
+Scalasca v2 is released as open source under a BSD-style license.  Please see
+the COPYING file in the package base directory for details.
+
+
+Installation
+============
+
+See the INSTALL file for detailed information about how to configure, build
+and install Scalasca.
+
+NOTE: Scalasca v2 uses a different build system than Scalasca 1.x.  Therefore,
+      users who are familiar with building and installing Scalasca v1 are also
+      strongly encouraged to read the INSTALL file!
+
+
+User Documentation
+==================
+
+Scalasca user documentation for a specific installation is by default
+installed into the '$SCALASCA_ROOT/share/doc/scalasca' subdirectory.  At
+present, however, user documentation is still limited.
+
+ * Scalasca User Guide (manual/UserGuide.pdf | manual/html/index.html):
+
+   Provides information to get you started and avoid common pitfalls.  Also
+   includes a detailed reference for the most commonly used commands provided
+   by the Scalasca Trace Tools package.
+
+ * Scalasca Quick Reference (manual/QuickReference.pdf):
+
+   Review of the main steps and commands for Scalasca usage.  Generally
+   also accessible via the "scalasca --quickref" command from a Scalasca
+   installation.  After basic familiarization with Scalasca usage, this
+   short documentation should provide brief reminders of common commands
+   and options.
+
+ * Scalasca open issues & limitations (OPEN_ISSUES):
+
+   Compendium of known limitations and unimplemented features that may affect
+   Scalasca usability on various platforms or with certain applications, with
+   suggested workarounds where appropriate.  Although issues may be uncommon
+   and/or quite technically complex, users are encouraged to briefly review
+   this document, particularly if they believe they have encountered a problem
+   when using Scalasca, prior to contacting user support.
+
+
+Web page & Contact
+==================
+
+For further more detailed information on Scalasca, Cube and Score-P see the
+project webpages at
+
+        https://www.scalasca.org/
+        https://www.score-p.org/
+
+For help, reporting bugs, and making comments or suggestions send e-mail to
+
+        scalasca@fz-juelich.de

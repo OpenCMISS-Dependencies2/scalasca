@@ -1,0 +1,433 @@
+# Doxyfile 1.8.10
+#
+# This file describes the settings to be used by the documentation system
+# doxygen (www.doxygen.org) for both the user and developer documentation
+# of all components of Scalasca.
+
+
+# --- Include make-time configuration ---------------------------------------
+
+@INCLUDE = \
+    @abs_top_builddir@/doc/doxygen-at-make-time.cfg
+
+
+# --- Project settings ------------------------------------------------------
+
+PROJECT_LOGO = \
+    @abs_top_srcdir@/doc/doxygen-common/ScalascaIcon.png
+
+
+# --- Common configuration settings -----------------------------------------
+
+DOXYFILE_ENCODING    = UTF-8
+HAVE_DOT             = NO
+WARNINGS             = YES
+WARN_IF_UNDOCUMENTED = YES
+WARN_IF_DOC_ERROR    = YES
+WARN_NO_PARAMDOC     = YES
+
+
+# --- Input settings --------------------------------------------------------
+
+INPUT = \
+    @abs_top_srcdir@/doc/doxygen-common/license.dox
+
+AUTOLINK_SUPPORT       = YES
+BUILTIN_STL_SUPPORT    = YES
+CPP_CLI_SUPPORT        = NO
+EXCLUDE_PATTERNS       = */.git/*
+EXCLUDE_SYMLINKS       = YES
+EXTENSION_MAPPING      = h=C++
+EXTRACT_ALL            = YES
+FILE_PATTERNS          = *.h *.cpp *.dox
+GROUP_NESTED_COMPOUNDS = NO
+IDL_PROPERTY_SUPPORT   = NO
+INPUT_ENCODING         = UTF-8
+JAVADOC_AUTOBRIEF      = NO
+MARKDOWN_SUPPORT       = YES
+MULTILINE_CPP_IS_BRIEF = YES
+QT_AUTOBRIEF           = NO
+RECURSIVE              = YES
+SIP_SUPPORT            = NO
+SUBGROUPING            = YES
+TAB_SIZE               = 8
+
+
+# --- Preprocessor settings -------------------------------------------------
+
+ENABLE_PREPROCESSING = YES
+EXPAND_ONLY_PREDEF   = NO
+MACRO_EXPANSION      = NO
+SEARCH_INCLUDES      = NO
+SKIP_FUNCTION_MACROS = YES
+
+
+# --- Output settings -------------------------------------------------------
+
+ALLEXTERNALS            = NO
+ALLOW_UNICODE_NAMES     = NO
+ALPHABETICAL_INDEX      = YES
+ALWAYS_DETAILED_SEC     = NO
+BRIEF_MEMBER_DESC       = YES
+CASE_SENSE_NAMES        = YES
+CLASS_DIAGRAMS          = YES
+COLS_IN_ALPHA_INDEX     = 5
+CREATE_SUBDIRS          = NO
+DISTRIBUTE_GROUP_DOC    = NO
+EXTERNAL_GROUPS         = NO
+EXTERNAL_PAGES          = NO
+FORCE_LOCAL_INCLUDES    = NO
+FULL_PATH_NAMES         = YES
+GENERATE_DEPRECATEDLIST = YES
+HIDE_COMPOUND_REFERENCE = NO
+HIDE_IN_BODY_DOCS       = YES
+HIDE_SCOPE_NAMES        = NO
+HIDE_UNDOC_RELATIONS    = NO
+INHERIT_DOCS            = NO
+INLINE_GROUPED_CLASSES  = NO
+INLINE_INHERITED_MEMB   = NO
+INLINE_SIMPLE_STRUCTS   = NO
+INLINE_SOURCES          = NO
+MAX_INITIALIZER_LINES   = 30
+OPTIMIZE_FOR_FORTRAN    = NO
+OPTIMIZE_OUTPUT_FOR_C   = NO
+OPTIMIZE_OUTPUT_JAVA    = NO
+OPTIMIZE_OUTPUT_VHDL    = NO
+OUTPUT_LANGUAGE         = English
+REFERENCED_BY_RELATION  = NO
+REFERENCES_RELATION     = NO
+REFERENCES_LINK_SOURCE  = NO
+REPEAT_BRIEF            = NO
+SEPARATE_MEMBER_PAGES   = NO
+SHORT_NAMES             = NO
+SHOW_FILES              = YES
+SHOW_GROUPED_MEMB_INC   = NO
+SHOW_INCLUDE_FILES      = YES
+SHOW_NAMESPACES         = YES
+SOURCE_BROWSER          = NO
+SORT_BRIEF_DOCS         = NO
+SORT_BY_SCOPE_NAME      = NO
+SORT_GROUP_NAMES        = YES
+SORT_MEMBER_DOCS        = YES
+SORT_MEMBERS_CTORS_1ST  = YES
+STRICT_PROTO_MATCHING   = NO
+STRIP_CODE_COMMENTS     = YES
+TYPEDEF_HIDES_STRUCT    = NO
+VERBATIM_HEADERS        = NO
+
+
+# --- HTML settings ---------------------------------------------------------
+
+HTML_OUTPUT           = html
+DISABLE_INDEX         = NO
+ENUM_VALUES_PER_LINE  = 1
+EXT_LINKS_IN_WINDOW   = YES
+EXTERNAL_SEARCH       = NO
+FORMULA_FONTSIZE      = 10
+FORMULA_TRANSPARENT   = YES
+GENERATE_DOCSET       = NO
+GENERATE_ECLIPSEHELP  = NO
+GENERATE_HTML         = YES
+GENERATE_HTMLHELP     = NO
+GENERATE_QHP          = NO
+GENERATE_TREEVIEW     = NO
+HTML_COLORSTYLE_HUE   = 73
+HTML_COLORSTYLE_SAT   = 93
+HTML_COLORSTYLE_GAMMA = 100
+HTML_DYNAMIC_SECTIONS = NO
+HTML_EXTRA_FILES      = \
+    @abs_top_srcdir@/doc/doxygen-common/ScalascaLogo.png \
+    @abs_top_srcdir@/doc/doxygen-common/tab_active.png \
+    @abs_top_srcdir@/doc/doxygen-common/tab_inactive.png
+HTML_EXTRA_STYLESHEET = \
+    @abs_top_srcdir@/doc/doxygen-common/scalasca.css
+HTML_FILE_EXTENSION   = .html
+HTML_FOOTER           = \
+    @abs_top_srcdir@/doc/doxygen-common/footer.html
+HTML_TIMESTAMP        = NO
+SEARCHENGINE          = YES
+SERVER_BASED_SEARCH   = NO
+USE_HTAGS             = NO
+USE_MATHJAX           = NO
+
+
+# --- Other output formats --------------------------------------------------
+
+GENERATE_AUTOGEN_DEF = NO
+GENERATE_DOCBOOK     = NO
+GENERATE_LATEX       = NO
+GENERATE_MAN         = NO
+GENERATE_PERLMOD     = NO
+GENERATE_RTF         = NO
+GENERATE_XML         = NO
+
+
+# --- Custom commands -------------------------------------------------------
+
+# @exception_safety { description }
+#
+# Starts a new paragraph describing the exception safety guarantees of a
+# function.  Use @parblock/@endparblock if the description covers multiple
+# paragraphs.
+#
+ALIASES += \
+    exception_safety="\
+        \n@par Exception safety\n"
+
+# @exception_nothrow [ { description } ]
+#
+# Starts a new paragraph describing the exception safety guarantees of a
+# function using a default text for the no-throw guarantee.  Optionally, an
+# extended description can be provided, e.g., to document requirements on
+# template arguments to fulfill the guarantee.  Use @parblock/@endparblock
+# if the description covers multiple paragraphs.
+#
+ALIASES += \
+    exception_nothrow="\
+        @exception_safety\
+        <b class=\"paramname\">No-throw guarantee:</b> \
+        never throws exceptions.\
+        <br>\n"
+
+# @exception_strong [ { description } ]
+#
+# Starts a new paragraph describing the exception safety guarantees of a
+# function using a default text for the strong guarantee.  Optionally, an
+# extended description can be provided, e.g., to document requirements on
+# template arguments to fulfill the guarantee.  Use @parblock/@endparblock
+# if the description covers multiple paragraphs.
+#
+ALIASES += \
+    exception_strong="\
+        @exception_safety\
+        <b class=\"paramname\">Strong guarantee:</b> \
+        no effects in case an exception is thrown.\
+        <br>\n"
+
+# @exception_basic [ { description } ]
+#
+# Starts a new paragraph describing the exception safety guarantees of a
+# function using a default text for the basic guarantee.  Optionally, an
+# extended description can be provided, e.g., to document requirements on
+# template arguments to fulfill the guarantee.  Use @parblock/@endparblock
+# if the description covers multiple paragraphs.
+#
+ALIASES += \
+    exception_basic="\
+        @exception_safety\
+        <b class=\"paramname\">Basic guarantee:</b> \
+        if an exception is thrown, a valid state is preserved and no \
+        resources are leaked.\
+        <br>\n"
+
+# @thread_safety { description }
+#
+# Starts a new paragraph describing the thread safety guarantees of a class
+# or function.  Use @parblock/@endparblock if the description covers multiple
+# paragraphs.
+#
+ALIASES += \
+    thread_safety="\
+        \n@par Thread safety\n"
+
+# @figure{<file>, <label>, <caption>, <size>}
+#
+# Generates a figure using <file> with the given <caption> and a <size> hint
+# (for LaTeX output only). <label> can be used to reference the figure via
+# the '@ref' command.
+#
+ALIASES += \
+    figure{4}="\
+        @latexonly \
+          \begingroup \
+            \renewcommand{\label}[1]{\gdef\DoxyImageLabel{#1}} \
+        @endlatexonly \
+        @anchor \2 \
+        @latexonly \
+          \endgroup \
+        @endlatexonly \
+        @image html \1 \"\\"\2\\": \3\" \
+        @image latex \1 \"\3\" \4"
+
+# @seclist
+#
+# Starts a list of subsections (i.e., subpages) of the current page. Items
+# have to be listed using @secitem, the list itself is ended by @endseclist.
+#
+# HTML only, no effect for LaTeX.
+#
+ALIASES += \
+    seclist="\
+        @latexonly \
+          \begin{comment} \
+        @endlatexonly \
+        <hr> \
+        @htmlonly \
+          <b>Subsections:</b> \
+          <ul style=\"margin-top: 0\"> \
+        @endhtmlonly"
+
+# @endseclist
+#
+# Ends a list of subsections (i.e., subpages), started by the @seclist command.
+#
+# HTML only, no effect for LaTeX.
+#
+ALIASES += \
+    endseclist="\
+        @htmlonly \
+          </ul> \
+        @endhtmlonly \
+        @latexonly \
+          \end{comment}\n \
+        @endlatexonly"
+
+# @secitem{<label>}
+#
+# Adds a new subsection (i.e., subpage) to a section list. It has to appear
+# in a sectioning list started by @seclist and ended by @endseclist.
+#
+# HTML only, no effect for LaTeX.
+#
+ALIASES += \
+    secitem{1}="\
+        @htmlonly \
+          <li> \
+        @endhtmlonly \
+        @subpage \1 \
+        @htmlonly \
+          </li> \
+        @endhtmlonly"
+
+# @navigation_prev{<label>}
+#
+# Generates a navigation footer with a link to a previous page identified by
+# <label>.
+#
+# HTML only, no effect for LaTeX/man pages.
+#
+ALIASES += \
+    navigation_prev{1}="\
+        \ifnot MANPAGE \
+            @latexonly \
+              \begin{comment}\n \
+            @endlatexonly \
+            @htmlonly \
+                </div> \
+              </div> \
+              <hr style=\"margin-top: 20px; border-top: 1px solid #004a6e;\"> \
+              <div class=\"pagenav\"> \
+                <span style=\"text-align:left;\"> &lt; \
+            @endhtmlonly \
+            @ref \1 \
+            @htmlonly \
+                </span> \
+              </div> \
+              <div> \
+                <div> \
+            @endhtmlonly \
+            @latexonly \
+              \end{comment}\n \
+            @endlatexonly \
+        \endif"
+
+# @navigation_next{<label>}
+#
+# Generates a navigation footer with a link to a following page identified by
+# <label>.
+#
+# HTML only, no effect for LaTeX/man pages.
+#
+ALIASES += \
+    navigation_next{1}="\
+        \ifnot MANPAGE \
+            @latexonly \
+              \begin{comment}\n \
+            @endlatexonly \
+            @htmlonly \
+                </div> \
+              </div> \
+              <hr style=\"margin-top: 20px; border-top: 1px solid #004a6e;\"> \
+              <div class=\"pagenav\"> \
+                <span style=\"float:right;\"> \
+            @endhtmlonly \
+            @ref \1 \
+            @htmlonly \
+                &gt;</span> \
+              </div> \
+              <br/> \
+              <div> \
+                <div> \
+            @endhtmlonly \
+            @latexonly \
+              \end{comment}\n \
+            @endlatexonly \
+        \endif"
+
+# @navigation_both{<label_prev>, <label_next>}
+#
+# Generates a navigation footer with a link to a previous page identified by
+# <label_prev> as well as a following page identified by <label_next>.
+#
+# HTML only, no effect for LaTeX/man pages.
+#
+ALIASES += \
+    navigation_both{2}="\
+        \ifnot MANPAGE \
+            @latexonly \
+              \begin{comment}\n \
+            @endlatexonly \
+            @htmlonly \
+                </div> \
+              </div> \
+              <hr style=\"margin-top: 20px; border-top: 1px solid #004a6e;\"> \
+              <div class=\"pagenav\"> \
+                <span style=\"text-align:left;\"> &lt; \
+            @endhtmlonly \
+            @ref \1 \
+            @htmlonly \
+                </span> \
+                <span style=\"float:right;\"> \
+            @endhtmlonly \
+            @ref \2 \
+            @htmlonly \
+                &gt;</span> \
+              </div> \
+              <div> \
+                <div> \
+            @endhtmlonly \
+            @latexonly \
+              \end{comment}\n \
+            @endlatexonly \
+        \endif"
+
+# @manpage
+#
+# Marks a page as a man page.  This affects the style of the LaTeX output
+# (unnumbered subsections w/o ToC entry and corresponding references).
+#
+# NOTE: The underlying code assumes that man pages are "second-level pages",
+#       i.e., subpages of a top-level page (e.g., "Command reference").
+#
+ALIASES += \
+    manpage="\
+        @latexonly \
+            \setboolean{insideManPage}{true} \
+        @endlatexonly"
+
+# @ref_man{<command>, <section>}
+#
+# Generates a reference to the man page of <command> in <section>.
+#
+ALIASES += \
+    ref_man{2}="@ref \1 \"\1\"(\2)"
+
+# @clearpage
+#
+# Inserts a '\clearpage' command in the LaTeX output.
+#
+ALIASES += \
+    clearpage="\
+        @latexonly \
+            \clearpage \
+        @endlatexonly"

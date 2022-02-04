@@ -1,0 +1,45 @@
+##*************************************************************************##
+##  CUBE        http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2017                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+DOXYGEN_CUBEW_DEV_SRC = $(SRC_ROOT)doc/doxygen-dev/cubew
+
+
+##--- Extra distribution files ----------------------------------------------
+
+EXTRA_DIST += \
+    $(DOXYGEN_CUBEW_DEV_SRC)/cubew.dox
+
+
+##--- Doxygen-related targets -----------------------------------------------
+
+if HAVE_DOXYGEN
+
+PHONY_TARGETS += \
+    doxygen-cubew-dev
+doxygen-cubew-dev:  \
+		doc/doxygen-dev-at-make-time.cfg \
+		doc/doxygen-dev/cubew/doxygen-cubew-dev.cfg \
+		doc/doxygen-common/doxygen-cubew.cfg \
+		doc/doxygen-common/doxygen-common.cfg
+	@$(MKDIR_P) $(DEV_DOC_DIR)/cubew/html
+	@$(MKDIR_P) $(DEV_TAGS_DIR)
+	$(AM_V_GEN)( \
+	    TAGFILE_DIR=$(DEV_TAGS_DIR) \
+	    $(DOXYGEN) doc/doxygen-dev/cubew/doxygen-cubew-dev.cfg \
+	)
+
+endif HAVE_DOXYGEN

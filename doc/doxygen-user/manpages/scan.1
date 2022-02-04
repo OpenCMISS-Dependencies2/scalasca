@@ -1,0 +1,283 @@
+.TH "scan" 1 "Mon Apr 19 2021" "Version 2.6" "Scalasca Trace Tools" \" -*- nroff -*-
+.nh
+.SH NAME
+scan \- Scalasca measurement collection and analysis nexus 
+.
+.SH "SYNOPSIS"
+.PP
+\fBscan\fP [\fIOPTIONS\fP] [\fILAUNCHER\fP [\fILAUNCHER_ARGS\fP]] \fITARGET\fP [\fITARGET_ARGS\fP]
+.SH "DESCRIPTION"
+.PP
+\fBscan\fP, the Scalasca measurement collection and analysis nexus, manages the configuration and processing of performance experiments with an executable \fITARGET\fP\&. \fITARGET\fP needs to be instrumented beforehand using the Score-P instrumentation and measurement system\&. In particular, \fBscan\fP integrates the following steps:
+.PP
+.IP "\(bu" 2
+Measurement configuration
+.IP "\(bu" 2
+Application execution using any given arguments \fITARGET_ARGS\fP 
+.IP "\(bu" 2
+Collection of measured data
+.IP "\(bu" 2
+Automatic post-mortem trace analysis (if configured)
+.PP
+.PP
+Many different experiments can typically be performed with a single instrumented executable without needing to re-instrument, by using different measurement and analysis configurations\&. The default runtime summarization mode directly produces an analysis report for examination, whereas event trace collection and analysis are automatically done in two steps to produce a profile augmented with additional metrics\&.
+.PP
+Serial and multi-threaded programs are typically launched directly, whereas MPI and hybrid MPI+X programs usually require a special \fILAUNCHER\fP command such as \fBmpiexec\fP, which may need additional arguments \fILAUNCHER_ARGS\fP (e\&.g\&., to specify the number of processes to be created)\&. \fBscan\fP automatically recognizes many MPI launchers, but if not, the MPI launcher name can be specified using the environment variable \fBSCAN_MPI_LAUNCHER\fP (see \fBENVIRONMENT\fP)\&.
+.PP
+\fBscan\fP examines the executable \fITARGET\fP to determine whether Score-P instrumentation is present; otherwise the measurement is aborted\&. The number of MPI processes and OpenMP threads are determined from \fILAUNCHER_ARGS\fP and/or the environment\&. If the target executable is not specified as one of the launcher arguments, it is expected to be the immediately following part of the command line\&. It may be necessary to use a double-dash specification (--) to explicitly separate the target from the preceding launcher specification\&. If there is an imposter executable or script, e\&.g\&., often used to specify placement/thread binding, that precedes the instrumented \fITARGET\fP, it may be necessary to explicitly identify the target with the environment variable \fBSCAN_TARGET\fP (see \fBENVIRONMENT\fP)\&.
+.PP
+A unique directory is created for each measurement experiment, which must not already exist when measurement starts unless \fBSCAN_OVERWRITE\fP is enabled (see \fBENVIRONMENT\fP); otherwise measurement is aborted\&. A default name for each measurement archive directory is created from a '\fCscorep_\fP' prefix, the name of the executable \fITARGET\fP, the run configuration (e\&.g\&., number of processes specified), and the measurement configuration\&. This default name can be overwritten using the \fBSCOREP_EXPERIMENT_DIRECTORY\fP environment variable (see \fBENVIRONMENT\fP) or the \fB-e\fP command-line option\&.
+.PP
+When measurement has completed, the measurement archive directory contains all artifacts produced by the measurement and subsequent trace analysis (if configured)\&. In particular, the following files are produced independent from the selected measurement mode:
+.IP "\(bu" 2
+\fCMANIFEST\&.md\fP: a text file briefly describing the directory contents produced by the Score-P measurement system
+.IP "\(bu" 2
+\fCscorep\&.cfg\fP: a copy of the measurement configuration
+.IP "\(bu" 2
+\fCscorep\&.log\fP: the measurement log file
+.IP "\(bu" 2
+\fCscorep\&.filter\fP: a copy of the measurement filter (if provided)
+.PP
+.PP
+In runtime summarization mode, the archive directory additionally contains:
+.IP "\(bu" 2
+\fCprofile\&.cubex\fP: the runtime summary result
+.PP
+.PP
+In trace collection and analysis mode, the following additional files are generated:
+.IP "\(bu" 2
+an OTF2 trace archive consisting of
+.IP "  \(bu" 4
+the anchor file \fCtraces\&.otf2\fP,
+.IP "  \(bu" 4
+the global definitions file \fCtraces\&.def\fP, and
+.IP "  \(bu" 4
+the per-process data files in the \fCtraces/\fP directory
+.PP
+.
+.IP "\(bu" 2
+\fCscout\&.log\fP: the trace analysis log file
+.IP "\(bu" 2
+\fCscout\&.cubex\fP: the trace analysis result
+.IP "\(bu" 2
+\fCtrace\&.stat\fP: trace analysis pattern statistics
+.PP
+.PP
+In multi-run mode, the results of the individual runs are stored in subdirectories inside the top-level measurement archive directory\&. In addition, the following file will be archived:
+.IP "\(bu" 2
+\fCscalasca_run\&.cfg\fP: a (possibly auto-generated) copy of the multi-run configuration specification file
+.PP
+.SH "OPTIONS"
+.PP
+The \fBscan\fP command accepts the following command-line options\&. Note that configuration settings specified on the command line take precedence over those specified via environment variables (see \fBENVIRONMENT\fP)\&. Also, see \fBMULTI-RUN EXPERIMENTS\fP below for details on interactions with configuration file settings\&.
+.PP
+.IP "\fB-h \fP" 1c
+Print a brief usage summary, then exit\&. 
+.PP
+.IP "\fB-v \fP" 1c
+Increase verbosity\&. 
+.PP
+.IP "\fB-n \fP" 1c
+Print the command(s) to be launched, but do not execute them\&. 
+.PP
+.IP "\fB-q \fP" 1c
+Quiescent execution with neither summarization nor tracing enabled\&. Sets both \fBSCOREP_ENABLE_PROFILING\fP and \fBSCOREP_ENABLE_TRACING\fP to 'false'\&. 
+.PP
+.IP "\fB-s \fP" 1c
+Enable runtime summarization mode\&. Sets \fBSCOREP_ENABLE_PROFILING\fP to 'true'\&. This is the default\&. 
+.PP
+.IP "\fB-t \fP" 1c
+Enable trace collection and analysis\&. Sets \fBSCOREP_ENABLE_TRACING\fP to 'true'\&. 
+.PP
+.IP "\fB-a \fP" 1c
+Skip measurement step to (re-)analyze an existing trace\&. 
+.PP
+.IP "\fB-e \fIexperiment_dir\fP \fP" 1c
+Override default experiment archive name to generate and/or analyze \fIexperiment_dir\fP\&. Sets \fBSCOREP_EXPERIMENT_DIRECTORY\fP\&. 
+.PP
+.IP "\fB-f \fIfilter_file\fP \fP" 1c
+Use the measurement filter rules from \fIfilter_file\fP\&. Sets \fBSCOREP_FILTERING_FILE\fP\&. 
+.PP
+.IP "\fB-l \fIlock_file\fP \fP" 1c
+Block start of measurement while \fIlock_file\fP exists\&. 
+.PP
+.IP "\fB-R \fInum_runs\fP \fP" 1c
+Specifies the number measurement runs per configuration (default=1)\&. 
+.PP
+.IP "\fB-M \fIconfig_file\fP \fP" 1c
+Allows to specify a configuration file describing multi-run experiment settings\&. See \fBMULTI-RUN EXPERIMENTS\fP below for details\&. 
+.PP
+.IP "\fB-P \fIpreset\fP \fP" 1c
+Specify a preset for a multi-run measurement, e\&.g\&., 'pop'\&. See \fBMULTI-RUN EXPERIMENTS\fP below for details\&. 
+.PP
+.IP "\fB-L \fP" 1c
+List all available multi-run presets\&. 
+.PP
+.IP "\fB-D \fIconfig_file\fP \fP" 1c
+Checks a multi-run config file for validity, if successful dumps the processed configuration for comparison, and exits\&.  
+.PP
+.SH "ENVIRONMENT"
+.PP
+Environment variables with the '\fCSCAN_\fP' prefix may be used to configure the \fBscan\fP nexus itself (which is a serial workflow manager process), rather than the instrumented application process(es) which will be measured, which can also be configured via environment variables\&. Configuration specified on the nexus command-line takes precedence over that specified via environment variables\&. See \fBMULTI-RUN EXPERIMENTS\fP below for details on interactions with configuration file settings\&.
+.SS "Environment variables controlling scan"
+.IP "\fBSCAN_ANALYZE_OPTS \fP" 1c
+Specifies trace analyzer options (default: none)\&. For details on the supported options, see \fBscout\fP(1)\&. 
+.PP
+.IP "\fBSCAN_CLEAN \fP" 1c
+If enabled, removes event trace data after successful trace analysis (default: 'false')\&. 
+.PP
+.IP "\fBSCAN_MPI_LAUNCHER \fP" 1c
+Specifies a non-standard MPI launcher name\&. 
+.PP
+.IP "\fBSCAN_MPI_RANKS \fP" 1c
+Specifies the number of MPI processes, for example in an MPMD use case or if the number of ranks is not automatically identified correctly\&. The specified number will also be used in the automatically generated experiment title\&. While an experiment title with an incorrect number of processes is harmless (though generally confusing), the correct number is required for automatic parallel trace analysis\&.  
+.PP
+.IP "\fBSCAN_MULTIRUN_DEFAULT_CFG \fP" 1c
+Path to a multi-run configuration file that will be loaded per default in any measurement based on configuration files or presets\&. As a default settings file, only global settings are used to avoid interference with explicitly specified configs or presets\&. 
+.PP
+.IP "\fBSCAN_MULTIRUN_PRESET_PATH \fP" 1c
+Colon-separated list of paths containing preset files\&. 
+.PP
+.IP "\fBSCAN_OVERWRITE \fP" 1c
+If enabled, removes an existing experiment archive directory before measurement (default: 'false')\&. 
+.PP
+.IP "\fBSCAN_SETENV \fP" 1c
+If environment variables are not automatically forwarded to MPI processes by the launcher, one can specify the syntax that the launcher requires for this as \fBSCAN_SETENV\fP\&. For example, "-foo" results in passing "-foo key val" to the launcher, while "--foo=" results in "--foo key=val"\&. 
+.PP
+.IP "\fBSCAN_TARGET \fP" 1c
+If there is an imposter executable or script, for example, used to specify placement/thread binding, that precedes the instrumented target, it may be necessary to explicitly identify the target executable by setting \fBSCAN_TARGET\fP to the executable name\&. 
+.PP
+.IP "\fBSCAN_TRACE_ANALYZER \fP" 1c
+Specifies an alternative trace analyzer to be used (e\&.g\&., \fCscout\&.mpi\fP or \fCscout\&.hyb\fP)\&. If '\fCnone\fP' is specified, automatic trace analysis is skipped after measurement\&. 
+.PP
+.IP "\fBSCAN_TRACE_FILESYS \fP" 1c
+Specifies an optional list of colon separated paths identifying suitable file systems for tracing\&. If set, the file system of trace measurements has to match at least one of the specified file systems\&. 
+.PP
+.IP "\fBSCAN_WAIT \fP" 1c
+Time in seconds to wait for synchronization of a distributed filesystem after measurement completion\&.  
+.PP
+.SS "Common Score-P environment variables controlling the measurement"
+.IP "\fBSCOREP_EXPERIMENT_DIRECTORY \fP" 1c
+Explicit experiment archive title\&. 
+.PP
+.IP "\fBSCOREP_ENABLE_PROFILING \fP" 1c
+Enable or disable runtime summarization\&. 
+.PP
+.IP "\fBSCOREP_ENABLE_TRACING \fP" 1c
+Enable or disable event trace generation\&. 
+.PP
+.IP "\fBSCOREP_FILTERING_FILE \fP" 1c
+Name of run-time measurement filter file\&. 
+.PP
+.IP "\fBSCOREP_VERBOSE \fP" 1c
+Controls the generation of additional (debugging) output from the Score-P measurement system\&. 
+.PP
+.IP "\fBSCOREP_TOTAL_MEMORY \fP" 1c
+Size of per-process memory in bytes reserved for Score-P\&.  
+.PP
+For further details, please refer to the Score-P documentation and/or the output of '\fCscorep-info config-vars\fP'\&.
+.SH "MULTI-RUN EXPERIMENTS"
+.PP
+\fBscan\fP also provides means to automate the generation of multiple measurements with varying configuration settings\&. This workflow can be employed for various analysis objectives, as long as the variations are based on environment variables\&. Likely candidates are:
+.IP "1." 4
+Increasing the statistical significance through multiple repetitions of measurements with identical settings\&.
+.IP "2." 4
+Spreading multiple hardware-counter measurements over different runs to limit the measurement overhead and/or to overcome hardware limitations (e\&.g\&., number of hardware performance counters that can be measured simultaneously)\&.
+.IP "3." 4
+Performing a series of measurements with varying application settings, like problem size or input data\&.
+.PP
+.PP
+Results of such multi-run experiments can be used individually, aggregated manually using various Cube tools, or be passed to the \fBsquare\fP(1) command for automated report aggregation\&.
+.PP
+\fBAttention:\fP
+.RS 4
+The degree of non-determinism in an application's runtime behavior will influence the informative value of any aggregated result\&. Only with sufficient similarity between application runs will the combination of results be useful\&.
+.RE
+.PP
+Multi-run experiments are set up using a plain-text configuration file, which is passed to the \fBscan\fP command via the \fB-M\fP command-line option\&. In this file, the begin of each measurement run configuration is marked by a line starting with a single dash (\fC-\fP) character; the remainder of the line will be ignored\&. Subsequent lines up to either the next run separator or the end of the file may contain at most one variable setting of the form '\fCVARIABLE=VALUE\fP'\&. Optionally, a section with global settings can be specified at the beginning of the config file, introduced by a line starting with two dashes (\fC--\fP); the remainder of this line will again be ignored\&. A variable defined in the global section will be applied in all subsequent run configurations unless it is overwritten by a run-specific setting\&. The configuration file format also allows for single-line comments starting with a hash character (\fC#\fP) and blank lines, both of which are ignored\&.
+.PP
+For example, the following multi-run configuration file defines a series of four subsequent measurements with different settings: 
+.PP
+.nf
+    # example run configuration file
+    # global section
+    -- this can also hold comments
+    SCOREP_ENABLE_TRACING=true
+.
+    -
+    # first run with two PAPI metrics
+    SCOREP_METRIC_PAPI=PAPI_TOT_CYC,PAPI_TOT_INS
+.
+    -
+    # second run with different PAPI metric and increased Score-P memory
+    SCOREP_METRIC_PAPI=PAPI_LD_INS
+    SCOREP_TOTAL_MEMORY=42M
+.
+    - third run with different PAPI metric
+    SCOREP_METRIC_PAPI=PAPI_VEC_DP
+.
+    -
+    # fourth run using only global settings
+.
+.fi
+.PP
+.PP
+Note that measurement configuration settings are not limited to \fBscan\fP or Score-P environment variables, but also allow for setting arbitrary variables in the measurement execution environment\&. Also, the order in which measurements are specified may have an impact on the aggregated result, see \fBsquare\fP(1) for details\&.
+.PP
+To ensure consistency and reproducibility, the environment must not contain Score-P or Scalasca variables when using a multi-run configuration file\&. Otherwise, \fBscan\fP will abort with an error providing a list of the offending variables\&. That is, all Score-P/Scalasca settings to be applied have to be placed in either the global or run-specific sections of the configuration\&. Moreover, all variables used anywhere in the configuration file will be unset before each measurement run, and then set to either the global or run-specific value if applicable, thus avoiding side effects from variable settings not specified in the configuration file\&. The Score-P variable \fCSCOREP_EXPERIMENT_DIRECTORY\fP will not have any effect inside the configuration file, as an automatic naming scheme---an extension to the default Scalasca scheme---is enforced to keep the multi-run measurement directories consistent\&. To set the experiment directory a priori, the \fBscan\fP command-line option \fB-e\fP can be used\&. Other \fBscan\fP options that control the measurement (\fB-q\fP, \fB-t\fP, and \fB-s\fP) will be ignored when used with a config file and should be set through the respective environment variables in the configuration file for consistency\&.
+.PP
+A variation of the configuration file mode described above is the preset mode\&. The preset mode combines predefined configurations for typical scenarios with global environment variables for the specific use case\&. In this case, only variables used in the preset configuration are blocked in the global environment to avoid interference with the functionality provided by the selected preset\&. Available presets can be listed by using the \fB-L\fP option\&. By default, only presets provided by the Scalasca installation are available\&. Additional presets can be provided by adding paths to the \fCSCAN_MULTIRUN_PRESET_PATH\fP variable using a colon as separator\&. Preset files have the extension \fC\&.preset\fP and follow the same syntax as multi-run configuration files\&. To ensure the functionality of a preset in the presence of additional user-defined Score-P/Scalasca variables, the preset configuration file has to contain all variables that may interfere with the functionality of the preset by using default settings\&.
+.PP
+In addition to multi-run experiments with different configuration settings, \fBscan\fP supports repeating a single or a set of measurements multiple times via the \fB-R\fP command-line option, for example, to provide increased statistical significance\&. For measurements without a configuration file, the measurement will be repeated the requested number of times with the current environment\&. In case of multi-run configurations, each individual run will be repeated the given number of times with the specified configuration\&.
+.PP
+For multi-run experiments, \fBscan\fP creates a common directory which contains the result of each individual measurement run stored in a subdirectory\&. The name of the base directory and the experiment directories contains the number of configurations as well as the number of repetitions\&. To support reproducibility, the configuration used is stored in the file \fCscalasca_run\&.cfg\fP in the common base directory\&. To test the validity of a configuration file before running a measurement, \fBscan\fP provides the \fB-D\fP option\&. In this mode, the provided configuration file is parsed and, on success, the processed data is dumped for comparison\&.
+.PP
+To store commonly used system- or user-specific variables, the user can specify a default configuration file via \fCSCAN_MULTIRUN_DEFAULT_CFG\fP\&. Its global settings will be used in any configuration- or preset-based multi-run measurement\&. Note that only the global settings are used to avoid interference with explicitly specified files by adding additional runs to the measurement\&.
+.SH "EXIT STATUS"
+.PP
+\fBscan\fP exits with status 0 if measurement and automatic trace analysis (if configured) were successful, and greater than 0 if errors occur\&.
+.SH "NOTES"
+.PP
+While parsing the arguments, unrecognized flags might be reported as ignored, and unrecognized options with required arguments might need to be quoted\&.
+.PP
+Instrumented applications can still be run without using \fBscan\fP to generate measurements, however, measurement configuration is then exclusively via Score-P environment variables (which must be explicitly exported to MPI processes) and trace analysis is not automatically started after event trace collection\&. 
+.SH "BUGS"
+.PP
+Please report bugs to \fIscalasca@fz-juelich.de\fP\&. Make sure to include at least the following information in your bug report:
+.IP "\(bu" 2
+The Scalasca Trace Tools version reported by '\fCscalasca -V\fP'\&.
+.IP "\(bu" 2
+The Scalasca Trace Tools configuration reported by '\fCscalasca -c\fP'\&.
+.IP "\(bu" 2
+The Score-P version reported by '\fCscorep --version\fP'\&.
+.IP "\(bu" 2
+The Score-P configuration reported by '\fCscorep-info config-summary\fP'\&.
+.IP "\(bu" 2
+The exact command line of the failing command\&.
+.IP "\(bu" 2
+The exact failure/error message\&.
+.PP
+.PP
+Also, if the trace analysis fails, please archive a copy of the entire experiment archive directory including the event trace data, as this may be required to aid in debugging\&. However, \fBONLY PROVIDE TRACE DATA IF EXPLICITLY REQUESTED\fP, as the data volume may be excessive\&.
+.SH "EXAMPLES"
+.PP
+\fBscan mpiexec -n 4 foo args\fP
+.br
+Execute the instrumented MPI program \fIfoo\fP with command-line arguments \fIargs\fP, collecting a runtime summary (default)\&. Results in an experiment directory \fIscorep_foo_4_sum\fP\&.
+.PP
+\fBOMP_NUM_THREADS=3 scan -s mpiexec -n 4 foobar\fP
+.br
+Execute the instrumented hybrid MPI+OpenMP program \fIfoobar\fP, collecting a runtime summary (default, but explicitly requested)\&. Results in an experiment directory \fIscorep_foobar_4x3_sum\fP\&.
+.PP
+\fBOMP_NUM_THREADS=3 scan -q -t -f filter bar\fP
+.br
+Execute the instrumented OpenMP program \fIbar\fP, collecting only an event trace with the run-time measurement filter \fIfilter\fP applied\&. Trace collection is immediately followed by Scalasca's automatic trace analysis\&. Results in an experiment directory \fIscorep_bar_Ox3_trace\fP\&.
+.SH "SEE ALSO"
+.PP
+\fBscalasca\fP(1), \fBsquare\fP(1), \fBscout\fP(1)
+.PP
+The Score-P instrumentation and measurement system documentation is available online at \fIhttps://www.score-p.org\fP\&.
+.PP
+The full Scalasca Trace Tools documentation is available online at \fIhttps://www.scalasca.org\fP\&.
+.PP
+.

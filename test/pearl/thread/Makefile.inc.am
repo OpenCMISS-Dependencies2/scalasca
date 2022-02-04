@@ -1,0 +1,44 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 2015-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+PEARL_THREAD_TEST = $(SRC_ROOT)test/pearl/thread
+
+
+##--- Tests -----------------------------------------------------------------
+
+check_PROGRAMS += \
+    pearl_thread_Test.compute
+TESTS += \
+    pearl_thread_Test.compute
+pearl_thread_Test_compute_SOURCES = \
+    $(PEARL_THREAD_TEST)/ChunkAllocator_Test.cpp \
+    $(PEARL_THREAD_TEST)/MemoryChunk_Test.cpp \
+    $(PEARL_THREAD_TEST)/MemoryChunkTree_Test.cpp
+pearl_thread_Test_compute_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(PEARL_THREAD_INT) \
+    $(GTEST_CPPFLAGS)
+pearl_thread_Test_compute_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(GTEST_CXXFLAGS)
+pearl_thread_Test_compute_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS)
+pearl_thread_Test_compute_LDADD = \
+    libpearl.thread.common.la \
+    libgtest_plain.la \
+    libgtest_core.la \
+    $(GTEST_LIBS)

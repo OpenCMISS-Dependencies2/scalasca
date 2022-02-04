@@ -1,0 +1,229 @@
+/**
+
+@defgroup io OTF2 I/O recording
+@{
+
+@page otf2_known_io_paradigms Known @otf2 I/O paradigms
+@seclabel{otf2_known_io_paradigms}
+
+The introduction of I/O recording with OTF2 made it necessary to distinguish
+different I/O paradigms. Like it is done with the parallel paradigms, like MPI, OpenMP.
+Though instead of the usual enum used to identify the paradigm, the I/O paradigms
+are expressed in a dynamic way with the help of a definition record. While this
+has the advantage that the API does not need to be changed only to add new
+I/O paradigms, it also lacks confidence in the definition. To overcome this, OTF2
+textually defines known I/O paradigms and their expected definition.
+
+<dl>
+
+<dt>
+ @anchor POSIX
+ <em>"POSIX"</em>
+</dt>
+<dd>
+  This is the I/O interface of the @emph{POSIX standard}.
+
+  @par Required properties
+  <dl>
+    <dt>Class</dt><dd>@eref{OTF2_IO_PARADIGM_CLASS_SERIAL}</dd>
+    <dt>Flags</dt><dd>@eref{OTF2_IO_PARADIGM_FLAG_OS}</dd>
+  </dl>
+</dd>
+
+<dt>
+ @anchor ISOC
+ <em>"ISOC"</em>
+</dt>
+<dd>
+  This is the I/O interface of the @emph{ISO C standard}.
+
+  @par Required properties
+  <dl>
+    <dt>Class</dt><dd>@eref{OTF2_IO_PARADIGM_CLASS_SERIAL}</dd>
+  </dl>
+</dd>
+
+<dt>
+ @anchor MPI-IO
+ <em>"MPI-IO"</em>
+</dt>
+<dd>
+  This is the I/O interface of the @emph{Message Passing Interface}.
+
+  @par Required properties
+  <dl>
+    <dt>Class</dt><dd>@eref{OTF2_IO_PARADIGM_CLASS_PARALLEL}</dd>
+    <dt>Flags</dt><dd>@eref{OTF2_IO_PARADIGM_FLAG_NONE}</dd>
+  </dl>
+</dd>
+
+<dt>
+ @anchor netCDF
+ <em>"netCDF"</em>
+</dt>
+<dd>
+  This is the @emph{Network Common Data Form}. The <em>class</em> depends
+  on whether the NetCDF library was built with or without MPI support.
+
+  @par Required properties
+  <dl>
+    <dt>Class</dt><dd>@eref{OTF2_IO_PARADIGM_CLASS_SERIAL} or @eref{OTF2_IO_PARADIGM_CLASS_PARALLEL}</dd>
+    <dt>Flags</dt><dd>@eref{OTF2_IO_PARADIGM_FLAG_NONE}</dd>
+  </dl>
+</dd>
+
+<dt>
+ @anchor PnetCDF
+ <em>"PnetCDF"</em>
+</dt>
+<dd>
+  This is the @emph{Parallel netCDF}.
+
+  @par Required properties
+  <dl>
+    <dt>Class</dt><dd>@eref{OTF2_IO_PARADIGM_CLASS_PARALLEL}</dd>
+    <dt>Flags</dt><dd>@eref{OTF2_IO_PARADIGM_FLAG_NONE}</dd>
+  </dl>
+</dd>
+
+<dt>
+ @anchor HDF5
+ <em>"HDF5"</em>
+</dt>
+<dd>
+  This is the I/O interface of @emph{The HDF Group}. The <em>class</em> depends
+  on whether the HDF5 library was built with or without MPI support.
+
+  @par Required properties
+  <dl>
+    <dt>Class</dt><dd>@eref{OTF2_IO_PARADIGM_CLASS_SERIAL} or @eref{OTF2_IO_PARADIGM_CLASS_PARALLEL}</dd>
+    <dt>Flags</dt><dd>@eref{OTF2_IO_PARADIGM_FLAG_NONE}</dd>
+  </dl>
+</dd>
+
+<dt>
+ @anchor ADIOS
+ <em>"ADIOS"</em>
+</dt>
+<dd>
+  This is the @emph{Adaptable IO System}.
+
+  @par Required properties
+  <dl>
+    <dt>Class</dt><dd>@eref{OTF2_IO_PARADIGM_CLASS_PARALLEL}</dd>
+    <dt>Flags</dt><dd>@eref{OTF2_IO_PARADIGM_FLAG_NONE}</dd>
+  </dl>
+</dd>
+
+</dl>
+
+@page otf2_io_operation_event_order Event order for I/O operation records
+@seclabel{otf2_io_operation_event_order}
+
+These diagrams show valid event orders of I/O operations, which also denotes
+the lifetime of the (@eref{IoHandle}, @p matchingId) tuple.
+
+If the @eref{OTF2_IO_OPERATION_FLAG_NON_BLOCKING} is not set in the @eref{IoOperationBegin}
+record, then the event order must follow:
+
+@dot
+digraph otf2_io_operation_event_order_blocking {
+    rankdir = LR;
+    bgcolor = "transparent";
+    edge [
+        fontname=FreeSans,
+        splines=curved
+    ];
+    _start [
+        shape=none,
+        label=""
+    ];
+    _end [
+        shape=none,
+        label=""
+    ];
+    node [
+        shape=rect,
+        style=rounded,
+        fontname=FreeSans
+    ];
+
+    IoOperationBegin [
+        href="@ref IoOperationBegin"
+    ];
+    IoOperationComplete [
+        href="@ref IoOperationComplete"
+    ];
+
+    _start -> IoOperationBegin;
+    IoOperationBegin -> IoOperationComplete;
+    IoOperationComplete -> _end;
+}
+@enddot
+
+If the @eref{OTF2_IO_OPERATION_FLAG_NON_BLOCKING} is set in the @eref{IoOperationBegin}
+record, then the event order must follow:
+
+@dot
+digraph otf2_io_operation_event_order_nonblocking {
+    rankdir = LR;
+    bgcolor = "transparent";
+    edge [
+        fontname=FreeSans,
+        splines=curved
+    ];
+    _start [
+        shape=none,
+        label=""
+    ];
+    _end0 [
+        shape=none,
+        label=""
+    ];
+    _end1 [
+        shape=none,
+        label=""
+    ];
+    node [
+        shape=rect,
+        style=rounded,
+        fontname=FreeSans
+    ];
+
+
+    IoOperationBegin [
+        href="@ref IoOperationBegin"
+    ];
+    IoOperationIssued [
+        href="@ref IoOperationIssued"
+    ];
+    IoOperationTest [
+        href="@ref IoOperationTest"
+    ];
+    IoOperationComplete [
+        href="@ref IoOperationComplete"
+    ];
+    IoOperationCancelled [
+        href="@ref IoOperationCancelled"
+    ];
+
+    _start -> IoOperationBegin;
+
+    IoOperationBegin -> IoOperationIssued;
+
+    IoOperationIssued -> IoOperationTest;
+    IoOperationIssued -> IoOperationComplete;
+    IoOperationIssued -> IoOperationCancelled;
+
+    IoOperationTest -> IoOperationTest;
+    IoOperationTest -> IoOperationComplete;
+    IoOperationTest -> IoOperationCancelled;
+
+    IoOperationComplete -> _end0;
+    IoOperationCancelled -> _end1;
+}
+@enddot
+
+@}
+
+*/

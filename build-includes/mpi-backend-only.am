@@ -1,0 +1,29 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2015                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+include ../src/pearl/ipc/Makefile.mpi.inc.am
+include ../src/pearl/MPI/Makefile.mpi.inc.am
+include ../src/pearl/writer/Makefile.mpi.inc.am
+include ../src/pearl/example/Makefile.mpi.inc.am
+include ../src/salsa/Makefile.mpi.inc.am
+include ../src/clc/Makefile.mpi.inc.am
+include ../src/scout/Makefile.mpi.inc.am
+include ../src/silas/Makefile.mpi.inc.am
+
+## Tests
+include ../vendor/gtest/Makefile.mpi.inc.am
+include ../test/pearl/ipc/Makefile.mpi.inc.am

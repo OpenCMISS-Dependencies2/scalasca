@@ -1,0 +1,50 @@
+## -*- mode: makefile -*-
+
+##
+## This file is part of the Score-P software (http://www.score-p.org)
+##
+## Copyright (c) 2016, 2020,
+## Technische Universitaet Dresden, Germany
+##
+## This software may be modified and distributed under the terms of
+## a BSD-style license.  See the COPYING file in the package base
+## directory for details.
+##
+
+if HAVE_PYTHON_BINDINGS_SUPPORT
+
+INSTALLCHECK_LOCAL += installcheck-python-bindings
+installcheck-python-bindings:
+	$(AM_V_at)PYTHONPATH="$(pythondir):$$PYTHONPATH" $(PYTHON) -m unittest discover -s $(srcdir)/../test/python
+
+endif HAVE_PYTHON_BINDINGS_SUPPORT
+
+EXTRA_DIST += \
+    $(SRC_ROOT)test/python/_otf2_combined_writer.py \
+    $(SRC_ROOT)test/python/otf2_reader.py \
+    $(SRC_ROOT)test/python/otf2_rewriter.py \
+    $(SRC_ROOT)test/python/_otf2_trace_gen.py \
+    $(SRC_ROOT)test/python/otf2_writer.py \
+    $(SRC_ROOT)test/python/otf2_writer_cct.py \
+    $(SRC_ROOT)test/python/test_basic_import.py \
+    $(SRC_ROOT)test/python/test_definitions.py \
+    $(SRC_ROOT)test/python/test_OTF2_AnchorFile.py \
+    $(SRC_ROOT)test/python/test_OTF2_AttributeList.py \
+    $(SRC_ROOT)test/python/test_OTF2_Combined.py \
+    $(SRC_ROOT)test/python/test_OTF2_enum_bitsets.py \
+    $(SRC_ROOT)test/python/test_otf2_group.py \
+    $(SRC_ROOT)test/python/test_OTF2_IdMap.py \
+    $(SRC_ROOT)test/python/test_OTF2_integrity.py \
+    $(SRC_ROOT)test/python/test_otf2_io.py \
+    $(SRC_ROOT)test/python/test_otf2_location_selection.py \
+    $(SRC_ROOT)test/python/test_otf2_parameter.py \
+    $(SRC_ROOT)test/python/test_otf2_program.py \
+    $(SRC_ROOT)test/python/test_OTF2_reader_callbacks.py \
+    $(SRC_ROOT)test/python/test_otf2_rewrite.py \
+    $(SRC_ROOT)test/python/test_otf2_rewrite_UTF.py \
+    $(SRC_ROOT)test/python/test_OTF2_trace_gen.py \
+    $(SRC_ROOT)test/python/test_OTF2_userData.py \
+    $(SRC_ROOT)test/python/test_otf2_write_location.py \
+    $(SRC_ROOT)test/python/test_OTF2_writer_callback.py \
+    $(SRC_ROOT)test/python/test_otf2_write_read.py \
+    $(SRC_ROOT)test/python/test_symbols_complete.py

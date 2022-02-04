@@ -1,0 +1,68 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 2015-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+PEARL_BASE_TEST = $(SRC_ROOT)test/pearl/base
+
+
+##--- Tests -----------------------------------------------------------------
+
+check_PROGRAMS += \
+    pearl_base_Test.compute
+TESTS += \
+    pearl_base_Test.compute
+pearl_base_Test_compute_SOURCES = \
+    $(PEARL_BASE_TEST)/CallingContext_Test.cpp \
+    $(PEARL_BASE_TEST)/Callpath_Test.cpp \
+    $(PEARL_BASE_TEST)/Callsite_Test.cpp \
+    $(PEARL_BASE_TEST)/CartDimension_Test.cpp \
+    $(PEARL_BASE_TEST)/CartTopology_Test.cpp \
+    $(PEARL_BASE_TEST)/CommLocationSet_Test.cpp \
+    $(PEARL_BASE_TEST)/CommSet_Test.cpp \
+    $(PEARL_BASE_TEST)/Communicator_Test.cpp \
+    $(PEARL_BASE_TEST)/ContextTree_Test.cpp \
+    $(PEARL_BASE_TEST)/DefinitionContainer_Test.cpp \
+    $(PEARL_BASE_TEST)/DefinitionTree_Test.cpp \
+    $(PEARL_BASE_TEST)/GroupingSet_Test.cpp \
+    $(PEARL_BASE_TEST)/Location_Test.cpp \
+    $(PEARL_BASE_TEST)/LocationSet_Test.cpp \
+    $(PEARL_BASE_TEST)/MutableCartTopology_Test.cpp \
+    $(PEARL_BASE_TEST)/MutableGlobalDefs_Test.cpp \
+    $(PEARL_BASE_TEST)/Paradigm_Test.cpp \
+    $(PEARL_BASE_TEST)/Process_Test.cpp \
+    $(PEARL_BASE_TEST)/Region_Test.cpp \
+    $(PEARL_BASE_TEST)/RmaWindow_Test.cpp \
+    $(PEARL_BASE_TEST)/SourceLocation_Test.cpp \
+    $(PEARL_BASE_TEST)/String_Test.cpp \
+    $(PEARL_BASE_TEST)/SystemNode_Test.cpp \
+    $(PEARL_BASE_TEST)/SystemTree_Test.cpp \
+    $(PEARL_BASE_TEST)/UnknownLocationGroup_Test.cpp
+pearl_base_Test_compute_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(PEARL_BASE_INC) \
+    -I$(PEARL_BASE_INT) \
+    $(GTEST_CPPFLAGS)
+pearl_base_Test_compute_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(GTEST_CXXFLAGS)
+pearl_base_Test_compute_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS)
+pearl_base_Test_compute_LDADD = \
+    libpearl.base.la \
+    libpearl.ipc.mockup.la \
+    libpearl.thread.ser.la \
+    libgtest_plain.la \
+    libgtest_core.la \
+    $(GTEST_LIBS)

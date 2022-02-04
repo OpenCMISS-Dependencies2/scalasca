@@ -1,0 +1,46 @@
+
+                     Cube Writer Library OPEN ISSUES
+                     ===============================
+                           (Status:  Feb 2021)
+
+This file lists known limitations and unimplemented features of Cube Writer
+Library.
+
+-----------------------------------------------------------------------------
+
+* Platform support
+
+  - Cube Writer Library has been tested on the following platforms:
+    + IBM Blue Gene/Q
+    + IBM BladeCenter & iDataPlex clusters
+    + Cray XC series
+    + Fujitsu FX10, FX100, and K computer
+    + various Linux-based clusters (x86_64, Power8, armhf, AArch64)
+    + Intel Xeon Phi (native mode only)
+
+    In addition, the provided configure options (see INSTALL) may provide a
+    good basis for building and testing the toolset on other systems.  Please
+    report success/failure on other platforms to the Cube Writer Library 
+    development team.
+
+  - The following platforms have not been tested recently, however, the
+    supplied build system might still work on those systems:
+     + IBM Blue Gene/P
+     + AIX-based clusters (Power6)
+     + Cray XT, XE, XK series
+     + Oracle/Sun Solaris/SPARC-based clusters
+
+  - On the Intel Xeon Phi platform, only Intel compilers and Intel MPI are
+    currently supported.
+
+
+-----------------------------------------------------------------------------
+
+* Cube Writer Library 
+
+  - <to be added> 
+-----------------------------------------------------------------------------
+
+ * Other known issues
+
+  - <to be added>

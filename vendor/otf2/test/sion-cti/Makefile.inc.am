@@ -1,0 +1,53 @@
+##
+## This file is part of the Score-P software (http://www.score-p.org)
+##
+## Copyright (c) 2013,
+## Technische Universitaet Dresden, Germany
+##
+## Copyright (c) 2018,
+## Forschungszentrum Juelich GmbH, Germany
+##
+## This software may be modified and distributed under the terms of
+## a BSD-style license.  See the COPYING file in the package base
+## directory for details.
+##
+
+if HAVE_PTHREAD_BARRIER
+
+if HAVE_SIONLIB_SUPPORT
+
+check_PROGRAMS += test-sion-writer
+test_sion_writer_SOURCES = \
+    $(SRC_ROOT)test/sion-cti/test-sion-writer.c \
+    $(SRC_ROOT)test/sion-cti/sion-cti.h
+test_sion_writer_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(INC_ROOT)test/cti \
+    $(OTF2_SIONLIB_CPPFLAGS)
+test_sion_writer_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS) \
+    $(OTF2_SIONLIB_LDFLAGS)
+test_sion_writer_LDADD = \
+    libcti.la \
+    $(OTF2_SIONLIB_LIBS)
+
+check_PROGRAMS += test-sion-reader
+test_sion_reader_SOURCES = \
+    $(SRC_ROOT)test/sion-cti/test-sion-reader.c \
+    $(SRC_ROOT)test/sion-cti/sion-cti.h
+test_sion_reader_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(INC_ROOT)test/cti \
+    $(OTF2_SIONLIB_CPPFLAGS)
+test_sion_reader_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS) \
+    $(OTF2_SIONLIB_LDFLAGS)
+test_sion_reader_LDADD = \
+    libcti.la \
+    $(OTF2_SIONLIB_LIBS)
+
+endif HAVE_SIONLIB_SUPPORT
+
+endif HAVE_PTHREAD_BARRIER

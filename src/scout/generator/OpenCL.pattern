@@ -1,0 +1,102 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 2020                                                     ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+PATTERN "OPENCL_KERNEL_EXECUTIONS" = [
+    PARENT    = "COMP"
+    NAME      = "OpenCL kernels"
+    DOCNAME   = "OpenCL Kernel Time"
+    CLASS     = "PatternOpenCL_Kernels"
+    INFO      = "Time spent executing OpenCL kernels"
+    DESCR     = {
+        Time spent executing OpenCL kernels.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "OPENCL_TIME" = [
+    PARENT    = "EXECUTION"
+    NAME      = "OpenCL"
+    DOCNAME   = "OpenCL Time"
+    CLASS     = "PatternOpenCL"
+    INFO      = "Time spent in the OpenCL run-time system, API and on device"
+    DESCR     = {
+        Time spent in the OpenCL run-time system, API and on device.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "OPENCL_SETUP" = [
+    PARENT    = "OPENCL_TIME"
+    NAME      = "OpenCL General Management"
+    DOCNAME   = "OpenCL General Management Time"
+    CLASS     = "PatternOpenCL_Setup"
+    INFO      = "Time needed for general OpenCL setup, e.g. initialization, device and event control, etc."
+    DESCR     = {
+        Time needed for general OpenCL setup, e.g. initialization, device and
+        event control, etc.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "OPENCL_COMM" = [
+    PARENT    = "OPENCL_TIME"
+    NAME      = "OpenCL Memory Management"
+    DOCNAME   = "OpenCL Memory Management Time"
+    CLASS     = "PatternOpenCL_MemoryMgmt"
+    INFO      = "Time spent on memory management including data transfer from host to device and vice versa"
+    DESCR     = {
+        Time spent on memory management including data transfer from host to
+        device and vice versa.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "OPENCL_SYNC" = [
+    PARENT    = "OPENCL_TIME"
+    NAME      = "OpenCL Synchronization"
+    DOCNAME   = "OpenCL Synchronization Time"
+    CLASS     = "PatternOpenCL_Sync"
+    INFO      = "Time spent on OpenCL synchronization"
+    DESCR     = {
+        Time spent on OpenCL synchronization.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "OPENCL_KERNEL_LAUNCHES" = [
+    PARENT    = "OPENCL_TIME"
+    NAME      = "OpenCL Kernel launches"
+    DOCNAME   = "OpenCL Kernel Launch Time"
+    CLASS     = "PatternOpenCL_KernelLaunch"
+    INFO      = "Time spent to launch OpenCL kernels"
+    DESCR     = {
+        Time spent to launch OpenCL kernels.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]

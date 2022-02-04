@@ -1,0 +1,43 @@
+/****************************************************************************
+**  SCALASCA    http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 1998-2013                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  Copyright (c) 2009-2013                                                **
+**  German Research School for Simulation Sciences GmbH,                   **
+**  Laboratory for Parallel Programming                                    **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+//--- SILAS description -----------------------------------------------------
+
+/**
+@mainpage SILAS Developer Documentation
+
+The simulator for large scale applications SILAS provides an
+infrastructure to model and simulate the application behaviour of large
+scale applications based on event traces.
+
+The simulator can be devided in three main modules:
+    * the simulation infrastructure,
+    * the simulation model, and
+    * the hypotheses with their implied transformations.
+
+The entire functionality is encapsulated in the namespace @ref silas.
+*/
+
+
+//--- Namespace description -------------------------------------------------
+
+/**
+@namespace silas
+@brief     Namespace of the SILAS simulator
+
+The C++ namespace silas encapsulates all classes, functions, and identifiers
+that are related to the simulator for large scale applications SILAS.
+*/

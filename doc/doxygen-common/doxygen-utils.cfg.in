@@ -1,0 +1,25 @@
+# Doxyfile 1.8.10
+#
+# This file describes the settings to be used by the documentation system
+# doxygen (www.doxygen.org) for both the user and developer documentation
+# of the Scalasca convenience commands.
+
+
+#--- Include common configuration -------------------------------------------
+
+@INCLUDE = \
+    @abs_top_builddir@/doc/doxygen-common/doxygen-common.cfg
+
+
+#--- Project settings -------------------------------------------------------
+
+PROJECT_NAME  = "utils"
+PROJECT_BRIEF = "Scalasca convenience commands"
+
+
+#--- Output settings --------------------------------------------------------
+
+STRIP_FROM_INC_PATH = \
+    @abs_top_srcdir@/src/utils
+STRIP_FROM_PATH     = \
+    @abs_top_srcdir@/src/utils

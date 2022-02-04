@@ -1,0 +1,107 @@
+## -*- mode: makefile -*-
+
+##
+## This file is part of the Score-P software (http://www.score-p.org)
+##
+## Copyright (c) 2009-2013,
+## RWTH Aachen University, Germany
+##
+## Copyright (c) 2009-2013,
+## Gesellschaft fuer numerische Simulation mbH Braunschweig, Germany
+##
+## Copyright (c) 2009-2013,
+## Technische Universitaet Dresden, Germany
+##
+## Copyright (c) 2009-2013,
+## University of Oregon, Eugene, USA
+##
+## Copyright (c) 2009-2013, 2018,
+## Forschungszentrum Juelich GmbH, Germany
+##
+## Copyright (c) 2009-2013,
+## German Research School for Simulation Sciences GmbH, Juelich/Aachen, Germany
+##
+## Copyright (c) 2009-2013,
+## Technische Universitaet Muenchen, Germany
+##
+## This software may be modified and distributed under the terms of
+## a BSD-style license.  See the COPYING file in the package base
+## directory for details.
+##
+
+EXTRA_DIST += \
+    $(SRC_ROOT)src/tools/include/otf2_tools.hpp
+
+bin_PROGRAMS += otf2-print
+
+otf2_print_SOURCES = \
+    $(SRC_ROOT)src/tools/otf2_print/otf2_print.c \
+    $(SRC_ROOT)src/tools/otf2_print/otf2_print_types.h \
+    $(SRC_ROOT)src/tools/otf2_print/otf2_vector.c \
+    $(SRC_ROOT)src/tools/otf2_print/otf2_vector.h \
+    $(SRC_ROOT)src/tools/otf2_print/otf2_hash_table.c \
+    $(SRC_ROOT)src/tools/otf2_print/otf2_hash_table.h
+otf2_print_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    $(UTILS_CPPFLAGS)
+otf2_print_LDADD = libotf2.la
+
+EXTRA_DIST += \
+    $(SRC_ROOT)src/tools/otf2_print/otf2_print_inc.c
+
+if HAVE_SIONLIB_SUPPORT
+otf2_print_LDFLAGS  = $(OTF2_SIONLIB_LDFLAGS)
+otf2_print_LDADD   += $(OTF2_SIONLIB_LIBS)
+endif
+
+
+check_PROGRAMS += otf2-trace-gen
+otf2_trace_gen_SOURCES = \
+    $(SRC_ROOT)src/tools/otf2_trace_gen/otf2_trace_gen.c
+otf2_trace_gen_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    $(UTILS_CPPFLAGS)
+otf2_trace_gen_LDFLAGS = $(AM_LDFLAGS) $(LINKMODE_FLAGS)
+otf2_trace_gen_LDADD = libotf2.la
+
+check_PROGRAMS += otf2-trace-gen-pthread
+otf2_trace_gen_pthread_SOURCES = \
+    $(SRC_ROOT)src/tools/otf2_trace_gen/otf2_trace_gen_pthread.c
+otf2_trace_gen_pthread_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    $(UTILS_CPPFLAGS)
+otf2_trace_gen_pthread_LDFLAGS = $(AM_LDFLAGS) $(LINKMODE_FLAGS)
+otf2_trace_gen_pthread_LDADD = libotf2.la
+
+check_PROGRAMS += otf2-trace-gen-cct
+otf2_trace_gen_cct_SOURCES = \
+    $(SRC_ROOT)src/tools/otf2_trace_gen/otf2_trace_gen_cct.c
+otf2_trace_gen_cct_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    $(UTILS_CPPFLAGS)
+otf2_trace_gen_cct_LDFLAGS = $(AM_LDFLAGS) $(LINKMODE_FLAGS)
+otf2_trace_gen_cct_LDADD = libotf2.la
+
+bin_PROGRAMS += otf2-marker
+otf2_marker_SOURCES = \
+    $(SRC_ROOT)src/tools/otf2_marker/otf2_marker.cpp
+otf2_marker_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    $(UTILS_CPPFLAGS) \
+    -I$(INC_ROOT)src/tools/include
+otf2_marker_LDFLAGS = $(AM_LDFLAGS) $(LINKMODE_FLAGS)
+otf2_marker_LDADD = libotf2.la
+
+if HAVE_SIONLIB_SUPPORT
+otf2_trace_gen_LDFLAGS  += $(OTF2_SIONLIB_LDFLAGS)
+otf2_trace_gen_LDADD    += $(OTF2_SIONLIB_LIBS)
+endif
+
+#bin_PROGRAMS += otf2_speed_test
+#
+#otf2_speed_test_SOURCES = \
+#    $(SRC_ROOT)src/tools/otf2_speed_test/otf2_speed_test.c
+#
+#otf2_speed_test_CPPFLAGS = $(AM_CPPFLAGS) $(UTILS_CPPFLAGS) $(OTF2_CPPFLAGS) -lmpi
+#
+#otf2_speed_test_LDADD = libotf2.la

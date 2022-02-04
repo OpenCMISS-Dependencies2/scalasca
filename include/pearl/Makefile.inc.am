@@ -1,0 +1,141 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2019                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+PEARL_INC_SRC = $(SRC_ROOT)include/pearl
+
+
+## --- Header files ---------------------------------------------------------
+
+## PEARL public header files
+noinst_HEADERS += \
+    $(PEARL_INC_SRC)/AmHandler.h \
+    $(PEARL_INC_SRC)/AmListener.h \
+    $(PEARL_INC_SRC)/AmListenerFactory.h \
+    $(PEARL_INC_SRC)/AmRequest.h \
+    $(PEARL_INC_SRC)/AmRequestFactory.h \
+    $(PEARL_INC_SRC)/AmRuntime.h \
+    $(PEARL_INC_SRC)/Buffer.h \
+    $(PEARL_INC_SRC)/Callback.h \
+    $(PEARL_INC_SRC)/CallbackData.h \
+    $(PEARL_INC_SRC)/CallbackManager.h \
+    $(PEARL_INC_SRC)/CallingContext.h \
+    $(PEARL_INC_SRC)/Callpath.h \
+    $(PEARL_INC_SRC)/Callsite.h \
+    $(PEARL_INC_SRC)/CartDimension.h \
+    $(PEARL_INC_SRC)/CartTopology.h \
+    $(PEARL_INC_SRC)/CommLocationSet.h \
+    $(PEARL_INC_SRC)/CommSet.h \
+    $(PEARL_INC_SRC)/Communicator.h \
+    $(PEARL_INC_SRC)/CompoundTask.h \
+    $(PEARL_INC_SRC)/CountedPtr.h \
+    $(PEARL_INC_SRC)/Enter_rep.h \
+    $(PEARL_INC_SRC)/EnterCS_rep.h \
+    $(PEARL_INC_SRC)/EnterProgram_rep.h \
+    $(PEARL_INC_SRC)/Error.h \
+    $(PEARL_INC_SRC)/Event.h \
+    $(PEARL_INC_SRC)/Event_rep.h \
+    $(PEARL_INC_SRC)/EventSet.h \
+    $(PEARL_INC_SRC)/Flags.h \
+    $(PEARL_INC_SRC)/GlobalDefs.h \
+    $(PEARL_INC_SRC)/GroupingSet.h \
+    $(PEARL_INC_SRC)/Leave_rep.h \
+    $(PEARL_INC_SRC)/LeaveProgram_rep.h \
+    $(PEARL_INC_SRC)/LocalData.h \
+    $(PEARL_INC_SRC)/LocalTrace.h \
+    $(PEARL_INC_SRC)/Location.h \
+    $(PEARL_INC_SRC)/LocationGroup.h \
+    $(PEARL_INC_SRC)/LocationSet.h \
+    $(PEARL_INC_SRC)/Metric.h \
+    $(PEARL_INC_SRC)/MpiAmListener.h \
+    $(PEARL_INC_SRC)/MpiAmRequest.h \
+    $(PEARL_INC_SRC)/MpiCancelled_rep.h \
+    $(PEARL_INC_SRC)/MpiCollBegin_rep.h \
+    $(PEARL_INC_SRC)/MpiCollEnd_rep.h \
+    $(PEARL_INC_SRC)/MpiComm.h \
+    $(PEARL_INC_SRC)/MpiGroup.h \
+    $(PEARL_INC_SRC)/MpiMessage.h \
+    $(PEARL_INC_SRC)/MpiReceive_rep.h \
+    $(PEARL_INC_SRC)/MpiReceiveComplete_rep.h \
+    $(PEARL_INC_SRC)/MpiReceiveRequest_rep.h \
+    $(PEARL_INC_SRC)/MpiRequestTested_rep.h \
+    $(PEARL_INC_SRC)/MpiRmaCollBegin_rep.h \
+    $(PEARL_INC_SRC)/MpiRmaCollEnd_rep.h \
+    $(PEARL_INC_SRC)/MpiRmaGats_rep.h \
+    $(PEARL_INC_SRC)/MpiRmaGetEnd_rep.h \
+    $(PEARL_INC_SRC)/MpiRmaGetStart_rep.h \
+    $(PEARL_INC_SRC)/MpiRmaLock_rep.h \
+    $(PEARL_INC_SRC)/MpiRmaPutEnd_rep.h \
+    $(PEARL_INC_SRC)/MpiRmaPutStart_rep.h \
+    $(PEARL_INC_SRC)/MpiRmaUnlock_rep.h \
+    $(PEARL_INC_SRC)/MpiSend_rep.h \
+    $(PEARL_INC_SRC)/MpiSendComplete_rep.h \
+    $(PEARL_INC_SRC)/MpiSendRequest_rep.h \
+    $(PEARL_INC_SRC)/MpiWindow.h \
+    $(PEARL_INC_SRC)/Otf2Writer.h \
+    $(PEARL_INC_SRC)/Paradigm.h \
+    $(PEARL_INC_SRC)/Region.h \
+    $(PEARL_INC_SRC)/RemoteData.h \
+    $(PEARL_INC_SRC)/RemoteEvent.h \
+    $(PEARL_INC_SRC)/RemoteEventSet.h \
+    $(PEARL_INC_SRC)/RemoteRmaEpoch.h \
+    $(PEARL_INC_SRC)/RemoteTimeSegment.h \
+    $(PEARL_INC_SRC)/ReplayTask.h \
+    $(PEARL_INC_SRC)/RmaEpoch.h \
+    $(PEARL_INC_SRC)/RmaGetEnd_rep.h \
+    $(PEARL_INC_SRC)/RmaGetStart_rep.h \
+    $(PEARL_INC_SRC)/RmaPutEnd_rep.h \
+    $(PEARL_INC_SRC)/RmaPutStart_rep.h \
+    $(PEARL_INC_SRC)/RmaWindow.h \
+    $(PEARL_INC_SRC)/ScopedEnum.h \
+    $(PEARL_INC_SRC)/ScopedPtr.h \
+    $(PEARL_INC_SRC)/SourceLocation.h \
+    $(PEARL_INC_SRC)/String.h \
+    $(PEARL_INC_SRC)/SmallObject.h \
+    $(PEARL_INC_SRC)/SystemNode.h \
+    $(PEARL_INC_SRC)/Task.h \
+    $(PEARL_INC_SRC)/TaskWrapper.h \
+    $(PEARL_INC_SRC)/ThreadAcquireLock_rep.h \
+    $(PEARL_INC_SRC)/ThreadBegin_rep.h \
+    $(PEARL_INC_SRC)/ThreadCreate_rep.h \
+    $(PEARL_INC_SRC)/ThreadEnd_rep.h \
+    $(PEARL_INC_SRC)/ThreadFork_rep.h \
+    $(PEARL_INC_SRC)/ThreadJoin_rep.h \
+    $(PEARL_INC_SRC)/ThreadReleaseLock_rep.h \
+    $(PEARL_INC_SRC)/ThreadTaskComplete_rep.h \
+    $(PEARL_INC_SRC)/ThreadTaskCreate_rep.h \
+    $(PEARL_INC_SRC)/ThreadTaskSwitch_rep.h \
+    $(PEARL_INC_SRC)/ThreadTeamBegin_rep.h \
+    $(PEARL_INC_SRC)/ThreadTeamEnd_rep.h \
+    $(PEARL_INC_SRC)/ThreadWait_rep.h \
+    $(PEARL_INC_SRC)/TimeSegment.h \
+    $(PEARL_INC_SRC)/TraceArchive.h \
+    $(PEARL_INC_SRC)/Uncopyable.h \
+    $(PEARL_INC_SRC)/Utils.h \
+    $(PEARL_INC_SRC)/iomanip.h \
+    $(PEARL_INC_SRC)/pearl.h \
+    $(PEARL_INC_SRC)/pearlfwd_detail.h \
+    $(PEARL_INC_SRC)/pearl_padding.h \
+    $(PEARL_INC_SRC)/pearl_replay.h \
+    $(PEARL_INC_SRC)/pearl_types.h \
+    $(PEARL_INC_SRC)/Inline/Event_rep-inl.h \
+    $(PEARL_INC_SRC)/Inline/Flags-inl.h \
+    $(PEARL_INC_SRC)/Inline/Region-inl.h \
+    $(PEARL_INC_SRC)/Inline/ScopedPtr-inl.h \
+    $(PEARL_INC_SRC)/Inline/Uncopyable-inl.h \
+    $(PEARL_INC_SRC)/Inline/Utils-inl.h \
+    $(PEARL_INC_SRC)/Inline/iomanip-inl.h

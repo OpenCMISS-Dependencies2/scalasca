@@ -1,0 +1,221 @@
+%%*************************************************************************%%
+%%  SCALASCA    http://www.scalasca.org/                                   %%
+%%*************************************************************************%%
+%%  Copyright (c) 1998-2018                                                %%
+%%  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          %%
+%%                                                                         %%
+%%  Copyright (c) 2009-2013                                                %%
+%%  German Research School for Simulation Sciences GmbH,                   %%
+%%  Laboratory for Parallel Programming                                    %%
+%%                                                                         %%
+%%  This software may be modified and distributed under the terms of       %%
+%%  a BSD-style license.  See the COPYING file in the package base         %%
+%%  directory for details.                                                 %%
+%%*************************************************************************%%
+
+
+%--- Package header ---------------------------------------------------------
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{scalasca}
+
+
+%--- Include required packages ----------------------------------------------
+
+% This style file relies on the main doxygen style
+\RequirePackage{doxygen}
+
+% Set up "change bars"
+\RequirePackage[xcolor,outerbars]{changebar}
+\setlength{\changebarsep}{1em}
+
+% Additional packages
+\RequirePackage{xstring}
+
+
+%--- KOMA-Script hacks ------------------------------------------------------
+%
+% Unfortunately, Doxygen 1.8.10 still generates old style font commands.
+% While older versions of KOMA-Script only issued a warning, these commands
+% trigger a hard error in recent versions.  Thus, bring back the old font
+% commands for now.
+
+\makeatletter
+\DeclareOldFontCommand{\rm}{\normalfont\rmfamily}{\mathrm}
+\DeclareOldFontCommand{\sf}{\normalfont\sffamily}{\mathsf}
+\DeclareOldFontCommand{\tt}{\normalfont\ttfamily}{\mathtt}
+\DeclareOldFontCommand{\bf}{\normalfont\bfseries}{\mathbf}
+\DeclareOldFontCommand{\it}{\normalfont\itshape}{\mathit}
+\DeclareOldFontCommand{\sl}{\normalfont\slshape}{\@nomath\sl}
+\DeclareOldFontCommand{\sc}{\normalfont\scshape}{\@nomath\sc}
+\makeatother
+
+
+%--- Man page hacks ---------------------------------------------------------
+%
+% Man page sections such as SYNOPSIS, DESCRIPTION, etc. should neither
+% be numbered nor included in the ToC.  This is achieved by redefining
+% the LaTeX `\subsection` command to act like `\subsection*` in case the
+% `insideManPage` flag is set to `true`.  To avoid unintentional use of
+% this mode, the LaTeX `\chapter` and `\section` commands are also
+% redefined to implicitly reset the `insideManPage` flag to `false`.
+%
+% NOTE: This code assumes that man pages are "second-level pages", i.e.,
+%       subpages of a top-level page (e.g., "Command reference").
+
+\newboolean{insideManPage}
+
+\makeatletter
+
+\let\origchapter\chapter
+\let\origsection\section
+\let\origsubsection\subsection
+\let\origsubsubsection\subsubsection
+
+\renewcommand{\chapter}{%
+  \setboolean{insideManPage}{false}%
+  \origchapter%
+}
+\renewcommand{\section}{%
+  \setboolean{insideManPage}{false}%
+  \origsection%
+}
+\renewcommand{\subsection}{%
+  \ifthenelse{\boolean{insideManPage}}{%
+    \@ifstar{\origsubsection*}{\origsubsection*}%
+  }{%
+    \origsubsection%
+  }%
+}
+\renewcommand{\subsubsection}{%
+  \ifthenelse{\boolean{insideManPage}}{%
+    \@ifstar{\origsubsubsection*}{\origsubsubsection*}%
+  }{%
+    \origsubsubsection%
+  }%
+}
+
+\makeatother
+
+
+%--- Internal commands used in this style file ------------------------------
+
+% Slightly modified version of doxygen's \entrylabel command to avoid
+% "Underful \hbox" warnings.
+\renewcommand{\entrylabel}[1]{%
+  {%
+    \parbox[b]{\labelwidth}{%
+      \makebox[0pt][l]{\DoxyLabelFont#1}%
+      \vspace{\baselineskip}%
+    }%
+  }%
+}
+
+% Generic environment used by @note, @attention, and @warning, marking the
+% text block using a colored bar at the margin
+\newenvironment{ScalascaMarkedDesc}[2][black]{%
+  \cbcolor[rgb]{#1}%
+  \begin{DoxyDesc}{\textbf{#2:}}%
+    \cbstart%
+}{%
+    \cbend%
+  \end{DoxyDesc}%
+}
+
+
+%--- Commands used by doxygen LaTeX output generator ------------------------
+
+% Used by bullet lists (using '-', @li, @arg, or <ul> ... </ul>)
+\renewenvironment{DoxyItemize}{%
+  \itemize%
+  \setlength{\parskip}{0.5ex}%
+}{%
+  \enditemize%
+}
+
+% Used by description lists (using <dl> ... </dl>)
+% Ensures that description text starts on a new line.
+\renewcommand{\descriptionlabel}[1]{%
+  \hspace{\labelsep}%
+  \parbox[t]{\textwidth-\labelsep}{%
+    \descfont #1%
+  }%
+}
+
+% Used by @note
+\renewenvironment{DoxyNote}[1]{%
+  \begin{ScalascaMarkedDesc}[0.8,0.75,0]{#1}%
+}{%
+  \end{ScalascaMarkedDesc}%
+}
+
+% Used by @attention
+\renewenvironment{DoxyAttention}[1]{%
+  \begin{ScalascaMarkedDesc}[1,0.5,0]{#1}%
+}{%
+  \end{ScalascaMarkedDesc}%
+}
+
+% Used by @warning
+\renewenvironment{DoxyWarning}[1]{%
+  \begin{ScalascaMarkedDesc}[1,0,0]{#1}%
+}{%
+  \end{ScalascaMarkedDesc}%
+}
+
+% Used by @verbatim .. @endverbatim
+\renewenvironment{DoxyVerb}{%
+  \par%
+  {\color{lightgray}\rule[0.5ex]{\textwidth}{0.5pt}}%
+  \vspace*{-2.5ex}%
+  \small%
+  \verbatim%
+}{%
+  \vspace*{-2.5ex}%
+  \endverbatim%
+  \normalsize%
+  {\color{lightgray}\rule[0.5ex]{\textwidth}{0.5pt}}%
+  \par%
+}
+
+% Used by @image, @dotfile, @dot ... @enddot, and @msc ... @endmsc
+% (only if caption is specified)
+\def\DoxyImageLabel{}%
+\renewenvironment{DoxyImage}{%
+  \begin{figure}[htb]%
+    \begin{center}%
+}{%
+    \ifthenelse{\equal{\DoxyImageLabel}{}}%
+      {}%
+      {%
+        \label{\DoxyImageLabel}%
+        \gdef\DoxyImageLabel{}%
+      }%
+    \end{center}%
+  \end{figure}%
+}
+
+% Used when hyperlinks are turned off
+%
+% This version works around a bug in doxygen which prepends an underscore to
+% labels of subpages. A bug report and patch has been submitted, now waiting
+% for approval.
+%
+% Also, references will use the heading name set in bold font rather than the
+% numbering when the `insideManPage` flag is set to `true`.
+\renewcommand{\doxyref}[3]{%
+  \ifthenelse{\boolean{insideManPage}}{%
+    \hyperref[#3]{\textbf{#1}}%
+  }{%
+    \begingroup%
+      \def\doxyreflabel{#3}%
+      \catcode`_=12%
+      \IfBeginWith{\doxyreflabel}{_}{%
+        \StrBehind{\doxyreflabel}{_}[\Result]%
+      }{%
+        \let\Result=\doxyreflabel%
+      }%
+      \ref{\Result}%
+    \endgroup%
+  }%
+}

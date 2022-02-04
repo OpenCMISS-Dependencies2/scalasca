@@ -1,0 +1,59 @@
+
+                           Cube Writer Library v4.6 README
+                           ===============================
+
+Cube Writer Library is a high-performance library for writing a multi-
+dimensional performance space consisting of the dimensions (i) performance 
+metric, (ii) call path, and (iii) system resource. Each dimension can be 
+represented as a tree, where non-leaf nodes of the tree can be collapsed 
+or expanded to achieve the desired level of granularity. 
+
+The Cube Writer Library is optimized for usage in Score-P and Scalasca 2.x, but 
+might get used in another tools as well. 
+
+Cube Writer Library is released as open source under a BSD-style license. 
+Please see the COPYING file in the package base directory for details.
+
+
+Installation
+============
+
+See the INSTALL file for detailed information about how to configure, build
+and install Cube Writer Library.
+
+User Documentation
+==================
+
+Cube Writer Library documentation for a specific installation is by default
+installed into the '$CUBEW_ROOT/share/doc/cubew' subdirectory.  At
+present, however, user documentation is still limited.
+
+ * Cube Writer Library Tools Developer Guide 
+    (CubeToolDevelopmentGuide.pdf | html/index.html):
+
+   The Cube Writer Library Tools Developer Guide is currently being rewritten 
+   and still incomplete. However, it should already contain enough information 
+   to get you started and avoid the most common pitfalls.
+
+ * Cube Writer Library open issues & limitations (OPEN_ISSUES):
+
+   Compendium of known limitations and unimplemented features that may affect
+   Cube Writer Library usability on various platforms or with certain 
+   applications, with suggested workarounds where appropriate.  Although issues 
+   may be uncommon and/or quite technically complex, users are encouraged to 
+   briefly review this document, particularly if they believe they have 
+   encountered a problem when using Cube Writer Library, prior to contacting 
+   user support.
+
+
+Web page & Contact
+==================
+
+For further more detailed information on Cube Writer Library see the
+project webpages at
+
+        http://www.scalasca.org/
+
+For help, reporting bugs, and making comments or suggestions send an e-mail to
+
+        scalasca@fz-juelich.de

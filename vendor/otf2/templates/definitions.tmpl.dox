@@ -1,0 +1,330 @@
+/**
+ *  @addtogroup records OTF2 records
+ *  @{
+ *
+ *  @defgroup records_definition List of all definition records
+ *  @{
+ *
+ *  @dot
+ *  digraph otf2_definitions {
+ *      rankdir = RL;
+ *      bgcolor = "transparent";
+ *      edge [
+ *          dir="both",
+ *          arrowhead="normal",
+ *          arrowtail="odiamond",
+ *          style="solid",
+ *          fontname=FreeSans,
+ *          fontsize=8
+ *      ];
+ *      node [
+ *          shape=plaintext,
+ *          fontname=FreeSans,
+ *          fontsize=10
+ *      ];
+@otf2 for def in defs|referable_defs:
+    @otf2 if def is shared_def and def is first_born_def:
+ *      @@def.ref_name@@ [
+ *          tooltip="@@def.ref_name@@",
+ *          label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+ *                 <TR><TD ALIGN="LEFT" PORT="_" TITLE="@@def.ref_name@@" STYLE="DASHED"><B>@@def.ref_name@@</B></TD></TR>
+ *          </TABLE>>
+ *      ];
+    @otf2 endif
+ *      @@def.name@@ [
+ *          tooltip="@@def.name@@",
+ *          label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+ *                 <TR><TD ALIGN="CENTER" PORT="_" TITLE="@@def.name@@"><B>@@def.name@@</B></TD></TR>
+    @otf2 for attr in def.all_attributes[1:]:
+    @otf2  if attr is def_ref_attr:
+ *                 <TR><TD ALIGN="LEFT" PORT="@@attr.name@@" TITLE="@@attr.name@@">@@attr.name@@</TD></TR>
+    @otf2  endif
+    @otf2 endfor
+    @otf2 if def == MetricInstance:
+ *                 <TR><TD ALIGN="LEFT" PORT="scope" TITLE="scope">scope</TD></TR>
+    @otf2 elif def == Group:
+ *                 <TR><TD ALIGN="LEFT" PORT="members" TITLE="members">members</TD></TR>
+    @otf2 endif
+ *          </TABLE>>,
+ *          href="@ref @@def.name@@"
+ *      ];
+    @otf2 for attr in def.all_attributes[1:]:
+    @otf2  if attr is def_ref_attr:
+ *      @@def.name@@:@@attr.name@@ -> @@attr.def_ref.ref_name@@:_ [
+ *          href="@ref @@def.name@@_@@attr.name@@"
+ *      ];
+    @otf2  endif
+    @otf2 endfor
+    @otf2 for supp in def.supplements:
+ *      @@supp.name@@ [
+ *          tooltip="@@def.name@@",
+ *          label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+                   <TR><TD ALIGN="CENTER" PORT="_" TITLE="@@supp.name@@"><B>@@supp.name@@</B></TD></TR>
+    @otf2  for attr in supp.all_attributes[1:]:
+    @otf2   if attr is def_ref_attr:
+ *                 <TR><TD ALIGN="LEFT" PORT="@@attr.name@@" TITLE="@@attr.name@@">@@attr.name@@</TD></TR>
+    @otf2   endif
+    @otf2  endfor
+ *          </TABLE>>,
+ *          href="@ref @@supp.name@@"
+ *      ];
+ *      @@supp.name@@:_ -> @@def.ref_name@@:_ [
+ *          style="dashed",
+ *          arrowtail="odot"
+ *      ];
+    @otf2  for attr in supp.all_attributes[1:]:
+    @otf2   if attr is def_ref_attr:
+ *      @@supp.name@@:@@attr.name@@ -> @@attr.def_ref.ref_name@@:_ [
+ *          href="@ref @@supp.name@@_@@attr.name@@"
+ *      ];
+    @otf2   endif
+    @otf2  endfor
+    @otf2 endfor
+    @otf2 if def == MetricInstance:
+ *      MetricInstance:scope -> Location:_ [
+ *          tooltip="iff metricScope == OTF2_SCOPE_LOCATION"
+ *      ];
+ *      MetricInstance:scope -> LocationGroup:_ [
+ *          tooltip="iff metricScope == OTF2_SCOPE_LOCATION_GROUP"
+ *      ];
+ *      MetricInstance:scope -> SystemTreeNode:_ [
+ *          tooltip="iff metricScope == OTF2_SCOPE_SYSTEM_TREE_NODE"
+ *      ];
+ *      MetricInstance:scope -> Group:_ [
+ *          tooltip="iff metricScope == OTF2_SCOPE_GROUP"
+ *      ];
+    @otf2 elif def == Group:
+ *      Group:members -> Location:_ [
+ *          tooltip="iff groupType == OTF2_GROUP_TYPE_LOCATIONS or groupType == OTF2_GROUP_TYPE_COMM_LOCATIONS"
+ *      ];
+ *      Group:members -> Region:_ [
+ *          tooltip="iff groupType == OTF2_GROUP_TYPE_REGIONS"
+ *      ];
+ *      Group:members -> Metric:_ [
+ *          tooltip="iff groupType == OTF2_GROUP_TYPE_METRIC"
+ *      ];
+    @otf2 endif
+    @otf2 if def is shared_def:
+ *      @@def.name@@:_ -> @@def.ref_name@@:_ [
+ *          dir="both",
+ *          arrowhead="onormal",
+ *          arrowtail="oinv",
+ *          style="dotted"
+ *      ];
+    @otf2 endif
+@otf2 endfor
+@otf2 for def in defs|referable_defs|shared_defs|first_born_defs:
+ *      subgraph cluster_@@def.ref_name@@ {
+ *          label="@@def.ref_name@@"
+ *          fontname="FreeSans";
+ *          fontsize="10";
+ *          @@def.ref_name@@
+    @otf2 for sibling in def.siblings:
+ *          @@sibling.name@@
+    @otf2 endfor
+ *      }
+@otf2 endfor
+ *  }
+ *  @enddot
+ *
+@otf2 for def in (defs|global_only_defs +
+                  defs|local_only_defs +
+                  defs|not_global_only_defs|not_local_only_defs):
+    @otf2 if def is referable_def and def is shared_def and def is first_born_def:
+ *  @htmlonly
+ *  <div class="memitem">
+ *  @endhtmlonly
+ *  @anchor @@def.ref_name@@
+ *  @htmlonly
+ *  <div class="memproto">
+ *    <table class="memname"><tbody>
+ *      <tr><td class="memname">
+ *  @endhtmlonly
+ *   @latexonly
+ *   \section[@@def.ref_name@@]{%
+ *   @endlatexonly
+ *      @eref{@@def.self_attr.type@@} @@def.ref_name@@
+ *   @latexonly
+ *   }
+ *   @endlatexonly
+ *  @htmlonly
+ *      </td></tr>
+ *    </tbody></table>
+ *  </div>
+ *  <div class="memdoc">
+ *  @endhtmlonly
+ *  This is a polymorphic definition class.
+ *
+ *  @ifnot LATEX
+ *  @par Derivations
+ *  @endif
+ *  @latexonly\begin{DoxySeeAlso}{Derivations}@endlatexonly
+    @otf2 for sibling in def.siblings:
+ *    @htmlonly<dd>@endhtmlonly
+ *    @latexonly
+ *
+ *    @endlatexonly
+ *    @eref{@@sibling.name@@}
+ *    @htmlonly</dd>@endhtmlonly
+    @otf2 endfor
+ *  @latexonly\end{DoxySeeAlso}@endlatexonly
+ *  @htmlonly
+ *  </div>
+ *  </div>
+ *  @endhtmlonly
+ *
+    @otf2 endif
+ *  @htmlonly
+ *  <div class="memitem">
+ *  @endhtmlonly
+ *  @anchor @@def.name@@
+ *  @htmlonly
+ *  <div class="memproto">
+ *    <table class="memname"><tbody>
+ *      <tr><td class="memname">
+ *  @endhtmlonly
+    @otf2 if def is referable_def:
+ *   @latexonly
+ *   \section[@@def.name@@]{%
+ *   @endlatexonly
+ *      @eref{@@def.self_attr.type@@} @@def.name@@
+ *   @latexonly
+ *   }
+ *   @endlatexonly
+    @otf2 else:
+ *   @latexonly
+ *   \section[@@def.name@@]{%
+ *   @endlatexonly
+ *      @@def.name@@
+ *   @latexonly
+ *   }
+ *   @endlatexonly
+    @otf2 endif
+ *  @htmlonly
+ *      </td></tr>
+ *    </tbody></table>
+ *  </div>
+ *  <div class="memdoc">
+ *  @endhtmlonly
+ *  @@def.doxygendoc()@@
+ *
+    @otf2 if def is not local_def:
+ *  This definition is only valid as a global definition.
+    @otf2 elif def is not global_def:
+ *  This definition is only valid as a local definition.
+    @otf2 endif
+ *
+ * @ifnot LATEX
+ *  @par Attributes
+ * @endif
+ *  @htmlonly
+ *  <table class="params"><tbody>
+ *  @endhtmlonly
+ *  @latexonly
+ *  \begin{DoxyParams}[1]{Attributes}%
+ *  @endlatexonly
+    @otf2 for attr in def.attributes:
+    @otf2  if not loop.first or def is not referable_def:
+ *  @htmlonly
+ *    <tr>
+ *      <td class="paramtype">
+ *  @endhtmlonly
+    @otf2    if attr.type is standard_type:
+ *        <em>@@attr.type@@</em> @ltab
+    @otf2    else:
+ *        @eref{@@attr.type@@} @ltab
+    @otf2    endif
+ *  @htmlonly
+ *      </td>
+ *      <td class="paramname">
+ *  @endhtmlonly
+ *        @anchor @@def.name@@_@@attr.name@@
+ *        @@attr.name@@ @ltab
+ *  @htmlonly
+ *      </td>
+ *      <td>
+ *  @endhtmlonly
+ *      @@attr.doxygendoc(prefix=' *      ')@@ @lrowend
+ *  @htmlonly
+ *      </td>
+ *    </tr>
+ *  @endhtmlonly
+    @otf2   if attr is array_attr:
+    @otf2    for array_attr in attr.array_attributes:
+ *  @htmlonly
+ *    <tr>
+ *      <td class="paramtype">
+ *  @endhtmlonly
+    @otf2    if array_attr.type is standard_type:
+ *        <em>@@attr.type@@</em> @ltab
+    @otf2    else:
+ *        @eref{@@array_attr.type@@} @ltab
+    @otf2    endif
+ *  @htmlonly
+ *      </td>
+ *      <td class="paramname">
+ *  @endhtmlonly
+ *        @anchor @@def.name@@_@@array_attr.name@@
+ *        @@array_attr.name@@ @hblack{[} @@attr.name@@ @hblack{]} @ltab
+ *  @htmlonly
+ *      </td>
+ *      <td>
+ *  @endhtmlonly
+ *      @@array_attr.doxygendoc(prefix=' *      ')@@ @lrowend
+ *  @htmlonly
+ *      </td>
+ *    </tr>
+ *  @endhtmlonly
+    @otf2    endfor
+    @otf2   endif
+    @otf2  endif
+    @otf2 endfor
+ *  @htmlonly
+ *  </tbody></table>
+ *  @endhtmlonly
+ *  @latexonly
+ *  \end{DoxyParams}%
+ *  @endlatexonly
+@otf2  if def.supplements|length
+ *
+ *  @ifnot LATEX
+ *  @par Supplements
+ *  @endif
+ *  @latexonly\begin{DoxySeeAlso}{Supplements}@endlatexonly
+    @otf2 for supp in def.supplements:
+ *    @htmlonly<dd>@endhtmlonly
+ *    @latexonly
+ *
+ *    @endlatexonly
+ *    @eref{@@supp.name@@}
+ *    @htmlonly</dd>@endhtmlonly
+    @otf2 endfor
+ *  @latexonly\end{DoxySeeAlso}@endlatexonly
+@otf2  endif
+ *
+    @otf2 if def is global_def:
+ *  @see OTF2_GlobalDefWriter_Write@@def.name@@()
+ *  @see OTF2_GlobalDefReaderCallbacks_Set@@def.name@@Callback()
+    @otf2 endif
+    @otf2 if def is local_def:
+ *  @see OTF2_DefWriter_Write@@def.name@@()
+ *  @see OTF2_DefReaderCallbacks_Set@@def.name@@Callback()
+    @otf2 endif
+ *
+ *  @since Version @@def.since@@
+@otf2  if def.deprecated:
+ *
+ *  @deprecated In version @@def.deprecated@@
+@otf2  endif
+ *
+ *  @htmlonly
+ *  </div>
+ *  </div>
+ *  @endhtmlonly
+ *
+@otf2 endfor
+ *
+ *  @}
+ *
+ *  @}
+ */

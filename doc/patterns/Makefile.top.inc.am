@@ -1,0 +1,110 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+PATTERN_DOC_SRC = doc/patterns
+
+
+## Extra distribution files
+PATTERN_DOC_FILES = \
+    $(PATTERN_DOC_SRC)/BarrierCompletion.png \
+    $(PATTERN_DOC_SRC)/CriticalPath.png \
+    $(PATTERN_DOC_SRC)/CriticalPathImbalance.png \
+    $(PATTERN_DOC_SRC)/EarlyReduce.png \
+    $(PATTERN_DOC_SRC)/EarlyScan.png \
+    $(PATTERN_DOC_SRC)/Imbalance.png \
+    $(PATTERN_DOC_SRC)/Imbal_Bypass.png \
+    $(PATTERN_DOC_SRC)/Imbal_Overload.png \
+    $(PATTERN_DOC_SRC)/Imbal_Single.png \
+    $(PATTERN_DOC_SRC)/Imbal_Singularity.png \
+    $(PATTERN_DOC_SRC)/Imbal_Underload.png \
+    $(PATTERN_DOC_SRC)/LateBroadcast.png \
+    $(PATTERN_DOC_SRC)/LateReceiver.png \
+    $(PATTERN_DOC_SRC)/LateSender.png \
+    $(PATTERN_DOC_SRC)/LSWO_DifferentSource.png \
+    $(PATTERN_DOC_SRC)/LSWO_SameSource.png \
+    $(PATTERN_DOC_SRC)/NxNCompletion.png \
+    $(PATTERN_DOC_SRC)/OMPIdle.png \
+    $(PATTERN_DOC_SRC)/OMPLimitedParallelism.png \
+    $(PATTERN_DOC_SRC)/OMPThreadFork.png \
+    $(PATTERN_DOC_SRC)/OMPThreadManagement.png \
+    $(PATTERN_DOC_SRC)/RmaEarlyFence.png \
+    $(PATTERN_DOC_SRC)/RmaEarlyTransfer.png \
+    $(PATTERN_DOC_SRC)/RmaEarlyWait.png \
+    $(PATTERN_DOC_SRC)/RmaLateComplete.png \
+    $(PATTERN_DOC_SRC)/RmaLatePost.png \
+    $(PATTERN_DOC_SRC)/RmaWaitAtFence.png \
+    $(PATTERN_DOC_SRC)/WaitAtBarrier.png \
+    $(PATTERN_DOC_SRC)/WaitAtNxN.png \
+    $(PATTERN_DOC_SRC)/LockContention.png
+
+EXTRA_DIST += \
+    $(PATTERN_DOC_FILES) \
+    $(PATTERN_DOC_SRC)/patterns.html.in
+
+
+##--- Pattern documentation rules -------------------------------------------
+
+if GIT_CONTROLLED
+
+## Source fragments that comprise the pattern documentation HTML file
+## NOTE: Order is important!
+PATTERN_DOC_HTML_FRAGMENTS = \
+    $(srcdir)/$(PATTERN_DOC_SRC)/patterns.html.in \
+    $(PATTERN_DOC_SRC)/remap_info.html \
+    $(srcdir)/$(DOXYGEN_COMMON_SRC)/footer.html
+
+USER_DOCS_TARGETS += \
+    pattern-docs-html
+pattern-docs-html: $(PATTERN_DOC_SRC)/remap_info.html
+	$(AM_V_at)$(MKDIR_P) "$(PATTERN_DOC_SRC)/html"
+	@$(am__tty_colors); \
+	if $(AM_V_P); then echo "cat $(PATTERN_DOC_HTML_FRAGMENTS) >'$(PATTERN_DOC_SRC)/html/scalasca_patterns.html'"; \
+	              else echo "  GEN      $${mgn}$(PATTERN_DOC_SRC)/html/scalasca_patterns.html$$std"; fi; \
+	cat $(PATTERN_DOC_HTML_FRAGMENTS) >"$(PATTERN_DOC_SRC)/html/scalasca_patterns.html"
+	$(AM_V_at)list='$(DOXYGEN_COMMON_SRC)/ScalascaLogo.png $(PATTERN_DOC_FILES)'; test -n "$$list" || exit 0; \
+	for p in $$list; do \
+	    if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	    cp -f $$d$$p "$(PATTERN_DOC_SRC)/html/" || exit 1; \
+	done
+
+COPY_USER_DOCS_TARGETS += \
+    copy-pattern-docs-html-to-dist
+copy-pattern-docs-html-to-dist: pattern-docs-html
+	$(AM_V_at)$(MKDIR_P) "$(DISTDIR)/$(PATTERN_DOC_SRC)"
+	$(AM_V_at)cp -fp "$(PATTERN_DOC_SRC)/html/scalasca_patterns.html" \
+	       "$(DISTDIR)/$(PATTERN_DOC_SRC)/"
+
+CLEAN_USER_DOCS_TARGETS += \
+    clean-pattern-docs-html
+clean-pattern-docs-html:
+	rm -rf "$(PATTERN_DOC_SRC)/html"
+
+else !GIT_CONTROLLED
+
+## Extra distribution files (i.e., generated documentation)
+EXTRA_DIST += \
+    $(PATTERN_DOC_SRC)/scalasca_patterns.html
+
+## SCOUT pattern documentation to (un)install
+patterndocsdir = $(docdir)/patterns
+patterndocs_DATA = \
+        $(PATTERN_DOC_SRC)/scalasca_patterns.html \
+        $(DOXYGEN_COMMON_SRC)/ScalascaLogo.png \
+        $(PATTERN_DOC_FILES)
+
+endif !GIT_CONTROLLED

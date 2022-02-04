@@ -1,0 +1,1520 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2014                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  Copyright (c) 2019-2020                                                ##
+##  RWTH Aachen University, IT Center                                      ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+#--- MPI-related performance patterns ---------------------------------------
+
+PROLOG {
+    #include <cfloat>
+    #include <list>
+
+    #define SCALASCA_DEBUG_MODULE_NAME    SCOUT
+    #include <UTILS_Debug.h>
+
+    #include <pearl/CallbackManager.h>
+    #include <pearl/Region.h>
+    #include <pearl/String.h>
+
+    #include "Roles.h"
+    #include "scout_types.h"
+    #include "user_events.h"
+
+    #if defined(_MPI)
+        #include <pearl/EventSet.h>
+        #include <pearl/LocalData.h>
+        #include <pearl/MpiCollEnd_rep.h>
+        #include <pearl/MpiComm.h>
+        #include <pearl/MpiMessage.h>
+        #include <pearl/RemoteData.h>
+        #include <pearl/RemoteEventSet.h>
+
+        #include "MpiDatatypes.h"
+        #include "MpiOperators.h"
+    #endif    // _MPI
+}
+
+
+PATTERN "MPI" = [
+    PARENT    = "EXECUTION"
+    NAME      = "MPI"
+    DOCNAME   = "MPI Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI"
+    INFO      = "Time spent in MPI calls"
+    DESCR     = {
+        Time spent in (instrumented) MPI calls.  Note that depending on the
+        setting of the <tt>SCOREP_MPI_ENABLE_GROUPS</tt> environment variable,
+        certain classes of MPI calls may have been excluded from measurement and
+        therefore do not show up in the analysis report.
+    }
+    DIAGNOSIS = {
+        Expand the metric tree to determine which classes of MPI operation
+        contribute the most time.  Typically the remaining (exclusive) MPI Time,
+        corresponding to instrumented MPI routines that are not in one of the
+        child classes, will be negligible.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_MANAGEMENT" = [
+    PARENT    = "MPI"
+    NAME      = "MPI Management"
+    DOCNAME   = "MPI Management Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Mgmt"
+    INFO      = "Time spent in MPI management operations"
+    DESCR     = {
+        Time spent in MPI calls related to management operations, such as MPI
+        initialization and finalization, opening/closing of files used for MPI
+        file I/O, or creation/deletion of various handles (e.g., communicators
+        or RMA windows).
+    }
+    DIAGNOSIS = {
+        Expand the metric tree to determine which classes of MPI management
+        operation contribute the most time.  While some management costs are
+        unavoidable, others can be decreased by improving load balance or reusing
+        existing handles rather than repeatedly creating and deleting them.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_INIT_EXIT" = [
+    PARENT    = "MPI_MANAGEMENT"
+    NAME      = "MPI Init/Finalize"
+    DOCNAME   = "MPI Init/Finalize Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Init"
+    INFO      = "Time spent in MPI initialization/finalization calls"
+    DESCR     = {
+        Time spent in MPI initialization and finalization calls, i.e.,
+        <tt>MPI_Init</tt> or <tt>MPI_Init_thread</tt> and
+        <tt>MPI_Finalize</tt>.
+    }
+    DIAGNOSIS = {
+        These are unavoidable one-off costs for MPI parallel programs, which
+        can be expected to increase for larger numbers of processes.  Some
+        applications may not use all of the processes provided (or not use some
+        of them for the entire execution), such that unused and wasted
+        processes wait in <tt>MPI_Finalize</tt> for the others to finish.  If
+        the proportion of time in these calls is significant, it is probably
+        more effective to use a smaller number of processes (or a larger amount
+        of computation).
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_INIT_COMPLETION" = [
+    PARENT    = "MPI_INIT_EXIT"
+    NAME      = "MPI Initialization Completion"
+    DOCNAME   = "MPI Initialization Completion Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_InitCompletion"
+    INFO      = "Time needed to finish MPI initialization"
+    DESCR     = {
+        Time spent in MPI initialization after the first process has left the
+        operation.
+        </dd><p><dd>
+        @img(BarrierCompletion.png)
+    }
+    DIAGNOSIS = {
+        Generally all processes can be expected to leave MPI initialization
+        simultaneously, and any significant initialization completion time may
+        indicate an inefficient MPI implementation or interference from other
+        processes running on the same compute resources.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "PRE_INIT" = {
+            const CollectiveInfo& ci = data->mCollinfo;
+
+            // Validate clock condition
+            const timestamp_t localEndT = event->getTimestamp();
+            if (ci.latest.mTime > localEndT)
+            {
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CLOCK_VIOLATION)
+                    << "Clock violation @ " << *event.get_cnode()
+                    << ": " << (ci.latest.mTime - localEndT);
+
+                cbmanager.notify(CCV_COLL, event, data);
+            }
+
+            // Restrict wait & completion time to time spent in operation
+            const timestamp_t latestBeginT = min(ci.latest.mTime, localEndT);
+            const timestamp_t earliestEndT = max(ci.earliest_end.mTime, latestBeginT);
+
+            // Calculate completion time, but no wait time.  Otherwise, delay
+            // costs may be assigned to MPI_Init(_thread) to propagate further,
+            // which are then never assigned to any call path.
+            data->mCompletion = max(0.0, localEndT - earliestEndT);
+        }
+
+        "INIT" = {
+            if (data->mCompletion > 0)
+            {
+                Callpath* const callpath = event.get_cnode();
+
+                m_severity[callpath] += data->mCompletion;
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_WAITSTATE)
+                    << get_name() << " @ " << *callpath
+                    << ": " << data->mCompletion
+                    << " [total: " << m_severity[callpath] << ']';
+            }
+
+            // There will always be completion time at MPI_Init; notify all
+            // processes
+            cbmanager.notify(INIT_COMPL, event, data);
+        }
+    ]
+]
+
+
+PATTERN "MPI_FINALIZE_WAIT" = [
+    PARENT    = "MPI_INIT_EXIT"
+    NAME      = "MPI Wait at Finalize"
+    DOCNAME   = "Wait at MPI Finalize Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_FinalizeWait"
+    INFO      = "Waiting time in front of MPI_Finalize"
+    DESCR     = {
+        Time spent waiting in front of MPI finalization, which is the time
+        inside <tt>MPI_Finalize</tt> until the last processes has reached
+        finalization.
+        </dd><p><dd>
+        @img(WaitAtBarrier.png)
+    }
+    DIAGNOSIS = {
+        A large amount of waiting time at finalization can be an indication of load
+        imbalance.  Examine the waiting times for each process and try to
+        distribute the preceding computation from processes with the shortest
+        waiting times to those with the longest waiting times.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "PRE_FINALIZE" = {
+            const CollectiveInfo& ci = data->mCollinfo;
+
+            // Validate clock condition
+            const timestamp_t localEndT = event->getTimestamp();
+            if (ci.latest.mTime > localEndT)
+            {
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CLOCK_VIOLATION)
+                    << "Clock violation @ " << *event.get_cnode()
+                    << ": " << (ci.latest.mTime - localEndT);
+
+                cbmanager.notify(CCV_COLL, event, data);
+            }
+
+            // Restrict wait & completion time to time spent in operation
+            const timestamp_t latestBeginT = min(ci.latest.mTime, localEndT);
+            const timestamp_t earliestEndT = max(ci.earliest_end.mTime, latestBeginT);
+
+            // Calculate wait & completion time
+            data->mIdle       = max(0.0, latestBeginT - ci.my.mTime);
+            data->mCompletion = max(0.0, localEndT - earliestEndT);
+        }
+
+        "FINALIZE" = {
+            if (data->mIdle > 0)
+            {
+                Callpath* const callpath = event.get_cnode();
+
+                m_severity[callpath] += data->mIdle;
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_WAITSTATE)
+                    << get_name() << " @ " << *callpath
+                    << ": " << data->mIdle
+                    << " [total: " << m_severity[callpath] << ']';
+            }
+
+            // There will always be waiting time at MPI_Finalize; notify all
+            // processes
+            cbmanager.notify(WAIT_FINALIZE, event, data);
+        }
+    ]
+]
+
+
+PATTERN "MPI_MGMT_COMM" = [
+    PARENT    = "MPI_MANAGEMENT"
+    NAME      = "MPI Communicator Management"
+    DOCNAME   = "MPI Communicator Management Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_WinMgmt"
+    INFO      = "Time spent in MPI Communicator management calls"
+    DESCR     = {
+        Time spent in MPI Communicator management routines such as creating and
+        freeing communicators, Cartesian and graph topologies, and getting or
+        setting communicator attributes.
+    }
+    DIAGNOSIS = {
+        There can be significant time in collective operations such as
+        <tt>MPI_Comm_create</tt>, <tt>MPI_Comm_free</tt> and
+        <tt>MPI_Cart_create</tt> that are considered neither explicit
+        synchronization nor communication, but result in implicit barrier
+        synchronization of participating processes.  Avoidable waiting time
+        for these operations will be reduced if all processes execute them
+        simultaneously.  If these are repeated operations, e.g., in a loop,
+        it is worth investigating whether their frequency can be reduced by
+        re-use.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_MGMT_FILE" = [
+    PARENT    = "MPI_MANAGEMENT"
+    NAME      = "MPI File Management"
+    DOCNAME   = "MPI File Management Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_FileMgmt"
+    INFO      = "Time spent in MPI file management calls"
+    DESCR     = {
+        Time spent in MPI file management routines such as opening, closing,
+        deleting, or resizing files, seeking, syncing, and setting or retrieving
+        file parameters or the process's view of the data in the file.
+    }
+    DIAGNOSIS = {
+        Collective file management calls (see @ref(MPI_FILE_COPS)) may suffer from
+        wait states due to load imbalance.  Examine the times spent in collective
+        management routines for each process and try to distribute the preceding
+        computation from processes with the shortest times to those with the
+        longest times.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_MGMT_WIN" = [
+    PARENT    = "MPI_MANAGEMENT"
+    NAME      = "MPI Window Management"
+    DOCNAME   = "MPI Window Management Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_WinMgmt"
+    INFO      = "Time spent in MPI window management calls"
+    DESCR     = {
+        Time spent in MPI window management routines such as creating and freeing
+        memory windows and getting or setting window attributes.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_SYNCHRONIZATION" = [
+    PARENT    = "MPI"
+    NAME      = "MPI Synchronization"
+    DOCNAME   = "MPI Synchronization Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Sync"
+    INFO      = "Time spent in MPI synchronization calls"
+    DESCR     = {
+        Time spent in MPI explicit synchronization calls, such as barriers and
+        remote memory access window synchronization.  Time in point-to-point
+        message transfers with no payload data used for coordination is currently
+        part of @ref(MPI_POINT2POINT).
+    }
+    DIAGNOSIS = {
+        Expand the metric tree further to determine the proportion of time in
+        different classes of MPI synchronization operations.  Expand the
+        calltree to identify which callpaths are responsible for the most
+        synchronization time.  Also examine the distribution of synchronization
+        time on each participating process for indication of load imbalance in
+        preceding code.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_SYNC_COLLECTIVE" = [
+    PARENT    = "MPI_SYNCHRONIZATION"
+    NAME      = "MPI Collective Synchronization"
+    DOCNAME   = "MPI Collective Synchronization Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_SyncCollective"
+    INFO      = "Time spent in MPI barriers"
+    DESCR     = {
+        Total time spent in MPI barriers.
+    }
+    DIAGNOSIS = {
+        When the time for MPI explicit barrier synchronization is significant,
+        expand the call tree to determine which <tt>MPI_Barrier</tt> calls are
+        responsible, and compare with their @ref(VISITS) count to see how
+        frequently they were executed.  Barrier synchronizations which are not
+        necessary for correctness should be removed.  It may also be appropriate
+        to use a communicator containing fewer processes, or a number of
+        point-to-point messages for coordination instead.  Also examine the
+        distribution of time on each participating process for indication of
+        load imbalance in preceding code.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+    CALLBACKS = [
+        "PRE_SYNC_COLL" = {
+            const CollectiveInfo& ci = data->mCollinfo;
+
+            // Validate clock condition
+            const timestamp_t localEndT = event->getTimestamp();
+            if (ci.latest.mTime > localEndT)
+            {
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CLOCK_VIOLATION)
+                    << "Clock violation @ " << *event.get_cnode()
+                    << ": " << (ci.latest.mTime - localEndT);
+
+                cbmanager.notify(CCV_COLL, event, data);
+            }
+
+            // Restrict wait & completion time to time spent in operation
+            const timestamp_t latestBeginT = min(ci.latest.mTime, localEndT);
+            const timestamp_t earliestEndT = max(ci.earliest_end.mTime, latestBeginT);
+
+            // Calculate wait & completion time
+            data->mIdle       = max(0.0, latestBeginT - ci.my.mTime);
+            data->mCompletion = max(0.0, localEndT - earliestEndT);
+        }
+    ]
+]
+
+
+PATTERN "MPI_BARRIER_WAIT" = [
+    PARENT    = "MPI_SYNC_COLLECTIVE"
+    NAME      = "MPI Wait at Barrier"
+    DOCNAME   = "Wait at MPI Barrier Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_BarrierWait"
+    INFO      = "Waiting time in front of MPI barriers"
+    DESCR     = {
+        Time spent waiting in front of an MPI barrier, which is the time inside
+        the barrier call until the last processes has reached the barrier.
+        </dd><p><dd>
+        @img(WaitAtBarrier.png)
+        </dd><p><dd>
+        Note that Scalasca does not yet analyze non-blocking barriers introduced
+        with MPI v3.0.
+    }
+    DIAGNOSIS = {
+        A large amount of waiting time at barriers can be an indication of load
+        imbalance.  Examine the waiting times for each process and try to
+        distribute the preceding computation from processes with the shortest
+        waiting times to those with the longest waiting times.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "SYNC_COLL" = {
+            if (data->mIdle > 0)
+            {
+                Callpath* const callpath = event.get_cnode();
+
+                m_severity[callpath] += data->mIdle;
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_WAITSTATE)
+                    << get_name() << " @ " << *callpath
+                    << ": " << data->mIdle
+                    << " [total: " << m_severity[callpath] << ']';
+            }
+
+            // There will always be waiting time at barriers; notify all processes
+            cbmanager.notify(WAIT_BARRIER, event, data);
+        }
+    ]
+]
+
+
+PATTERN "MPI_BARRIER_COMPLETION" = [
+    PARENT    = "MPI_SYNC_COLLECTIVE"
+    NAME      = "MPI Barrier Completion"
+    DOCNAME   = "MPI Barrier Completion Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_BarrierCompletion"
+    INFO      = "Time needed to finish MPI barriers"
+    DESCR     = {
+        Time spent in MPI barriers after the first process has left the operation.
+        </dd><p><dd>
+        @img(BarrierCompletion.png)
+        </dd><p><dd>
+        Note that Scalasca does not yet analyze non-blocking barriers introduced
+        with MPI v3.0.
+    }
+    DIAGNOSIS = {
+        Generally all processes can be expected to leave MPI barriers
+        simultaneously, and any significant barrier completion time may
+        indicate an inefficient MPI implementation or interference from other
+        processes running on the same compute resources.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "SYNC_COLL" = {
+            if (data->mCompletion > 0)
+            {
+                Callpath* const callpath = event.get_cnode();
+
+                m_severity[event.get_cnode()] += data->mCompletion;
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_WAITSTATE)
+                    << get_name() << " @ " << *callpath
+                    << ": " << data->mCompletion
+                    << " [total: " << m_severity[callpath] << ']';
+            }
+
+            // There will always be completion time at barriers; notify all
+            // processes
+            cbmanager.notify(BARRIER_COMPL, event, data);
+        }
+    ]
+]
+
+
+PATTERN "MPI_COMMUNICATION" = [
+    PARENT    = "MPI"
+    NAME      = "MPI Communication"
+    DOCNAME   = "MPI Communication Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Comm"
+    INFO      = "Time spent in MPI communication calls"
+    DESCR     = {
+        Time spent in MPI communication calls, including point-to-point,
+        collective, and one-sided communication.
+    }
+    DIAGNOSIS = {
+        Expand the metric tree further to determine the proportion of time in
+        different classes of MPI communication operations.  Expand the calltree
+        to identify which callpaths are responsible for the most communication
+        time.  Also examine the distribution of communication time on each
+        participating process for indication of communication imbalance or load
+        imbalance in preceding code.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_POINT2POINT" = [
+    PARENT    = "MPI_COMMUNICATION"
+    NAME      = "MPI point-to-point communication"
+    DOCNAME   = "MPI Point-to-point Communication Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_P2P"
+    INFO      = "Time spent in MPI point-to-point communication"
+    DESCR     = {
+        Total time spent in MPI point-to-point communication calls.  Note that
+        this is only the respective times for the sending and receiving calls,
+        and <em>not</em> message transmission time.
+    }
+    DIAGNOSIS = {
+        Investigate whether communication time is commensurate with the number
+        of @ref(COMMS) and @ref(BYTES).  Consider replacing blocking
+        communication with non-blocking communication that can potentially be
+        overlapped with computation, or using persistent communication to
+        amortize message setup costs for common transfers.  Also consider the
+        mapping of processes onto compute resources, especially if there are
+        notable differences in communication time for particular processes,
+        which might indicate longer/slower transmission routes or network
+        congestion.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+    CALLBACKS = [
+        "PRE_SEND" = {
+            data->mLocal->add_event(event, ROLE_SEND);
+            data->mLocal->add_event(event.enterptr(), ROLE_ENTER_SEND);
+        }
+
+        "PRE_RECV" = {
+            data->mLocal->add_event(event, ROLE_RECV);
+            data->mLocal->add_event(event.enterptr(), ROLE_ENTER_RECV);
+            data->mLocal->add_event(event.leaveptr(), ROLE_LEAVE_RECV);
+        }
+
+        "POST_RECV" = {
+            // Validate clock condition
+            RemoteEvent send = data->mRemote->get_event(ROLE_SEND);
+            if (send->getTimestamp() > event->getTimestamp())
+            {
+                UTILS_DEBUG_PRINTF(SCALASCA_DEBUG_CLOCK_VIOLATION,
+                                   "Unsynchronized clocks (loc: %" PRIu64 ", reg: %s, diff: %es)!\n",
+                                   event.get_location().getId(),
+                                   event.get_cnode()->getRegion().getDisplayName().getCString(),
+                                   send->getTimestamp() - event->getTimestamp());
+                cbmanager.notify(CCV_P2P, event, data);
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_LATESENDER" = [
+    PARENT    = "MPI_POINT2POINT"
+    NAME      = "MPI Late Sender"
+    DOCNAME   = "MPI Late Sender Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_LateSender"
+    INFO      = "Time in MPI point-to-point receive operation waiting for a message"
+    DESCR     = {
+        Refers to the time lost waiting caused by a blocking receive operation
+        (e.g., <tt>MPI_Recv</tt> or <tt>MPI_Wait</tt>) that is posted earlier
+        than the corresponding send operation.
+        </dd><p><dd>
+        @img(LateSender.png)
+        </dd><p><dd>
+        If the receiving process is waiting for multiple messages to arrive
+        (e.g., in an call to <tt>MPI_Waitall</tt>), the maximum waiting time is
+        accounted, i.e., the waiting time due to the latest sender.
+    }
+    DIAGNOSIS = {
+        Try to replace <tt>MPI_Recv</tt> with a non-blocking receive <tt>MPI_Irecv</tt>
+        that can be posted earlier, proceed concurrently with computation, and
+        complete with a wait operation after the message is expected to have been
+        sent.  Try to post sends earlier, such that they are available when
+        receivers need them.  Note that outstanding messages (i.e., sent before the
+        receiver is ready) will occupy internal message buffers, and that large
+        numbers of posted receive buffers will also introduce message management
+        overhead, therefore moderation is advisable.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    DATA      = {
+        // *INDENT-OFF*    Uncrustify issue #2789
+        double         m_max_idle;
+        EventSet       m_receive;
+        RemoteEventSet m_send;
+        // *INDENT-ON*
+    }
+    INIT      = {
+        m_max_idle = 0.0;
+    }
+    CALLBACKS = [
+        "PRE_SEND" = {
+            data->mLocal->add_event(event, ROLE_SEND_LS);
+            data->mLocal->add_event(event.enterptr(), ROLE_ENTER_SEND_LS);
+            data->mLocal->add_event(event.leaveptr(), ROLE_LEAVE_SEND_LS);
+        }
+
+        "PRE_RECV" = {
+            data->mLocal->add_event(event, ROLE_RECV_LS);
+            data->mLocal->add_event(event.enterptr(), ROLE_ENTER_RECV_LS);
+            data->mLocal->add_event(event.leaveptr(), ROLE_LEAVE_RECV_LS);
+        }
+
+        "POST_RECV" = {
+            RemoteEvent enter_send = data->mRemote->get_event(ROLE_ENTER_SEND_LS);
+            RemoteEvent leave_send = data->mRemote->get_event(ROLE_LEAVE_SEND_LS);
+            Event       enter_recv = data->mLocal->get_event(ROLE_ENTER_RECV_LS);
+            Event       leave_recv = data->mLocal->get_event(ROLE_LEAVE_RECV_LS);
+
+            const Region& region = enter_recv->getRegion();
+
+            if (is_mpi_testx(region))
+            {
+                return;
+            }
+
+            // Validate clock condition
+            pearl::timestamp_t max_time = enter_send->getTimestamp();
+            if (max_time > leave_recv->getTimestamp())
+            {
+                // Do not report violation again -- already done in generic P2P code
+                max_time = leave_recv->getTimestamp();
+            }
+
+            // Calculate waiting time
+            data->mIdle = max_time - enter_recv->getTimestamp();
+            if (data->mIdle > 0)
+            {
+                if (is_mpi_wait_multi(region))
+                {
+                    if (data->mIdle > m_max_idle)
+                    {
+                        RemoteEvent send = data->mRemote->get_event(ROLE_SEND_LS);
+
+                        m_receive.clear();
+                        m_send.clear();
+
+                        m_max_idle = data->mIdle;
+                        m_receive.add_event(event, ROLE_RECV);
+                        m_send.add_event(send, ROLE_SEND);
+                        m_send.add_event(leave_send, ROLE_LEAVE_SEND_LS);
+
+                        cbmanager.notify(LATE_SENDER_CANDIDATE, event, data);
+                    }
+                }
+                else
+                {
+                    m_severity[event.get_cnode()] += data->mIdle;
+
+                    data->mCompletion = 0;
+                    if (leave_recv->getTimestamp() > leave_send->getTimestamp())
+                    {
+                        data->mCompletion = leave_recv->getTimestamp() - leave_send->getTimestamp();
+                    }
+
+                    cbmanager.notify(LATE_SENDER, event, data);
+                }
+            }
+        }
+
+        "GROUP_LEAVE" = {
+            if (  (m_max_idle > 0.0)
+               && is_mpi_wait_multi(event.enterptr()->getRegion()))
+            {
+                m_severity[event.get_cnode()] += m_max_idle;
+
+                Event       recv       = m_receive.get_event(ROLE_RECV);
+                RemoteEvent send       = m_send.get_event(ROLE_SEND);
+                RemoteEvent leave_send = m_send.get_event(ROLE_LEAVE_SEND_LS);
+
+                data->mIdle = m_max_idle;
+
+                data->mCompletion = 0;
+                if (event->getTimestamp() > leave_send->getTimestamp())
+                {
+                    data->mCompletion = event->getTimestamp() - leave_send->getTimestamp();
+                }
+
+                data->mLocal->add_event(recv, ROLE_RECV_LS);
+                data->mRemote->add_event(send, ROLE_SEND_LS);
+
+                cbmanager.notify(LATE_SENDER, recv, data);
+            }
+
+            m_max_idle = 0.0;
+        }
+    ]
+]
+
+
+PATTERN "MPI_LATESENDER_WO" = [
+    PARENT    = "MPI_LATESENDER"
+    NAME      = "MPI Late Sender, wrong order"
+    DOCNAME   = "MPI Late Sender, Wrong Order Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_LateSenderWO"
+    INFO      = "Late Sender situation due to MPI messages received in the wrong order"
+    DESCR     = {
+        A Late Sender situation may be the result of messages that are received
+        in the wrong order.  If a process expects messages from one or more
+        processes in a certain order, although these processes are sending them
+        in a different order, the receiver may need to wait for a message if it
+        tries to receive a message early that has been sent late.
+        </dd><p><dd>
+        This pattern comes in two variants:
+        <ul>
+            <li>The messages involved were sent from the same source location</li>
+            <li>The messages involved were sent from different source locations</li>
+        </ul>
+        See the description of the corresponding specializations for more details.
+    }
+    DIAGNOSIS = {
+        Check the proportion of @ref(COMMS_RECV) that are @ref(MPI_CLS_COUNT).
+        Swap the order of receiving from different sources to match the most
+        common ordering.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    DATA      = {
+        static const uint32_t BUFFERSIZE = 100;
+
+        struct LateSender
+        {
+            LateSender(RemoteEvent send,
+                       Event       recv,
+                       timestamp_t idle)
+                : m_send(send),
+                  m_recv(recv),
+                  mIdle(idle)
+            {
+            }
+
+            RemoteEvent m_send;
+            Event       m_recv;
+            timestamp_t mIdle;
+        };
+
+
+        typedef std::list< LateSender > LsBuffer;
+
+        LsBuffer m_buffer;
+    }
+    CALLBACKS = [
+        "LATE_SENDER" = {
+            // Construct entry
+            LateSender item(data->mRemote->get_event(ROLE_SEND_LS),
+                            event, data->mIdle);
+
+            // Store entry in buffer
+            if (m_buffer.size() == BUFFERSIZE)
+            {
+                m_buffer.pop_front();
+            }
+            m_buffer.push_back(item);
+        }
+
+        "POST_RECV" = {
+            RemoteEvent send = data->mRemote->get_event(ROLE_SEND);
+
+            // Search for "wrong order" situations
+            LsBuffer::iterator it = m_buffer.begin();
+            while (it != m_buffer.end())
+            {
+                if (it->m_send->getTimestamp() > send->getTimestamp())
+                {
+                    double tmp = data->mIdle;
+
+                    data->mIdle                         = it->mIdle;
+                    m_severity[it->m_recv.get_cnode()] += data->mIdle;
+
+                    // Store data and notify specializations
+                    data->mRemote->add_event(it->m_send, ROLE_SEND_LSWO);
+                    data->mLocal->add_event(it->m_recv, ROLE_RECV_LSWO);
+                    cbmanager.notify(LATE_SENDER_WO, event, data);
+
+                    it = m_buffer.erase(it);
+
+                    data->mIdle = tmp;
+                }
+                else
+                {
+                    ++it;
+                }
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_LSWO_DIFFERENT" = [
+    PARENT    = "MPI_LATESENDER_WO"
+    NAME      = "MPI Late Sender, wrong order (different source)"
+    DOCNAME   = "MPI Late Sender, Wrong Order Time / Different Sources"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_LswoDifferent"
+    INFO      = "Late Sender, Wrong Order situation due to MPI messages received from different sources"
+    DESCR     = {
+        This specialization of the <i>Late Sender, Wrong Order</i> pattern refers
+        to wrong order situations due to messages received from different source
+        locations.
+        </dd><p><dd>
+        @img(LSWO_DifferentSource.png)
+    }
+    DIAGNOSIS = {
+        Check the proportion of @ref(COMMS_RECV) that are
+        @ref(MPI_CLSWO_COUNT).  Swap the order of receiving from different
+        sources to match the most common ordering.  Consider using the wildcard
+        <tt>MPI_ANY_SOURCE</tt> to receive (and process) messages as they
+        arrive from any source rank.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "LATE_SENDER_WO" = {
+            Event recv = data->mLocal->get_event(ROLE_RECV_LSWO);
+
+            if (recv->getSource() != event->getSource())
+            {
+                m_severity[recv.get_cnode()] += data->mIdle;
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_LSWO_SAME" = [
+    PARENT    = "MPI_LATESENDER_WO"
+    NAME      = "MPI Late Sender, wrong order (same source)"
+    DOCNAME   = "MPI Late Sender, Wrong Order Time / Same Source"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_LswoSame"
+    INFO      = "Late Sender, Wrong Order situation due to MPI messages received from the same source"
+    DESCR     = {
+        This specialization of the <i>Late Sender, Wrong Order</i> pattern refers
+        to wrong order situations due to messages received from the same source
+        location.
+        </dd><p><dd>
+        @img(LSWO_SameSource.png)
+    }
+    DIAGNOSIS = {
+        Swap the order of receiving to match the order messages are sent, or
+        swap the order of sending to match the order they are expected to be
+        received.  Consider using the wildcard <tt>MPI_ANY_TAG</tt> to receive
+        (and process) messages in the order they arrive from the source.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "LATE_SENDER_WO" = {
+            Event recv = data->mLocal->get_event(ROLE_RECV_LSWO);
+
+            if (recv->getSource() == event->getSource())
+            {
+                m_severity[recv.get_cnode()] += data->mIdle;
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_LATERECEIVER" = [
+    PARENT    = "MPI_POINT2POINT"
+    NAME      = "MPI Late Receiver"
+    DOCNAME   = "MPI Late Receiver Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_LateReceiver"
+    INFO      = "Time in MPI point-to-point send operation waiting for the receiver to become ready"
+    DESCR     = {
+        A send operation may be blocked until the corresponding receive
+        operation is called.  This pattern refers to the time spent waiting
+        as a result of this situation.
+        </dd><p><dd>
+        @img(LateReceiver.png)
+        </dd><p><dd>
+    }
+    DIAGNOSIS = {
+        Check the proportion of @ref(COMMS_SEND) that are @ref(MPI_CLR_COUNT).
+        The MPI implementation may be working in synchronous mode by default,
+        such that explicit use of asynchronous nonblocking sends can be tried.
+        If the size of the message to be sent exceeds the available MPI
+        internal buffer space then the operation will be blocked until the data
+        can be transferred to the receiver: some MPI implementations allow
+        larger internal buffers or different thresholds to be specified.  Also
+        consider the mapping of processes onto compute resources, especially if
+        there are notable differences in communication time for particular
+        processes, which might indicate longer/slower transmission routes or
+        network congestion.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    DATA      = {
+        struct multiwait_info_t
+        {
+            int    sendcount;
+            Event  maxevent;
+            double maxidle;
+            double maxcmpl;
+        };
+
+
+        typedef std::set< pearl::Event, const pearl::EventKeyCompare >
+            event_set_t;
+        typedef std::map< Event, multiwait_info_t, pearl::EventKeyCompare >
+            multiwait_map_t;
+
+        event_set_t     m_ls_set;
+        multiwait_map_t m_multiwait_map;
+
+        #ifdef DEBUG_MULTI_LR
+            std::ofstream m_dbg_out;
+        #endif
+    }
+    INIT      = {
+        #ifdef DEBUG_MULTI_LR
+            std::ostringstream fnamestr;
+            fnamestr << epk_archive_get_name() << "/dbg_lr." << rank << ".dat";
+
+            m_dbg_out.open(fnamestr.str().c_str(), std::fstream::app);
+        #endif
+    }
+    CALLBACKS = [
+        "LATE_SENDER_CANDIDATE" = {
+            m_ls_set.insert(event.enterptr());
+        }
+    ]
+
+    CALLBACKS("bws") = [
+        "PRE_SEND" = {
+            data->mLocal->add_event(event, ROLE_SEND_LR);
+
+            Event completion = event.completion();
+
+            data->mLocal->add_event(completion.enterptr(), ROLE_ENTER_SEND_LR);
+            data->mLocal->add_event(completion.leaveptr(), ROLE_LEAVE_SEND_LR);
+        }
+
+        "POST_SEND" = {
+            // backward replay: msg received from destination here
+
+            Event       enter_sendcmp = data->mLocal->get_event(ROLE_ENTER_SEND_LR);
+            Event       leave_sendcmp = data->mLocal->get_event(ROLE_LEAVE_SEND_LR);
+            RemoteEvent enter_recvreq = data->mRemote->get_event(ROLE_ENTER_RECV_LR);
+            RemoteEvent leave_recvreq = data->mRemote->get_event(ROLE_LEAVE_RECV_LR);
+
+            // Calculate waiting time
+            data->mIdle =
+                leave_sendcmp->getTimestamp() <= enter_recvreq->getTimestamp()
+                ? 0
+                : enter_recvreq->getTimestamp() - enter_sendcmp->getTimestamp();
+
+            if (data->mIdle > 0)
+            {
+                data->mCompletion =
+                    leave_sendcmp->getTimestamp() > leave_recvreq->getTimestamp()
+                    ? 0
+                    : leave_sendcmp->getTimestamp() - leave_recvreq->getTimestamp();
+            }
+
+            Region region = enter_sendcmp->getRegion();
+
+            if (  is_mpi_block_send(region)
+               || is_mpi_wait_single(region))
+            {
+                if (data->mIdle > 0)
+                {
+                    m_severity[enter_sendcmp.get_cnode()] += data->mIdle;
+
+                    cbmanager.notify(LATE_RECEIVER, event, data);
+                }
+            }
+            else if (is_mpi_wait_multi(region))
+            {
+                multiwait_map_t::iterator it = m_multiwait_map.find(enter_sendcmp);
+
+                if (it == m_multiwait_map.end())
+                {
+                    return;
+                }
+
+                if (data->mIdle > it->second.maxidle)
+                {
+                    it->second.maxidle  = data->mIdle;
+                    it->second.maxcmpl  = data->mCompletion;
+                    it->second.maxevent = event;
+                }
+
+                --it->second.sendcount;
+
+                if (it->second.sendcount == 0)
+                {
+                    if (it->second.maxidle > 0.0)
+                    {
+                        m_severity[it->first.get_cnode()] += it->second.maxidle;
+                        data->mIdle                        = it->second.maxidle;
+                        data->mCompletion                  = it->second.maxcmpl;
+
+                        cbmanager.notify(LATE_RECEIVER, it->second.maxevent, data);
+                    }
+
+                    m_multiwait_map.erase(it);
+                }
+            }
+        }
+
+        "MPI_SEND_COMPLETE" = {
+            Event enter = event.enterptr();
+
+            if (  is_mpi_wait_multi(enter->getRegion())
+               && !m_ls_set.count(enter))
+            {
+                multiwait_map_t::iterator it = m_multiwait_map.find(enter);
+
+                if (it == m_multiwait_map.end())
+                {
+                    multiwait_info_t info;
+
+                    info.sendcount = 1;
+                    info.maxidle   = 0.0;
+
+                    m_multiwait_map.insert(std::make_pair(enter, info));
+                }
+                else
+                {
+                    it->second.sendcount++;
+                }
+            }
+        }
+
+        "PRE_RECV" = {
+            data->mLocal->add_event(event, ROLE_RECV_LR);
+
+            Event request = event.request();
+
+            data->mLocal->add_event(request.enterptr(), ROLE_ENTER_RECV_LR);
+            data->mLocal->add_event(request.leaveptr(), ROLE_LEAVE_RECV_LR);
+        }
+    ]
+]
+
+
+PATTERN "MPI_COLLECTIVE" = [
+    PARENT    = "MPI_COMMUNICATION"
+    NAME      = "MPI collective communication"
+    DOCNAME   = "MPI Collective Communication Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Collective"
+    INFO      = "Time spent in MPI collective communication"
+    DESCR     = {
+        Total time spent in MPI collective communication calls.
+    }
+    DIAGNOSIS = {
+        As the number of participating MPI processes
+        increase (i.e., ranks in <tt>MPI_COMM_WORLD</tt> or a subcommunicator),
+        time in collective communication can be expected to increase
+        correspondingly.  Part of the increase will be due to additional data
+        transmission requirements, which are generally similar for all
+        participants.  A significant part is typically time some (often many)
+        processes are blocked waiting for the last of the required participants
+        to reach the collective operation.  This may be indicated by significant
+        variation in collective communication time across processes, but is
+        most conclusively quantified from the child metrics determinable via
+        automatic trace pattern analysis.
+        </dd><p><dd>
+        Since basic transmission cost per byte for collectives can be relatively high,
+        combining several collective operations of the same type each with small amounts of data
+        (e.g., a single value per rank) into fewer operations with larger payloads
+        using either a vector/array of values or aggregate datatype may be beneficial.
+        (Overdoing this and aggregating very large message payloads is counter-productive
+        due to explicit and implicit memory requirements, and MPI protocol switches
+        for messages larger than an eager transmission threshold.)
+        </dd><p><dd>
+        MPI implementations generally provide optimized collective communication operations,
+        however, in rare cases, it may be appropriate to replace a collective
+        communication operation provided by the MPI implementation with a
+        customized implementation of your own using point-to-point operations.
+        For example, certain MPI implementations of <tt>MPI_Scan</tt> include
+        unnecessary synchronization of all participating processes, or
+        asynchronous variants of collective operations may be preferable to
+        fully synchronous ones where they permit overlapping of computation.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+    CALLBACKS = [
+        "PRE_COLL_12N" = {
+            if (data->mIsSyncpoint)
+            {
+                const CollectiveInfo& ci = data->mCollinfo;
+
+                // Validate clock condition
+                const timestamp_t localEndT = event->getTimestamp();
+                if (ci.root.mTime > localEndT)
+                {
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CLOCK_VIOLATION)
+                        << "Clock violation @ " << *event.get_cnode()
+                        << ": " << (ci.latest.mTime - localEndT);
+
+                    cbmanager.notify(CCV_COLL, event, data);
+                }
+
+                // Restrict wait & completion time to time spent in operation
+                const timestamp_t rootBeginT   = min(ci.root.mTime, localEndT);
+                const timestamp_t earliestEndT = max(ci.earliest_end.mTime, rootBeginT);
+
+                // Calculate wait & completion time
+                data->mIdle       = max(0.0, rootBeginT - ci.my.mTime);
+                data->mCompletion = max(0.0, localEndT - earliestEndT);
+            }
+        }
+
+        "PRE_COLL_N2N" = {
+            if (data->mIsSyncpoint)
+            {
+                const CollectiveInfo& ci = data->mCollinfo;
+
+                // Validate clock condition
+                const timestamp_t localEndT = event->getTimestamp();
+                if (ci.latest.mTime > localEndT)
+                {
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CLOCK_VIOLATION)
+                        << "Clock violation @ " << *event.get_cnode()
+                        << ": " << (ci.latest.mTime - localEndT);
+
+                    cbmanager.notify(CCV_COLL, event, data);
+                }
+
+                // Restrict wait & completion time to time spent in operation
+                const timestamp_t latestBeginT = min(ci.latest.mTime, localEndT);
+                const timestamp_t earliestEndT = max(ci.earliest_end.mTime, latestBeginT);
+
+                // Calculate wait & completion time
+                data->mIdle       = max(0.0, latestBeginT - ci.my.mTime);
+                data->mCompletion = max(0.0, localEndT - earliestEndT);
+            }
+        }
+
+        "PRE_COLL_N21" = {
+            if (data->mIsSyncpoint)
+            {
+                const CollectiveInfo& ci = data->mCollinfo;
+
+                // Validate clock condition
+                const timestamp_t localEndT = event->getTimestamp();
+                if (ci.latest.mTime > localEndT)
+                {
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CLOCK_VIOLATION)
+                        << "Clock violation @ " << *event.get_cnode()
+                        << ": " << (ci.latest.mTime - localEndT);
+
+                    cbmanager.notify(CCV_COLL, event, data);
+                }
+
+                // Restrict wait & completion time to time spent in operation
+                const timestamp_t latestBeginT = min(ci.latest.mTime, localEndT);
+                const timestamp_t earliestEndT = max(ci.earliest_end.mTime, latestBeginT);
+
+                // Calculate wait & completion time
+                data->mIdle       = max(0.0, latestBeginT - ci.my.mTime);
+                data->mCompletion = max(0.0, localEndT - earliestEndT);
+            }
+        }
+
+        "PRE_COLL_SCAN" = {
+            if (data->mIsSyncpoint)
+            {
+                const CollectiveInfo& ci = data->mCollinfo;
+
+                // Validate clock condition
+                const timestamp_t localEndT = event->getTimestamp();
+                if (ci.latest.mTime > localEndT)
+                {
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CLOCK_VIOLATION)
+                        << "Clock violation @ " << *event.get_cnode()
+                        << ": " << (ci.latest.mTime - localEndT);
+
+                    cbmanager.notify(CCV_COLL, event, data);
+                }
+
+                // Restrict wait time to time spent in operation
+                const timestamp_t latestBeginT = min(ci.latest.mTime, localEndT);
+
+                // Calculate wait time
+                data->mIdle = max(0.0, latestBeginT - ci.my.mTime);
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_EARLYREDUCE" = [
+    PARENT    = "MPI_COLLECTIVE"
+    NAME      = "MPI Early Reduce"
+    DOCNAME   = "MPI Early Reduce Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_EarlyReduce"
+    INFO      = "Waiting time due to an early receiver in MPI n-to-1 operations"
+    DESCR     = {
+        Collective communication operations that send data from all processes
+        to one destination process (i.e., n-to-1) may suffer from waiting times
+        if the destination process enters the operation earlier than any of its
+        sending counterparts.  This pattern refers to the time lost on the root
+        rank as a result of this situation, accounting for the waiting time due
+        to the latest sending process.  It applies to the MPI calls
+        <tt>MPI_Reduce</tt>, <tt>MPI_Gather</tt> and <tt>MPI_Gatherv</tt>.
+        </dd><p><dd>
+        @img(EarlyReduce.png)
+        </dd><p><dd>
+        Note that Scalasca does not yet analyze non-blocking collectives introduced
+        with MPI v3.0.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "COLL_N21" = {
+            if (data->mIdle > 0)
+            {
+                Callpath* const callpath = event.get_cnode();
+
+                m_severity[callpath] += data->mIdle;
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_WAITSTATE)
+                    << get_name() << " @ " << *callpath
+                    << ": " << data->mIdle
+                    << " [total: " << m_severity[callpath] << ']';
+
+                // Early Reduce time only occurs on the root process, i.e.,
+                // most-severe instance tracking can be performed locally
+                cbmanager.notify(EARLY_REDUCE, event, data);
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_EARLYSCAN" = [
+    PARENT    = "MPI_COLLECTIVE"
+    NAME      = "MPI Early Scan"
+    DOCNAME   = "MPI Early Scan Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_EarlyScan"
+    INFO      = "Waiting time due to an early receiver in an MPI scan operation"
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    DESCR     = {
+        <tt>MPI_Scan</tt> or <tt>MPI_Exscan</tt> operations may suffer from
+        waiting times if the process with rank <i>n</i> enters the operation
+        earlier than its sending counterparts (i.e., ranks 0..<i>n</i>-1).  This
+        pattern refers to the time lost as a result of this situation.
+        </dd><p><dd>
+        @img(EarlyScan.png)
+        </dd><p><dd>
+        Note that Scalasca does not yet analyze non-blocking collectives introduced
+        with MPI v3.0.
+    }
+    CALLBACKS = [
+        "COLL_SCAN" = {
+            if (data->mIdle > 0)
+            {
+                Callpath* const callpath = event.get_cnode();
+
+                m_severity[callpath] += data->mIdle;
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_WAITSTATE)
+                    << get_name() << " @ " << *callpath
+                    << ": " << data->mIdle
+                    << " [total: " << m_severity[callpath] << ']';
+            }
+
+            // All processes need to take part in the most-severe instance tracking
+            cbmanager.notify(EARLY_SCAN, event, data);
+        }
+    ]
+]
+
+
+PATTERN "MPI_LATEBROADCAST" = [
+    PARENT    = "MPI_COLLECTIVE"
+    NAME      = "MPI Late Broadcast"
+    DOCNAME   = "MPI Late Broadcast Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_LateBroadcast"
+    INFO      = "Waiting time due to a late sender in MPI 1-to-n operations"
+    DESCR     = {
+        Collective communication operations that send data from one source
+        process to all processes (i.e., 1-to-n) may suffer from waiting times
+        if destination processes enter the operation earlier than the source
+        process, that is, before any data could have been sent.  This pattern
+        refers to the time lost as a result of this situation.  It applies to
+        the MPI calls <tt>MPI_Bcast</tt>, <tt>MPI_Scatter</tt> and
+        <tt>MPI_Scatterv</tt>.
+        </dd><p><dd>
+        @img(LateBroadcast.png)
+        </dd><p><dd>
+        Note that Scalasca does not yet analyze non-blocking collectives introduced
+        with MPI v3.0.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "COLL_12N" = {
+            if (data->mIdle > 0)
+            {
+                Callpath* const callpath = event.get_cnode();
+
+                m_severity[callpath] += data->mIdle;
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_WAITSTATE)
+                    << get_name() << " @ " << *callpath
+                    << ": " << data->mIdle
+                    << " [total: " << m_severity[callpath] << ']';
+            }
+
+            // Notify all processes to allow for collective communication (e.g.,
+            // during most-severe instance tracking)
+            cbmanager.notify(LATE_BCAST, event, data);
+        }
+    ]
+]
+
+
+PATTERN "MPI_WAIT_NXN" = [
+    PARENT    = "MPI_COLLECTIVE"
+    NAME      = "MPI Wait at N x N"
+    DOCNAME   = "MPI Wait at N x N Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_WaitNxN"
+    INFO      = "Time due to inherent synchronization in MPI n-to-n operations"
+    DESCR     = {
+        Collective communication operations that send data from all processes
+        to all processes (i.e., n-to-n) exhibit an inherent synchronization
+        among all participants, that is, no process can finish the operation
+        until the last process has started it.  This pattern covers the time
+        spent in n-to-n operations until all processes have reached it.  It
+        applies to the MPI calls <tt>MPI_Reduce_scatter</tt>,
+        <tt>MPI_Reduce_scatter_block</tt>, <tt>MPI_Allgather</tt>,
+        <tt>MPI_Allgatherv</tt>, <tt>MPI_Allreduce</tt> and <tt>MPI_Alltoall</tt>.
+        </dd><p><dd>
+        @img(WaitAtNxN.png)
+        </dd><p><dd>
+        Note that the time reported by this pattern is not necessarily
+        completely waiting time since some processes could &ndash; at least
+        theoretically &ndash; already communicate with each other while others
+        have not yet entered the operation.
+        </dd><p><dd>
+        Also note that Scalasca does not yet analyze non-blocking and neighborhood
+        collectives introduced with MPI v3.0.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "COLL_N2N" = {
+            if (data->mIdle > 0)
+            {
+                Callpath* const callpath = event.get_cnode();
+
+                m_severity[callpath] += data->mIdle;
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_WAITSTATE)
+                    << get_name() << " @ " << *callpath
+                    << ": " << data->mIdle
+                    << " [total: " << m_severity[callpath] << ']';
+            }
+
+            // Notify all processes to allow for collective communication (e.g.,
+            // during most-severe instance tracking)
+            cbmanager.notify(WAIT_NXN, event, data);
+        }
+    ]
+]
+
+
+PATTERN "MPI_NXN_COMPLETION" = [
+    PARENT    = "MPI_COLLECTIVE"
+    NAME      = "MPI N x N Completion"
+    DOCNAME   = "MPI N x N Completion Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_NxNCompletion"
+    INFO      = "Time needed to finish an MPI n-to-n collective operation"
+    DESCR     = {
+        This pattern refers to the time spent in MPI n-to-n collectives after
+        the first process has left the operation.
+        </dd><p><dd>
+        @img(NxNCompletion.png)
+        </dd><p><dd>
+        Note that the time reported by this pattern is not necessarily
+        completely waiting time since some processes could &ndash; at least
+        theoretically &ndash; still communicate with each other while others
+        have already finished communicating and exited the operation.
+        </dd><p><dd>
+        Also note that Scalasca does not yet analyze non-blocking and neighborhood
+        collectives introduced with MPI v3.0.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "COLL_N2N" = {
+            if (data->mCompletion > 0)
+            {
+                Callpath* const callpath = event.get_cnode();
+
+                m_severity[event.get_cnode()] += data->mCompletion;
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_WAITSTATE)
+                    << get_name() << " @ " << *callpath
+                    << ": " << data->mCompletion
+                    << " [total: " << m_severity[callpath] << ']';
+            }
+
+            // Notify all processes to allow for collective communication (e.g.,
+            // during most-severe instance tracking)
+            cbmanager.notify(NXN_COMPL, event, data);
+        }
+    ]
+]
+
+
+PATTERN "MPI_IO" = [
+    PARENT    = "MPI"
+    NAME      = "MPI File I/O"
+    DOCNAME   = "MPI File I/O Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_IO"
+    INFO      = "Time spent in MPI file I/O calls"
+    DESCR     = {
+        Time spent in MPI file I/O calls.
+    }
+    DIAGNOSIS = {
+        Expand the metric tree further to determine the proportion of time in
+        different classes of MPI file I/O operations.  Expand the calltree to
+        identify which callpaths are responsible for the most file I/O time.
+        Also examine the distribution of MPI file I/O time on each process for
+        indication of load imbalance.  Use a parallel filesystem (such as
+        <tt>/work</tt>) when possible, and check that appropriate hints values
+        have been associated with the <tt>MPI_Info</tt> object of MPI files.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_IO_INDIVIDUAL" = [
+    PARENT    = "MPI_IO"
+    NAME      = "MPI Individual File I/O"
+    DOCNAME   = "MPI Individual File I/O Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_IndividualIO"
+    INFO      = "Time spent in individual MPI file I/O calls"
+    DESCR     = {
+        Time spent in individual MPI file I/O calls.
+    }
+    DIAGNOSIS = {
+        Expand the calltree to identify which callpaths are responsible for the
+        most individual file I/O time.  When multiple processes read and write
+        to files, MPI collective file reads and writes can be more efficient.
+        Examine the number of @ref(MPI_FILE_IROPS) and @ref(MPI_FILE_IWOPS) to
+        locate potential opportunities for collective I/O.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_IO_COLLECTIVE" = [
+    PARENT    = "MPI_IO"
+    NAME      = "MPI Collective File I/O"
+    DOCNAME   = "MPI Collective File I/O Time"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_CollIO"
+    INFO      = "Time spent in collective MPI file I/O calls"
+    DESCR     = {
+        Time spent in collective MPI file I/O calls.
+    }
+    DIAGNOSIS = {
+        Expand the calltree to identify which callpaths are responsible for the
+        most collective file I/O time.  Examine the distribution of times on
+        each participating process for indication of imbalance in the operation
+        itself or in preceding code.  Examine the number of @ref(MPI_FILE_CROPS)
+        and @ref(MPI_FILE_CWOPS) done by each process as a possible origin of
+        imbalance.  Where asychrony or imbalance prevents effective use of
+        collective file I/O, individual (i.e., non-collective) file I/O may be
+        preferable.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]

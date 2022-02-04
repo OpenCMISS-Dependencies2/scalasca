@@ -1,0 +1,9 @@
+bcfcdfbcf059a4b3c3a3d80706b093e8
+58fc342bb117bd81328c05d1a0c49ca9
+../src/python/_otf2/GlobalSnapReaderCallbacks.py
+_otf2.GlobalSnapReaderCallbacks.tmpl.py
+../share/otf2/otf2.types
+../share/otf2/otf2.enums
+../share/otf2/otf2.defs
+../share/otf2/otf2.events
+../share/otf2/otf2.snaps

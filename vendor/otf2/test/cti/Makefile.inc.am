@@ -1,0 +1,48 @@
+##
+## This file is part of the Score-P software (http://www.score-p.org)
+##
+## Copyright (c) 2013,
+## Technische Universitaet Dresden, Germany
+##
+## Copyright (c) 2014, 2018,
+## Forschungszentrum Juelich GmbH, Germany
+##
+## This software may be modified and distributed under the terms of
+## a BSD-style license.  See the COPYING file in the package base
+## directory for details.
+##
+
+if HAVE_PTHREAD_BARRIER
+
+check_LTLIBRARIES += libcti.la
+libcti_la_SOURCES = \
+    $(SRC_ROOT)test/cti/cti.c \
+    $(SRC_ROOT)test/cti/cti.h
+libcti_la_CFLAGS = \
+    $(AM_CPPFLAGS) \
+    $(PTHREAD_CFLAGS)
+libcti_la_LDFLAGS = \
+    $(PTHREAD_CFLAGS)
+libcti_la_LIBADD = \
+    $(PTHREAD_LIBS)
+
+check_PROGRAMS += test-cti
+test_cti_SOURCES = \
+    $(SRC_ROOT)test/cti/test-cti.c
+test_cti_CFLAGS = \
+    $(AM_CPPFLAGS) \
+    $(PTHREAD_CFLAGS)
+test_cti_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS) \
+    $(PTHREAD_CFLAGS)
+test_cti_LDADD = \
+    libcti.la
+
+SCOREP_TESTS += \
+    $(SRC_ROOT)test/cti/run_cti_tests.sh
+
+endif HAVE_PTHREAD_BARRIER
+
+EXTRA_DIST += \
+    $(SRC_ROOT)test/cti/run_cti_tests.sh

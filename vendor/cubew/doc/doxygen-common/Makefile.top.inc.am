@@ -1,0 +1,33 @@
+##*************************************************************************##
+##  CUBE        http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2017                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+DOXYGEN_COMMON_SRC = $(SRC_ROOT)doc/doxygen-common
+
+
+##--- Extra distribution files ----------------------------------------------
+
+EXTRA_DIST += \
+    $(DOXYGEN_COMMON_SRC)/backcover.pdf \
+    $(DOXYGEN_COMMON_SRC)/footer.html \
+    $(DOXYGEN_COMMON_SRC)/header.tex \
+    $(DOXYGEN_COMMON_SRC)/license.dox \
+    $(DOXYGEN_COMMON_SRC)/scalasca.css \
+    $(DOXYGEN_COMMON_SRC)/scalasca.sty \
+    $(DOXYGEN_COMMON_SRC)/tab_active.png \
+    $(DOXYGEN_COMMON_SRC)/tab_inactive.png \
+    $(DOXYGEN_COMMON_SRC)/ScalascaIcon.png \
+    $(DOXYGEN_COMMON_SRC)/CubeLogo.png 

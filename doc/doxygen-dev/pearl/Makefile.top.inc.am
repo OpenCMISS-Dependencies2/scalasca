@@ -1,0 +1,49 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+PEARL_DEV_API_DOCS_SRC = doc/doxygen-dev/pearl
+
+
+## Extra distribution files (i.e., sources)
+EXTRA_DIST += \
+    $(PEARL_DEV_API_DOCS_SRC)/pearl_ipc.dox \
+    $(PEARL_DEV_API_DOCS_SRC)/pearl_thread.dox \
+    $(PEARL_DEV_API_DOCS_SRC)/references.bib
+
+
+##--- PEARL developer API documentation rules -------------------------------
+
+if GIT_CONTROLLED
+if HAVE_DOXYGEN
+
+DEVELOPER_DOCS_TARGETS += \
+    pearl-dev-api-docs-html
+pearl-dev-api-docs-html: \
+    doc/doxygen-dev/pearl/doxygen-pearl-dev.cfg \
+    doc/doxygen-common/doxygen-pearl.cfg \
+    doc/doxygen-common/doxygen-common.cfg \
+    doc/doxygen-at-make-time.cfg
+	$(AM_V_at)$(MKDIR_P) $(DEVELOPER_TAGS_DIR)
+	$(STT_V_DOXYGEN){ \
+	    OUTPUT_DIR=$(DEVELOPER_DOCS_DIR) \
+	    TAGFILE_DIR=$(DEVELOPER_TAGS_DIR) \
+	    $(DOXYGEN) $(PEARL_DEV_API_DOCS_SRC)/doxygen-pearl-dev.cfg; \
+	}
+
+endif HAVE_DOXYGEN
+endif GIT_CONTROLLED

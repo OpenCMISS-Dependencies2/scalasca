@@ -1,0 +1,423 @@
+/****************************************************************************
+**  SCALASCA    http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 2018-2020                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+/**
+@if MANPAGE
+@page scan Scalasca measurement collection and analysis nexus
+@else
+@page scan scan &ndash; Scalasca measurement collection and analysis nexus
+@endif
+@manpage
+
+
+@section commands_scan_synopsis SYNOPSIS
+
+@b scan
+    [@e OPTIONS]
+    [@e LAUNCHER [@e LAUNCHER_ARGS]]
+    @e TARGET [@e TARGET_ARGS]
+
+
+@section commands_scan_description DESCRIPTION
+
+@b scan, the Scalasca measurement collection and analysis nexus, manages the configuration and processing of performance experiments with an executable @e TARGET.
+@e TARGET needs to be instrumented beforehand using the Score-P instrumentation and measurement system.
+In particular, @b scan integrates the following steps:
+
+ - Measurement configuration
+ - Application execution using any given arguments @e TARGET_ARGS
+ - Collection of measured data
+ - Automatic post-mortem trace analysis (if configured)
+
+Many different experiments can typically be performed with a single instrumented executable without needing to re-instrument, by using different measurement and analysis configurations.
+The default runtime summarization mode directly produces an analysis report for examination, whereas event trace collection and analysis are automatically done in two steps to produce a profile augmented with additional metrics.
+
+Serial and multi-threaded programs are typically launched directly, whereas MPI and hybrid MPI+X programs usually require a special @e LAUNCHER command such as @b mpiexec, which may need additional arguments @e LAUNCHER_ARGS (e.g., to specify the number of processes to be created).
+@b scan automatically recognizes many MPI launchers, but if not, the MPI launcher name can be specified using the environment variable @b SCAN_MPI_LAUNCHER (see @ref commands_scan_environment).
+
+@b scan examines the executable @e TARGET to determine whether Score-P instrumentation is present; otherwise the measurement is aborted.
+The number of MPI processes and OpenMP threads are determined from @e LAUNCHER_ARGS and/or the environment.
+If the target executable is not specified as one of the launcher arguments, it is expected to be the immediately following part of the command line.
+It may be necessary to use a double-dash specification (\--) to explicitly separate the target from the preceding launcher specification.
+If there is an imposter executable or script, e.g., often used to specify placement/thread binding, that precedes the instrumented @e TARGET, it may be necessary to explicitly identify the target with the environment variable @b SCAN_TARGET (see @ref commands_scan_environment).
+
+A unique directory is created for each measurement experiment, which must not already exist when measurement starts unless @b SCAN_OVERWRITE is enabled (see @ref commands_scan_environment); otherwise measurement is aborted.
+A default name for each measurement archive directory is created from a '`scorep_`' prefix, the name of the executable @e TARGET, the run configuration (e.g., number of processes specified), and the measurement configuration.
+This default name can be overwritten using the @b SCOREP_EXPERIMENT_DIRECTORY environment variable (see @ref commands_scan_environment) or the @b -e command-line option.
+
+When measurement has completed, the measurement archive directory contains all artifacts produced by the measurement and subsequent trace analysis (if configured).
+In particular, the following files are produced independent from the selected measurement mode:
+ - `MANIFEST.md`: a text file briefly describing the directory contents produced by the Score-P measurement system
+ - `scorep.cfg`: a copy of the measurement configuration
+ - `scorep.log`: the measurement log file
+ - `scorep.filter`: a copy of the measurement filter (if provided)
+
+In runtime summarization mode, the archive directory additionally contains:
+ - `profile.cubex`: the runtime summary result
+
+In trace collection and analysis mode, the following additional files are generated:
+ - an OTF2 trace archive consisting of
+    - the anchor file `traces.otf2`,
+    - the global definitions file `traces.def`, and
+    - the per-process data files in the `traces/` directory
+ - `scout.log`: the trace analysis log file
+ - `scout.cubex`: the trace analysis result
+ - `trace.stat`: trace analysis pattern statistics
+
+In multi-run mode, the results of the individual runs are stored in subdirectories inside the top-level measurement archive directory.
+In addition, the following file will be archived:
+ - `scalasca_run.cfg`: a (possibly auto-generated) copy of the multi-run configuration specification file
+
+
+@section commands_scan_options OPTIONS
+
+The @b scan command accepts the following command-line options.
+Note that configuration settings specified on the command line take precedence over those specified via environment variables (see @ref commands_scan_environment).
+Also, see @ref commands_scan_multirun below for details on interactions with configuration file settings.
+
+<dl>
+    <dt>-h</dt>
+    <dd>
+        Print a brief usage summary, then exit.
+    </dd>
+
+    <dt>-v</dt>
+    <dd>
+        Increase verbosity.
+    </dd>
+
+    <dt>-n</dt>
+    <dd>
+        Print the command(s) to be launched, but do not execute them.
+    </dd>
+
+    <dt>-q</dt>
+    <dd>
+        Quiescent execution with neither summarization nor tracing enabled.
+        Sets both @b SCOREP_ENABLE_PROFILING and @b SCOREP_ENABLE_TRACING to 'false'.
+    </dd>
+
+    <dt>-s</dt>
+    <dd>
+        Enable runtime summarization mode.
+        Sets @b SCOREP_ENABLE_PROFILING to 'true'.
+        This is the default.
+    </dd>
+
+    <dt>-t</dt>
+    <dd>
+        Enable trace collection and analysis.
+        Sets @b SCOREP_ENABLE_TRACING to 'true'.
+    </dd>
+
+    <dt>-a</dt>
+    <dd>
+        Skip measurement step to (re-)analyze an existing trace.
+    </dd>
+
+    <dt>-e <em>experiment_dir</em></dt>
+    <dd>
+        Override default experiment archive name to generate and/or analyze @e experiment_dir.
+        Sets @b SCOREP_EXPERIMENT_DIRECTORY.
+    </dd>
+
+    <dt>-f <em>filter_file</em></dt>
+    <dd>
+        Use the measurement filter rules from @e filter_file.
+        Sets @b SCOREP_FILTERING_FILE.
+    </dd>
+
+    <dt>-l <em>lock_file</em></dt>
+    <dd>
+        Block start of measurement while @e lock_file exists.
+    </dd>
+
+    <dt>-R <em>num_runs</em></dt>
+    <dd>
+        Specifies the number measurement runs per configuration (default=1).
+    </dd>
+
+    <dt>-M <em>config_file</em></dt>
+    <dd>
+        Allows to specify a configuration file describing multi-run experiment settings.
+        See @ref commands_scan_multirun below for details.
+    </dd>
+
+    <dt>-P <em>preset</em></dt>
+    <dd>
+        Specify a preset for a multi-run measurement, e.g., 'pop'.
+        See @ref commands_scan_multirun below for details.
+    </dd>
+
+    <dt>-L</dt>
+    <dd>
+        List all available multi-run presets.
+    </dd>
+
+    <dt>-D <em>config_file</em></dt>
+    <dd>
+        Checks a multi-run config file for validity, if successful dumps the processed configuration for comparison, and exits.
+    </dd>
+</dl>
+
+
+@section commands_scan_environment ENVIRONMENT
+
+Environment variables with the '`SCAN_`' prefix may be used to configure the @b scan nexus itself (which is a serial workflow manager process), rather than the instrumented application process(es) which will be measured, which can also be configured via environment variables.
+Configuration specified on the nexus command-line takes precedence over that specified via environment variables.
+See @ref commands_scan_multirun below for details on interactions with configuration file settings.
+
+@subsection commands_scan_envvars Environment variables controlling scan
+<dl>
+    <dt>SCAN_ANALYZE_OPTS</dt>
+    <dd>
+        Specifies trace analyzer options (default: none).
+        For details on the supported options, see @ref_man{scout,1}.
+    </dd>
+
+    <dt>SCAN_CLEAN</dt>
+    <dd>
+        If enabled, removes event trace data after successful trace analysis (default: 'false').
+    </dd>
+
+    <dt>SCAN_MPI_LAUNCHER</dt>
+    <dd>
+        Specifies a non-standard MPI launcher name.
+    </dd>
+
+    <dt>SCAN_MPI_RANKS</dt>
+    <dd>
+        Specifies the number of MPI processes, for example in an MPMD use case or if the number of ranks is not automatically identified correctly.
+        The specified number will also be used in the automatically generated experiment title.
+        While an experiment title with an incorrect number of processes is harmless (though generally confusing), the correct number is required for automatic parallel trace analysis.
+        @clearpage
+    </dd>
+
+    <dt>SCAN_MULTIRUN_DEFAULT_CFG</dt>
+    <dd>
+        Path to a multi-run configuration file that will be loaded per default in any measurement based on configuration files or presets.
+        As a default settings file, only global settings are used to avoid interference with explicitly specified configs or presets.
+    </dd>
+
+    <dt>SCAN_MULTIRUN_PRESET_PATH</dt>
+    <dd>
+        Colon-separated list of paths containing preset files.
+    </dd>
+
+    <dt>SCAN_OVERWRITE</dt>
+    <dd>
+        If enabled, removes an existing experiment archive directory before measurement (default: 'false').
+    </dd>
+
+    <dt>SCAN_SETENV</dt>
+    <dd>
+        If environment variables are not automatically forwarded to MPI processes by the launcher, one can specify the syntax that the launcher requires for this as @b SCAN_SETENV.
+        For example, &quot;-foo&quot; results in passing &quot;-foo key val&quot; to the launcher, while &quot;--foo=&quot; results in &quot;--foo key=val&quot;.
+    </dd>
+
+    <dt>SCAN_TARGET</dt>
+    <dd>
+        If there is an imposter executable or script, for example, used to specify placement/thread binding, that precedes the instrumented target, it may be necessary to explicitly identify the target executable by setting @b SCAN_TARGET to the executable name.
+    </dd>
+
+    <dt>SCAN_TRACE_ANALYZER</dt>
+    <dd>
+        Specifies an alternative trace analyzer to be used (e.g., `scout.mpi` or `scout.hyb`).
+        If '`none`' is specified, automatic trace analysis is skipped after measurement.
+    </dd>
+
+    <dt>SCAN_TRACE_FILESYS</dt>
+    <dd>
+        Specifies an optional list of colon separated paths identifying suitable file systems for tracing.
+        If set, the file system of trace measurements has to match at least one of the specified file systems.
+    </dd>
+
+    <dt>SCAN_WAIT</dt>
+    <dd>
+        Time in seconds to wait for synchronization of a distributed filesystem after measurement completion.
+    </dd>
+</dl>
+
+@subsection commands_scan_scorep_envvars Common Score-P environment variables controlling the measurement
+<dl>
+    <dt>SCOREP_EXPERIMENT_DIRECTORY</dt>
+    <dd>
+        Explicit experiment archive title.
+    </dd>
+
+    <dt>SCOREP_ENABLE_PROFILING</dt>
+    <dd>
+        Enable or disable runtime summarization.
+    </dd>
+
+    <dt>SCOREP_ENABLE_TRACING</dt>
+    <dd>
+        Enable or disable event trace generation.
+    </dd>
+
+    <dt>SCOREP_FILTERING_FILE</dt>
+    <dd>
+        Name of run-time measurement filter file.
+    </dd>
+
+    <dt>SCOREP_VERBOSE</dt>
+    <dd>
+        Controls the generation of additional (debugging) output from the Score-P measurement system.
+    </dd>
+
+    <dt>SCOREP_TOTAL_MEMORY</dt>
+    <dd>
+        Size of per-process memory in bytes reserved for Score-P.
+    </dd>
+</dl>
+For further details, please refer to the Score-P documentation and/or the output of '`scorep-info config-vars`'.
+
+
+@section commands_scan_multirun MULTI-RUN EXPERIMENTS
+
+@b scan also provides means to automate the generation of multiple measurements with varying configuration settings.
+This workflow can be employed for various analysis objectives, as long as the variations are based on environment variables.
+Likely candidates are:
+ 1. Increasing the statistical significance through multiple repetitions of measurements with identical settings.
+ 2. Spreading multiple hardware-counter measurements over different runs to limit the measurement overhead and/or to overcome hardware limitations (e.g., number of hardware performance counters that can be measured simultaneously).
+ 3. Performing a series of measurements with varying application settings, like problem size or input data.
+
+Results of such multi-run experiments can be used individually, aggregated manually using various Cube tools, or be passed to the @ref_man{square,1} command for automated report aggregation.
+
+@attention
+    The degree of non-determinism in an application's runtime behavior will influence the informative value of any aggregated result.
+    Only with sufficient similarity between application runs will the combination of results be useful.
+
+Multi-run experiments are set up using a plain-text configuration file, which is passed to the @b scan command via the @b -M command-line option.
+In this file, the begin of each measurement run configuration is marked by a line starting with a single dash (`-`) character; the remainder of the line will be ignored.
+Subsequent lines up to either the next run separator or the end of the file may contain at most one variable setting of the form '`VARIABLE=VALUE`'.
+Optionally, a section with global settings can be specified at the beginning of the config file, introduced by a line starting with two dashes (`--`); the remainder of this line will again be ignored.
+A variable defined in the global section will be applied in all subsequent run configurations unless it is overwritten by a run-specific setting.
+The configuration file format also allows for single-line comments starting with a hash character (`#`) and blank lines, both of which are ignored.
+
+For example, the following multi-run configuration file defines a series of four subsequent measurements with different settings:
+@verbatim
+    # example run configuration file
+    # global section
+    -- this can also hold comments
+    SCOREP_ENABLE_TRACING=true
+
+    -
+    # first run with two PAPI metrics
+    SCOREP_METRIC_PAPI=PAPI_TOT_CYC,PAPI_TOT_INS
+
+    -
+    # second run with different PAPI metric and increased Score-P memory
+    SCOREP_METRIC_PAPI=PAPI_LD_INS
+    SCOREP_TOTAL_MEMORY=42M
+
+    - third run with different PAPI metric
+    SCOREP_METRIC_PAPI=PAPI_VEC_DP
+
+    -
+    # fourth run using only global settings
+@endverbatim
+
+Note that measurement configuration settings are not limited to @b scan or Score-P environment variables, but also allow for setting arbitrary variables in the measurement execution environment.
+Also, the order in which measurements are specified may have an impact on the aggregated result, see @ref_man{square,1} for details.
+
+To ensure consistency and reproducibility, the environment must not contain Score-P or Scalasca variables when using a multi-run configuration file.
+Otherwise, @b scan will abort with an error providing a list of the offending variables.
+That is, all Score-P/Scalasca settings to be applied have to be placed in either the global or run-specific sections of the configuration.
+Moreover, all variables used anywhere in the configuration file will be unset before each measurement run, and then set to either the global or run-specific value if applicable, thus avoiding side effects from variable settings not specified in the configuration file.
+The Score-P variable `SCOREP_EXPERIMENT_DIRECTORY` will not have any effect inside the configuration file, as an automatic naming scheme---an extension to the default Scalasca scheme---is enforced to keep the multi-run measurement directories consistent.
+To set the experiment directory a priori, the @b scan command-line option @b -e can be used.
+Other @b scan options that control the measurement (@b -q, @b -t, and @b -s) will be ignored when used with a config file and should be set through the respective environment variables in the configuration file for consistency.
+
+A variation of the configuration file mode described above is the preset mode.
+The preset mode combines predefined configurations for typical scenarios with global environment variables for the specific use case.
+In this case, only variables used in the preset configuration are blocked in the global environment to avoid interference with the functionality provided by the selected preset.
+Available presets can be listed by using the @b -L option.
+By default, only presets provided by the Scalasca installation are available.
+Additional presets can be provided by adding paths to the `SCAN_MULTIRUN_PRESET_PATH` variable using a colon as separator.
+Preset files have the extension `.preset` and follow the same syntax as multi-run configuration files.
+To ensure the functionality of a preset in the presence of additional user-defined Score-P/Scalasca variables, the preset configuration file has to contain all variables that may interfere with the functionality of the preset by using default settings.
+
+In addition to multi-run experiments with different configuration settings, @b scan supports repeating a single or a set of measurements multiple times via the @b -R command-line option, for example, to provide increased statistical significance.
+For measurements without a configuration file, the measurement will be repeated the requested number of times with the current environment.
+In case of multi-run configurations, each individual run will be repeated the given number of times with the specified configuration.
+
+For multi-run experiments, @b scan creates a common directory which contains the result of each individual measurement run stored in a subdirectory.
+The name of the base directory and the experiment directories contains the number of configurations as well as the number of repetitions.
+To support reproducibility, the configuration used is stored in the file `scalasca_run.cfg` in the common base directory.
+To test the validity of a configuration file before running a measurement, @b scan provides the @b -D option.
+In this mode, the provided configuration file is parsed and, on success, the processed data is dumped for comparison.
+
+To store commonly used system- or user-specific variables, the user can specify a default configuration file via `SCAN_MULTIRUN_DEFAULT_CFG`.
+Its global settings will be used in any configuration- or preset-based multi-run measurement.
+Note that only the global settings are used to avoid interference with explicitly specified files by adding additional runs to the measurement.
+
+@section commands_scan_exitstatus EXIT STATUS
+
+@b scan exits with status 0 if measurement and automatic trace analysis (if configured) were successful, and greater than 0 if errors occur.
+
+
+@section commands_scan_notes NOTES
+
+While parsing the arguments, unrecognized flags might be reported as ignored, and unrecognized options with required arguments might need to be quoted.
+
+Instrumented applications can still be run without using @b scan to generate measurements, however, measurement configuration is then exclusively via Score-P environment variables (which must be explicitly exported to MPI processes) and trace analysis is not automatically started after event trace collection.
+@clearpage
+
+
+@if MANPAGE
+@section commands_scan_bugs BUGS
+
+Please report bugs to <em>scalasca@fz-juelich.de</em>.
+Make sure to include at least the following information in your bug report:
+ - The Scalasca Trace Tools version reported by '`scalasca -V`'.
+ - The Scalasca Trace Tools configuration reported by '`scalasca -c`'.
+ - The Score-P version reported by '`scorep --version`'.
+ - The Score-P configuration reported by '`scorep-info config-summary`'.
+ - The exact command line of the failing command.
+ - The exact failure/error message.
+
+Also, if the trace analysis fails, please archive a copy of the entire experiment archive directory including the event trace data, as this may be required to aid in debugging.
+However, <b>ONLY PROVIDE TRACE DATA IF EXPLICITLY REQUESTED</b>, as the data volume may be excessive.
+@endif
+
+
+@section commands_scan_examples EXAMPLES
+
+<b>scan mpiexec -n 4 foo args</b>\n
+Execute the instrumented MPI program <em>foo</em> with command-line arguments <em>args</em>, collecting a runtime summary (default).
+Results in an experiment directory <em>scorep_foo_4_sum</em>.
+
+<b>OMP_NUM_THREADS=3 scan -s mpiexec -n 4 foobar</b>\n
+Execute the instrumented hybrid MPI+OpenMP program <em>foobar</em>, collecting a runtime summary (default, but explicitly requested).
+Results in an experiment directory <em>scorep_foobar_4x3_sum</em>.
+
+<b>OMP_NUM_THREADS=3 scan -q -t -f filter bar</b>\n
+Execute the instrumented OpenMP program <em>bar</em>, collecting only an event trace with the run-time measurement filter <em>filter</em> applied.
+Trace collection is immediately followed by Scalasca's automatic trace analysis.
+Results in an experiment directory <em>scorep_bar_Ox3_trace</em>.
+
+
+@section commands_scan_see SEE ALSO
+
+@ref_man{scalasca,1}, @ref_man{square,1}, @ref_man{scout,1}
+
+@if MANPAGE
+The Score-P instrumentation and measurement system documentation is available online at <em>https://www.score-p.org</em>.
+
+The full Scalasca Trace Tools documentation is available online at <em>https://www.scalasca.org</em>.
+@endif
+
+
+@navigation_both{scalasca,square}
+@clearpage
+*/

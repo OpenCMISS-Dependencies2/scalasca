@@ -1,0 +1,9 @@
+f907037571895d7b62567b5ea0d49dd8
+ca76ff38d7fd66fa2578c34bdf8f598f
+../doc/doxygen-user/snaps.dox
+snaps.tmpl.dox
+../share/otf2/otf2.types
+../share/otf2/otf2.enums
+../share/otf2/otf2.defs
+../share/otf2/otf2.events
+../share/otf2/otf2.snaps

@@ -1,0 +1,831 @@
+#!/bin/sh
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2014                                                     ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  Copyright (c) 2014                                                     ##
+##  RWTH Aachen University, JARA-HPC                                       ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+# "Functions"
+
+# This function aborts the script if the first parameter is not "0"
+#
+abort_on_error() {
+    if [ "$1" != "0" ]; then
+        echo "ERROR:" $2 >&2
+        exit 1
+    fi
+}
+
+# This function evals the first parameter and aborts on error.
+#
+required_eval() {
+    eval "$1" 2>&1 ${QUIET}
+    abort_on_error $? "$2"
+}
+
+# checkProg <tool> <variable>
+#
+# Returns immediately if <variable> is already set.  Otherwise, checks whether
+# <tool> is available in $PATH and has execute permissions.  If yes, sets
+# <variable> to the tool's path; abort otherwise.
+#
+checkProg()
+{
+    checkProg_tool=$1
+    checkProg_variable=$2
+
+    eval "checkProg_path=\${${checkProg_variable}}"
+    if [ -z "${checkProg_path}" ]; then
+        checkProg_path=`which ${checkProg_tool} 2>/dev/null`
+        if [ -z "${checkProg_path}" ]; then
+            echo "ERROR: ${checkProg_tool} is not available!" >&2
+            exit 1
+        fi
+        if [ ! -x "${checkProg_path}" ]; then
+            echo "ERROR: ${checkProg_path} is not executable!" >&2
+            exit 1
+        fi
+
+        eval "${checkProg_variable}=${checkProg_path}"
+    fi
+}
+
+# This function performs sanity checks on a given Cube report.
+#
+check_report() {
+    CHECK_DIR=`dirname $1`
+    CHECK_REPORT=`basename $1`
+    checkProg cube_sanity CHECKER
+    CHECKER_OUTPUT=${CHECK_DIR}/${CHECK_REPORT}.${CHECKER_EXT}
+    echo "INFO: Checking ${CHECK_REPORT} report..."
+    required_eval "${CHECKER} ${CHECKER_OPTS} -o ${CHECKER_OUTPUT} ${CHECK_DIR}/${CHECK_REPORT}" \
+                  "${CHECK_REPORT} did not pass sanity checks!"
+}
+
+# Returns immediately, if SCOREP_SPEC is already set.  Otherwise, determines
+# an appropriate remapping specfile for Score-P summary experiments and stores
+# its path in SCOREP_SPEC.
+#
+determineSummarySpec()
+{
+    if [ -z "${SCOREP_SPEC}" ]; then
+        # Check if spec file is embedded (Score-P 5.0 and later)
+        checkProg cube_dump DUMPER
+        ${DUMPER} -w ${remapFile_input} | grep ^File | grep 'remapping.spec' >/dev/null
+        if [ $? -eq 0 ]; then
+            SCOREP_SPEC=embedded
+        else
+            # Query location from scorep-config (Score-P 1.3 till 4.1)
+            checkProg scorep-config SCOREP_CONFIG
+            SCOREP_SPEC=`${SCOREP_CONFIG} --remap-specfile 2>/dev/null`
+
+            # For earlier Score-P versions, search in Cube installation
+            if [ -z "${SCOREP_SPEC}" ]; then
+                checkProg cube_remap2 MAPPER
+
+                # Cube 4.2.3 and later
+                SCOREP_SPEC=`dirname ${MAPPER}`/../share/doc/cube/example/scorep.spec
+                if [ ! -f ${SCOREP_SPEC} ]; then
+                    unset SCOREP_SPEC
+                fi
+
+                # pre-Cube 4.2.3
+                SCOREP_SPEC=`dirname ${MAPPER}`/../share/cube/doc/example/scorep.spec
+                if [ ! -f ${SCOREP_SPEC} ]; then
+                    unset SCOREP_SPEC
+                fi
+            fi
+
+            # Verify accessibility of remapper specification file
+            if [ -z "${SCOREP_SPEC}" ]; then
+                echo "ERROR: Remapper specification file 'scorep.spec' not available!" >&2
+                exit 1
+            fi
+            if [ ! -r ${SCOREP_SPEC} ]; then
+                echo "ERROR: ${SCOREP_SPEC} not readable!" >&2
+                exit 1
+            fi
+        fi
+    fi
+}
+
+# determineTraceSpec <input>
+#
+# Returns immediately, if SCALASCA_SPEC is already set.  Otherwise, determines
+# an appropriate remapping specfile for the Scalasca trace analyses result in
+# <input> and stores its path in SCALASCA_SPEC.
+#
+determineTraceSpec()
+{
+    detTraceSpec_input=$1
+
+    if [ -z "${SCALASCA_SPEC}" ]; then
+        # Check if spec file is embedded (Scalasca 2.6 and later)
+        checkProg cube_dump DUMPER
+        ${DUMPER} -w ${detTraceSpec_input} | grep ^File | grep 'remapping.spec' >/dev/null
+        if [ $? -eq 0 ]; then
+            SCALASCA_SPEC=embedded
+        else
+            checkProg cube_dump DUMPER
+
+            # Determine specfile based on Cube XML version of input file
+            detTraceSpec_xml_ver=`${DUMPER} -w ${detTraceSpec_input} \
+                                  | grep 'Cube anchor.xml syntax version' \
+                                  | sed -e 's/^.*: //'`
+            case ${detTraceSpec_xml_ver} in
+                1.*|2.*)
+                    echo "ERROR: Cube 1.x and 2.x files unsupported!" >&2
+                    exit 1
+                    ;;
+                3.*|4.[123])
+                    SCALASCA_SPEC="${PKGDATADIR}/scout_pre44.spec"
+                    ;;
+                *)
+                    SCALASCA_SPEC="${PKGDATADIR}/scout.spec"
+                    ;;
+            esac
+
+            # Verify accessibility of remapper specification file
+            if [ ! -f "${SCALASCA_SPEC}" ]; then
+                echo "ERROR: Remapper specification file '`basename ${SCALASCA_SPEC}`' not available!" >&2
+                exit 1
+            fi
+            if [ ! -r ${SCALASCA_SPEC} ]; then
+                echo "ERROR: ${SCALASCA_SPEC} not readable!" >&2
+                exit 1
+            fi
+        fi
+    fi
+}
+
+# remapFile <input>
+#
+# Post-processes (i.e., remaps) the Cube file <input> using an appropriate
+# specfile for the experiment type (summary/trace).
+#
+remapFile()
+{
+    remapFile_input=$1
+    remapFile_infile=`basename ${remapFile_input}`
+    remapFile_archive=`dirname ${remapFile_input}`
+
+    case ${remapFile_infile} in
+        profile*)
+            determineSummarySpec
+            if [ "x${SCOREP_SPEC}" = xembedded ]; then
+                remapFile_spec=""
+            else
+                remapFile_spec="-r ${SCOREP_SPEC}"
+            fi
+            remapFile_spec_info=${SCOREP_SPEC}
+            remapFile_info="runtime summarization report"
+            remapFile_outfile=summary${remapFile_infile#profile}
+            ;;
+
+        scout+profile*)
+            determineTraceSpec ${remapFile_input}
+            if [ "x${SCALASCA_SPEC}" = xembedded ]; then
+                remapFile_spec=""
+            else
+                remapFile_spec="-r ${SCALASCA_SPEC}"
+            fi
+            remapFile_spec_info=${SCALASCA_SPEC}
+            remapFile_info="combined summary and trace analysis report"
+            remapFile_outfile=trace+summary${remapFile_infile#scout+profile}
+            ;;
+
+        scout*)
+            determineTraceSpec ${remapFile_input}
+            if [ "x${SCALASCA_SPEC}" = xembedded ]; then
+                remapFile_spec=""
+            else
+                remapFile_spec="-r ${SCALASCA_SPEC}"
+            fi
+            remapFile_spec_info=${SCALASCA_SPEC}
+            remapFile_info="trace analysis report"
+            remapFile_outfile=trace${remapFile_infile#scout}
+            ;;
+
+        *)
+            echo "ERROR: Don't know how to post-process ${remapFile_input}" >&2
+            exit 1
+            ;;
+    esac
+    case ${remapFile_infile} in
+        *_aggr*)
+            remapFile_info="aggregated ${remapFile_info}"
+            ;;
+    esac
+    remapFile_output=${remapFile_archive}/${remapFile_outfile}
+
+    remapFile_newer=`find ${remapFile_input} -prune -newer ${remapFile_output} 2>/dev/null`
+    if [ -n "$FORCE" ] ||
+       [ ! -f ${remapFile_output} ] ||
+       [ -n "${remapFile_newer}" ]; then
+        # Verify writability of experiment archive
+        if [ ! -w ${remapFile_archive} ]; then
+            echo "ERROR: Experiment archive ${remapFile_archive} needs to be writable!" >&2
+            exit 1
+        fi
+
+        # Deactivate OpenMP Idle Threads metric if experiment contains POSIX threads
+        remapFile_idlem="${IDLEM}"
+        if [ -n "${remapFile_idlem}" ]; then
+            checkProg cube_dump DUMPER
+            remapFile_pthreads=`${DUMPER} -m visits -t aggr ${remapFile_input} \
+                                | grep "pthread" \
+                                | awk '{print $NF}' \
+                                | grep -vc  ^0`
+            if [ ${remapFile_pthreads} -gt 0 ]; then
+                unset remapFile_idlem
+            fi
+        fi
+
+        # Post-process experiment
+        checkProg cube_remap2 MAPPER
+        echo "INFO: Post-processing ${remapFile_info} (${remapFile_input#${ARCHIVE}/})..."
+        eval echo "INFO: Using spec: ${remapFile_spec_info}" ${QUIET}
+        eval "${MAPPER} -d ${remapFile_idlem} ${remapFile_spec} -o ${remapFile_output} ${remapFile_input} ${QUIET} 2>&1"
+    fi
+
+    # Validate post-processed report
+    if [ "${DO_CHECK}" = "true" ] && [ -r ${remapFile_output} ]; then
+        check_report ${remapFile_output}
+    fi
+}
+
+compareCalltrees()
+{
+    checkProg cube_info INFOER
+
+    eval "${INFOER} -v $1 > $1.cmp"
+    eval "${INFOER} -v $2 > $2.cmp"
+
+    diff=`diff $1.cmp $2.cmp`
+    if [ -z "$diff" ]
+    then
+        retval=0
+    else
+        retval=1
+    fi
+    rm $1.cmp $2.cmp
+    return "$retval"
+}
+
+# aggregateReports <mode> <result> <inputs>
+#
+# Aggregates the space-separated list of input reports provided in <inputs>
+# using the given <mode> (mean/merge) and writes the result into <result>.
+# Returns immediately if <inputs> is empty.
+#
+aggregateReports()
+{
+    aggrReports_mode=$1
+    aggrReports_result=$2
+    aggrReports_newer=$3
+    aggrReports_inputs=$4
+
+    if [ -z "${aggrReports_inputs}" ]; then
+        return
+    fi
+
+    case `basename ${aggrReports_result}` in
+        profile*)
+            aggrReports_info="runtime summarization"
+            ;;
+
+        scout*)
+            aggrReports_info="trace analysis"
+            ;;
+    esac
+
+    unset aggrReports_merge
+    unset aggrReports_reference
+    for aggrReports_input in ${aggrReports_inputs}
+    do
+        # Post-processing requested?
+        if [ "${REMAP_ALL}" = "true" ]; then
+            REMAP_FILES="${REMAP_FILES} ${aggrReports_input}"
+        fi
+
+        # Aggregation required?
+        NEWER=`find ${aggrReports_input} -prune -newer ${aggrReports_newer} 2>/dev/null`
+        if [ -n "${FORCE}" ] ||
+           [ ! -f ${aggrReports_newer} ] ||
+           [ -n "${NEWER}" ]; then
+            aggrReports_merge=true
+        fi
+
+        # Aggregation possible?
+        if [ -z "${aggrReports_reference}" ]; then
+            aggrReports_reference=${aggrReports_input}
+        else
+            if [ -f ${aggrReports_reference} ] && [ -f ${aggrReports_input} ]; then
+                if ! compareCalltrees ${aggrReports_reference} ${aggrReports_input}  &&
+                   [ -z "${IGNORE_CHECKS}" ]; then
+                    echo "ERROR: Multi-run ${aggrReports_info} reports differ (calltree/visits)" >&2
+                    exit 1
+                fi
+            fi
+        fi
+    done
+
+    # Aggregate reports
+    if [ -n "${aggrReports_merge}" ]; then
+        if [ ! -w ${ARCHIVE} ]; then
+            echo "ERROR: Experiment archive ${ARCHIVE} needs to be writable!" >&2
+            exit 1
+        fi
+
+        if [ `echo ${aggrReports_inputs} | awk '{print NF;}'` -eq 1 ]; then
+            eval echo "INFO: cp ${aggrReports_inputs} ${aggrReports_result}" ${QUIET}
+            cp ${aggrReports_inputs} ${aggrReports_result}
+        else
+            case ${aggrReports_mode} in
+                mean)
+                    checkProg cube_mean MEANER
+                    echo "INFO: Averaging multi-run ${aggrReports_info} reports..."
+                    eval echo "INFO: ${MEANER} -o ${aggrReports_result} ${aggrReports_inputs}" ${QUIET}
+                    eval "${MEANER} -o ${aggrReports_result} ${aggrReports_inputs} ${QUIET}"
+                    ;;
+
+                merge)
+                    echo "INFO: Merging multi-run ${aggrReports_info} reports..."
+                    checkProg cube_merge MERGER
+                    eval echo "INFO: ${MERGER} -o ${aggrReports_result} ${aggrReports_inputs}" ${QUIET}
+                    eval "${MERGER} -o ${aggrReports_result} ${aggrReports_inputs} ${QUIET}"
+                    ;;
+            esac
+        fi
+    fi
+}
+
+
+# averageRunsAndAggregate <mode> <result> <inputs>
+#
+# For the input experiments provided in <input>, averages the results of
+# multiple runs for each configuration.  Then the averaged intermetiate
+# results are aggregated using the given <mode> (mean/merge) and the final
+# result is written into <result>.  Finally, the intermediate averaged result
+# file are removed.  Returns immediately if <inputs> is empty.
+#
+averageRunsAndAggregate()
+{
+    avgRuns_mode=$1
+    avgRuns_result=$2
+    avgRuns_inputs=$3
+
+    if [ -z "${avgRuns_inputs}" ]; then
+        return
+    fi
+
+    unset avgRuns_cfgInputs
+    unset avgRuns_aggrInputs
+    unset avgRuns_currentCfg
+    for avgRuns_input in ${avgRuns_inputs}
+    do
+        # Extraxt 'profile'/'scout' prefix
+        avgRuns_prefix=`basename ${avgRuns_input} .${CUBE_EXTENSION}`
+
+        # Experiment base name
+        avgRuns_base="${ARCHIVE%%_multi-run_*}"
+        avgRuns_base=`basename ${avgRuns_base}`
+
+        # Extract '_c*' suffix from multi-run subdirectories, assume '_c0'
+        # for single-config runs
+        avgRuns_config=`dirname ${avgRuns_input}`
+        avgRuns_config=`basename ${avgRuns_config}`
+        avgRuns_config="${avgRuns_config##${avgRuns_base}}"
+        avgRuns_config="${avgRuns_config%%_r*}"
+        if [ -z "${avgRuns_config}" ]; then
+            avgRuns_config="_c0"
+        fi
+
+        # Initialize variables on first configuration
+        if [ -z "${avgRuns_currentCfg}" ]; then
+            avgRuns_currentCfg="${avgRuns_config}"
+            avgRuns_tmp_result="${ARCHIVE}/${avgRuns_prefix}_aggr${avgRuns_config}.${CUBE_EXTENSION}"
+            avgRuns_aggrInputs="${avgRuns_tmp_result}"
+        fi
+
+        # New configuration
+        if [ "${avgRuns_currentCfg}" != "${avgRuns_config}" ]; then
+            # Average reports from previous configuration
+            aggregateReports "mean" "${avgRuns_tmp_result}" "${avgRuns_result}" "${avgRuns_cfgInputs}"
+
+            # Reset variables
+            unset avgRuns_cfgInputs
+            avgRuns_currentCfg="${avgRuns_config}"
+            avgRuns_tmp_result="${ARCHIVE}/${avgRuns_prefix}_aggr${avgRuns_config}.${CUBE_EXTENSION}"
+            avgRuns_aggrInputs="${avgRuns_aggrInputs} ${avgRuns_tmp_result}"
+        fi
+
+        # Append report to list
+        avgRuns_cfgInputs="${avgRuns_cfgInputs} ${avgRuns_input}"
+    done
+
+    # Average reports from last configuration
+    aggregateReports "mean" "${avgRuns_tmp_result}" "${avgRuns_result}" "${avgRuns_cfgInputs}"
+
+    # Aggregate averaged intermediate reports
+    aggregateReports "${avgRuns_mode}" "${avgRuns_result}" "${avgRuns_result}" "${avgRuns_aggrInputs}"
+
+    # Remove intermediate reports
+    eval echo "INFO: rm ${avgRuns_aggrInputs}" ${QUIET}
+    rm -f ${avgRuns_aggrInputs}
+}
+
+
+# "Constants"
+VERSION="@VERSION@"
+PKGDATADIR="@PKGDATADIR@"
+
+unset SCORER
+unset MAPPER
+unset MERGER
+unset MEANER
+unset VIEWER
+unset CHECKER
+unset DUMPER
+unset INFOER
+
+SCOREP_CONFIG=`which scorep-config 2>/dev/null`
+
+SCALASCA_DOCDIR=@DOCDIR@/patterns
+SCOREP_DOCDIR=
+if [ -n "${SCOREP_CONFIG}" ]; then
+    SCOREP_DOCDIR=`dirname ${SCOREP_CONFIG}`/../share/doc/scorep/profile
+fi
+
+CUBE_EXTENSION="cubex"
+
+# skip check on website
+CUBE_DISABLE_HTTP_DOCS=${CUBE_DISABLE_HTTP_DOCS:-"1"}
+
+# Variables
+unset FILE
+unset FILTER
+unset FORCE
+unset IGNORE_CHECKS
+unset VIEW
+unset CHECKER_EXTENT
+unset REMAP_FILES
+unset NUM_EXTRA_CTR
+unset SCORE_PASSTHROUGH
+unset SCORE_MANGLED
+unset SCORE_SORTEDBY
+DO_CHECK="false"
+CHECKER_EXTENT=none
+CHECKER_EXT=check
+CHECKER_VERBOSITY=1
+CHECKER_OPTS="-v ${CHECKER_VERBOSITY} -x -n"
+CHECKER_OUTPUT="cube_sanity.out"
+QUIET=">/dev/null"
+IDLEM=" -s"
+PROFILE_AGGR="merge"
+SCOUT_AGGR="merge"
+REMAP_ALL="false"
+
+# show usage when executed without argument
+if [ $# -eq 0 ]; then
+    echo "Scalasca $VERSION: analysis report explorer"
+    echo "usage: `basename $0` [OPTIONS] <experiment archive | cube file>"
+    echo "   -C <none | quick | full> : Level of sanity checks for newly created reports"
+    echo "   -c <number>              : Consider number of counters when doing scoring (-s)"
+    echo "   -F                       : Force remapping of already existing reports"
+    echo "   -f filtfile              : Use specified filter file when doing scoring (-s)"
+    echo "   -s                       : Skip display and output textual score report"
+    echo "   -v                       : Enable verbose mode"
+    echo "   -n                       : Do not include idle thread metric"
+    echo "   -S <mean | merge>        : Aggregation method for summarization results of"
+    echo "                              each configuration (default: merge)"
+    echo "   -T <mean | merge>        : Aggregation method for trace analysis results of"
+    echo "                              each configuration (default: merge)"
+    echo "   -A                       : Post-process every step of a multi-run experiment"
+    echo "   -I                       : Ignore structural sanity checks and force aggregation"
+    echo "                              of measurements in a multi-run experiment"
+    echo "   -x <scorep-score opt>    : Pass option(s) to scorep-score"
+    exit 1
+fi
+
+# Process command line arguments
+while getopts ":C:c:Ff:svnS:T:AIx:" arg; do
+    case $arg in
+        C)      # Level of sanity check
+            CHECKER_EXTENT=$OPTARG
+            case $CHECKER_EXTENT in
+                none)
+                    DO_CHECK="false"
+                    ;;
+                quick)
+                    DO_CHECK="true"
+                    CHECKER_OPTS="-v ${CHECKER_VERBOSITY} -x -n"
+                    ;;
+                full)
+                    DO_CHECK="true"
+                    CHECKER_OPTS="-v ${CHECKER_VERBOSITY}"
+                    ;;
+                *)
+                    echo "ERROR: Unknown option $OPTARG to option -$arg." >&2
+                    exit 1
+                    ;;
+            esac
+            ;;
+
+        c)      # Add number of hardware counters for scoring to scorep-score options
+            SCORE_PASSTHROUGH="${SCORE_PASSTHROUGH} -c ${OPTARG}"
+            ;;
+
+        F)      # force remap
+            FORCE=yes
+            ;;
+
+        f)      # Add score filter to scorep-score options
+            SCORE_PASSTHROUGH="${SCORE_PASSTHROUGH} -f ${OPTARG}"
+            ;;
+
+        s)      # score & skip display
+            VIEW=no
+            ;;
+
+        v)      # verbose
+            unset QUIET
+            ;;
+
+        n)      # no idle thread metric
+            IDLEM=""
+            ;;
+
+        S)      # summary measurement aggregation method
+            case $OPTARG in
+                mean)
+                    PROFILE_AGGR="mean"
+
+                    ;;
+                merge)
+                    PROFILE_AGGR="merge"
+                    ;;
+                *)
+                    echo "ERROR: Unknown option $OPTARG to option -$arg." >&2
+                    exit 1
+                    ;;
+            esac
+            ;;
+
+        T)      # trace analysis result aggregation method
+            case $OPTARG in
+                mean)
+                    SCOUT_AGGR="mean"
+                    ;;
+                merge)
+                    SCOUT_AGGR="merge"
+                    ;;
+                *)
+                    echo "ERROR: Unknown option $OPTARG to option -$arg." >&2
+                    exit 1
+                    ;;
+            esac
+            ;;
+
+        A)      # Remap every run step - not done per default
+            REMAP_ALL=true
+            ;;
+
+        I)      # ignore comparison checks and force aggregation
+            IGNORE_CHECKS=yes
+            ;;
+
+        x)      # scorep-score pass through options
+            SCORE_PASSTHROUGH="${SCORE_PASSTHROUGH} ${OPTARG}"
+            ;;
+
+        *)      # unknown -> print usage
+            exec $0 # usage
+            ;;
+    esac
+done
+shift `expr $OPTIND - 1`
+
+# Validate remaining command line
+if [ $# -ne 1 ]; then
+    exec $0 # usage
+fi
+
+# Scorep-score option checking
+if [ -n "${SCORE_PASSTHROUGH}" ]; then
+    while getopts ":c:f:ms:" arg ${SCORE_PASSTHROUGH}; do
+       case $arg in
+           c)
+               if [ -n "${NUM_EXTRA_CTR}" ]; then
+                   echo "ERROR: A number of counters \"${NUM_EXTRA_CTR}\" is already set! This option can be used only once." >&2
+                   exit 1
+               fi    
+               NUM_EXTRA_CTR=$OPTARG
+               case ${NUM_EXTRA_CTR} in
+                   *[!0-9]*)
+                       echo "ERROR: Non-integer value $NUM_EXTRA_CTR to option -$arg." >&2
+                       exit 1
+                       ;;
+               esac
+               ;;
+
+           f)
+               if [ -n "${FILTER}" ]; then
+                   echo "ERROR: Filter file \"${FILTER}\" already set! This option can be used only once." >&2
+                   exit 1
+               fi    
+               FILTER=$OPTARG
+               if [ ! -f ${FILTER} ]; then
+                   echo "ERROR: Filter file \"${FILTER}\" not found!" >&2
+                   exit 1
+               fi
+               ;;
+
+           m)
+               SCORE_MANGLED=yes
+               ;;
+
+           s)
+               if [ -n "${SCORE_SORTEDBY}" ]; then
+                   echo "ERROR: Sorting option \"${SCORE_SORTEDBY}\" already set! This option can be used only once." >&2
+                   exit 1
+               fi
+               SCORE_SORTEDBY=${OPTARG}
+               ;;
+
+           *)
+               ;;
+       esac
+    done
+fi
+
+
+
+# Process file/directory
+if [ -f $1 ]; then
+    FILE="$1"
+    ARCHIVE=`dirname $1`
+else
+    # Verify experiment archive
+    ARCHIVE=`dirname $1`/`basename $1 /`
+    if [ ! -d ${ARCHIVE} ]; then
+        echo "ERROR: Missing experiment archive '${ARCHIVE}'!" >&2
+        exit 1
+    fi
+
+    # Process multi-run experiment
+    if [ -f ${ARCHIVE}/scalasca_run.cfg ]; then
+        profiles=`find ${ARCHIVE} -mindepth 2 -maxdepth 2 -name "profile.${CUBE_EXTENSION}" | sort | tr '\n' ' '`
+        scouts=`find ${ARCHIVE} -mindepth 2 -maxdepth 2 -name "scout.${CUBE_EXTENSION}" | sort | tr '\n' ' '`
+
+        if [ -z "${profiles}${scouts}" ]; then
+            echo "ERROR: No CUBE file in experiment archive '${ARCHIVE}'!" >&2
+            exit 1
+        fi
+
+        # Aggregate summary/trace analysis reports
+        averageRunsAndAggregate ${PROFILE_AGGR} \
+            ${ARCHIVE}/profile_aggr.${CUBE_EXTENSION} "${profiles}"
+        averageRunsAndAggregate ${SCOUT_AGGR} \
+            ${ARCHIVE}/scout_aggr.${CUBE_EXTENSION} "${scouts}"
+
+        # Merge aggregated summary and trace analysis
+        if [ -f ${ARCHIVE}/profile_aggr.${CUBE_EXTENSION} ] &&
+           [ -f ${ARCHIVE}/scout_aggr.${CUBE_EXTENSION} ]; then
+            RESULT=${ARCHIVE}/scout+profile.${CUBE_EXTENSION}
+
+            NEWER1=`find ${ARCHIVE}/profile_aggr.${CUBE_EXTENSION} -prune -newer ${RESULT} 2>/dev/null`
+            NEWER2=`find ${ARCHIVE}/scout_aggr.${CUBE_EXTENSION} -prune -newer ${RESULT} 2>/dev/null`
+            if [ -n "${FORCE}" ] ||
+               [ ! -f ${RESULT} ] ||
+               [ -n "${NEWER1}" ] ||
+               [ -n "${NEWER2}" ]; then
+                # Check similarity of calltree & vists
+                if ! compareCalltrees ${ARCHIVE}/profile_aggr.${CUBE_EXTENSION} \
+                                      ${ARCHIVE}/scout_aggr.${CUBE_EXTENSION} &&
+                   [ -z "${IGNORE_CHECKS}" ]; then
+                    echo "ERROR: Runtime summary and trace analysis reports differ (calltree/visits)" >&2
+                    exit 1
+                fi
+
+                # Merge reports
+                if [ ! -w ${ARCHIVE} ]; then
+                    echo "ERROR: Experiment archive ${ARCHIVE} needs to be writable!" >&2
+                    exit 1
+                fi
+
+                checkProg cube_merge MERGER
+                echo "INFO: Merging aggregated runtime summary and trace analysis reports..."
+                eval "${MERGER} -o ${RESULT} \
+                                   ${ARCHIVE}/profile_aggr.${CUBE_EXTENSION} \
+                                   ${ARCHIVE}/scout_aggr.${CUBE_EXTENSION} ${QUIET}"
+            fi
+
+            REMAP_FILES="${REMAP_FILES} ${RESULT}"
+        else
+            if [ -f ${ARCHIVE}/profile_aggr.${CUBE_EXTENSION} ]; then
+                REMAP_FILES="${REMAP_FILES} ${ARCHIVE}/profile_aggr.${CUBE_EXTENSION}"
+            fi
+            if [ -f ${ARCHIVE}/scout_aggr.${CUBE_EXTENSION} ]; then
+                REMAP_FILES="${REMAP_FILES} ${ARCHIVE}/scout_aggr.${CUBE_EXTENSION}"
+            fi
+        fi
+
+    # Process "regular" experiment
+    else
+        if [ -f ${ARCHIVE}/profile.${CUBE_EXTENSION} ]; then
+            REMAP_FILES="${REMAP_FILES} ${ARCHIVE}/profile.${CUBE_EXTENSION}"
+        fi
+        if [ -f ${ARCHIVE}/scout.${CUBE_EXTENSION} ]; then
+            REMAP_FILES="${REMAP_FILES} ${ARCHIVE}/scout.${CUBE_EXTENSION}"
+        fi
+
+        if [ -z "${REMAP_FILES}" ]; then
+            echo "ERROR: No CUBE file in experiment archive '${ARCHIVE}'!" >&2
+            exit 1
+        fi
+    fi
+
+    # Post-process (aggregated) input files
+    for input in ${REMAP_FILES}
+    do
+        if [ -f ${input} ]; then
+            remapFile ${input}
+        fi
+    done
+
+    # Check for existing file (in order of preference)
+    for name in profile scout summary trace \
+                profile_aggr scout_aggr summary_aggr trace_aggr \
+                scout+profile trace+summary; do
+        if [ -f ${ARCHIVE}/${name}.${CUBE_EXTENSION} ]; then
+            FILE=${ARCHIVE}/${name}.${CUBE_EXTENSION}
+        fi
+    done
+fi
+
+# Check whether to score analysis report
+if [ "${VIEW}" = "no" ]; then
+    checkProg scorep-score SCORER
+
+    # XXXX scorep-score doesn't work well on remapped cubefiles
+    for name in profile scout profile_aggr scout_aggr scout+profile; do
+        if [ -f ${ARCHIVE}/${name}.${CUBE_EXTENSION} ]; then
+            FILE=${ARCHIVE}/${name}.${CUBE_EXTENSION}
+        fi
+    done
+
+    # generate file suffixes for score parameters that impact the output
+    SCORE=${ARCHIVE}/scorep.score
+    if [ -n "${FILTER}" ]; then
+        SCORE=${SCORE}_`basename ${FILTER}`
+    fi
+
+    if [ -n "${NUM_EXTRA_CTR}" ]; then
+        SCORE=${SCORE}_ctr${NUM_EXTRA_CTR}
+    fi
+
+    if [ -n "${SCORE_SORTEDBY}" ]; then
+        SCORE="${SCORE}_sortedby_${SCORE_SORTEDBY}"
+    fi
+
+    if [ -n "${SCORE_MANGLED}" ]; then
+        SCORE="${SCORE}_mangled"
+    fi
+
+    echo "${SCORER} ${SCORE_PASSTHROUGH} -r ${FILE} > ${SCORE}"
+    eval "${SCORER} ${SCORE_PASSTHROUGH} -r ${FILE} > ${SCORE}"
+    echo "INFO: Score report written to ${SCORE}"
+    exit 0
+fi
+
+if [ -n "${FILTER}" ]; then
+    echo "INFO: Ignoring specified filter \"${FILTER}\" when not scoring!"
+fi
+if [ -n "${NUM_EXTRA_CTR}" ]; then
+    echo "INFO: Ignoring specified ${NUM_EXTRA_CTR} extra counters when not scoring!"
+fi
+
+# Check availability of CUBE viewer
+checkProg cube VIEWER
+
+if [ -n "$FILE" ]; then
+    echo "INFO: Displaying ${FILE}..."
+    CUBE_DOCPATH="$SCALASCA_DOCDIR:$SCOREP_DOCDIR:$CUBE_DOCPATH" ${VIEWER} ${FILE}
+else
+    echo "INFO: Select CUBE file from archive directory ${ARCHIVE}..."
+    CUBE_DOCPATH="$SCALASCA_DOCDIR:$SCOREP_DOCDIR:$CUBE_DOCPATH" ${VIEWER} ${ARCHIVE}
+fi

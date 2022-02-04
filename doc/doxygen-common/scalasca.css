@@ -1,0 +1,119 @@
+/* Scalasca-specific CSS, overriding some settings from doxygen's default */
+
+#titlearea
+{
+    border-bottom: none;
+}
+
+hr
+{
+    border-top: 1px solid #96bd0d;
+}
+
+.tabs, .tabs2, .tabs3
+{
+    background-image: url('tab_inactive.png');
+}
+
+.tablist a
+{
+    background-image: none;
+    background: #004a6e;
+    color: #ffffff;
+    text-shadow: none;
+}
+
+.tablist a:hover
+{
+    background-image: url('tab_active.png');
+    color: #96bd0d;
+    text-shadow: none;
+}
+
+.tablist li.current a
+{
+    background-image: url('tab_active.png');
+    color: #96bd0d;
+}
+
+.navpath ul
+{
+    font-size: 11px;
+    background-image: none;
+    border: solid 1px #96bd0d;
+}
+
+.navpath li.navelem a
+{
+    color: #004a6e;
+}
+
+.navpath li.navelem a:hover
+{
+    color: #96bd0d;
+}
+
+.caption {
+    font-weight: normal;
+}
+
+.caption:before {
+    content: "Figure";
+    font-weight: bold;
+}
+
+h1
+{
+    font-size: 140%;
+    color: #004a6e;
+    margin-top: 1.4em;
+    border-bottom: 1px solid #96bd0d;
+}
+
+h2
+{
+    font-size: 125%;
+    margin-top: 1.25em;
+}
+
+h3
+{
+    font-size: 110%;
+    margin-top: 1.1em;
+}
+
+dl.attention
+{
+    border-color: #FF8000;
+}
+
+div.fragment
+{
+    padding: 12px;
+    margin-left: 24px;
+    margin-right: 24px;
+}
+
+div.pagenav
+{
+    font-size: 90%;
+    font-weight: bold;
+    color: #004a6e;
+}
+
+.pagenav a {
+    color: #004a6e;
+}
+
+p.startdd {
+    overflow: hidden;
+}
+
+div.summary
+{
+    width: 100%;
+}
+
+.paramname {
+    vertical-align: top;
+}

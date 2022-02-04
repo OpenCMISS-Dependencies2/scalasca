@@ -1,0 +1,79 @@
+/****************************************************************************
+**  SCALASCA    http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 1998-2020                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  Copyright (c) 2009-2013                                                **
+**  German Research School for Simulation Sciences GmbH,                   **
+**  Laboratory for Parallel Programming                                    **
+**                                                                         **
+**  Copyright (c) 2019                                                     **
+**  RWTH Aachen University, IT Center                                      **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+/*-------------------------------------------------------------------------*/
+/**
+ *  @file
+ *  @brief Scalasca-specific configuration customizations.
+ *
+ *  This header file provides Scalasca-specific customizations of the
+ *  package configuration, such as supplemental preprocessor macros.  It is
+ *  included by the generic <tt>config.h</tt> header file and should not be
+ *  used directly.
+ **/
+/*-------------------------------------------------------------------------*/
+
+
+#ifndef SCALASCA_CONFIG_H
+    #error "Do not include this file!  Use <config.h> instead."
+#endif
+
+
+/// @name Scalasca version information
+/// @{
+
+/// Scalasca major version number
+#define SCALASCA_MAJOR   "@PACKAGE_MAJOR@"
+
+/// Scalasca minor version number
+#define SCALASCA_MINOR   "@PACKAGE_MINOR@"
+
+/// Scalasca bugfix version number
+#define SCALASCA_BUGFIX   "@PACKAGE_BUGFIX@"
+
+/// Scalasca version number (<i>major</i>.<i>minor</i>)
+#define SCALASCA_VERSION   SCALASCA_MAJOR "." SCALASCA_MINOR
+
+/// Scalasca full version number (<i>major</i>.<i>minor</i>.<i>bugfix</i>)
+#define SCALASCA_FULL_VERSION   SCALASCA_VERSION "." SCALASCA_BUGFIX
+
+/// @}
+/// @name Scalasca debug modules
+/// @{
+
+/// Helper macro defining the available debug modules
+#define UTILS_DEBUG_MODULES \
+    UTILS_DEFINE_DEBUG_MODULE(PEARL, 0), \
+    UTILS_DEFINE_DEBUG_MODULE(EPILOG, 1), \
+    UTILS_DEFINE_DEBUG_MODULE(EPIK, 2), \
+    UTILS_DEFINE_DEBUG_MODULE(CLOCK_VIOLATION, 3), \
+    UTILS_DEFINE_DEBUG_MODULE(VERBOSE_ERRORS, 4), \
+    UTILS_DEFINE_DEBUG_MODULE(SCOUT, 5), \
+    UTILS_DEFINE_DEBUG_MODULE(WAITSTATE, 6), \
+    UTILS_DEFINE_DEBUG_MODULE(ROOT_CAUSE, 7), \
+    UTILS_DEFINE_DEBUG_MODULE(TRIGGER, 8), \
+    UTILS_DEFINE_DEBUG_MODULE(CRITICAL_PATH, 9)
+
+/// @}
+
+
+/// @todo Fix this rather crude approximation of MPI-2 RMA support.
+#if HAVE( DECL_MPI_PUT )
+    #define HAS_MPI2_1SIDED
+#endif

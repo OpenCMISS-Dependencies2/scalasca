@@ -1,0 +1,904 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2014                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+PROLOG {
+    extern bool enableDelayAnalysis;
+}
+
+
+PATTERN "WAITSTATES_DIRECT_VS_INDIRECT" = [
+    NAME      = "MPI point-to-point wait states (direct vs. indirect)"
+    DOCNAME   = "MPI Point-to-point Wait State Classification: Direct vs. Indirect"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Wait_DI"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Classification of MPI point-to-point waiting time into direct and indirect wait states"
+    DESCR     = {
+        Partitions MPI point-to-point wait states into waiting time directly caused
+        by delays and waiting time caused by propagation.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_WAIT_DIRECT" = [
+    PARENT    = "WAITSTATES_DIRECT_VS_INDIRECT"
+    NAME      = "Direct MPI point-to-point wait states"
+    DOCNAME   = "Direct MPI Point-to-point Wait States"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Wait_Direct"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "MPI point-to-point waiting time that results from direct delay, i.e., is directly caused by load imbalance"
+    DESCR     = {
+        Waiting time in MPI point-to-point operations that results from direct
+        delay, i.e., is directly caused by a load- or communication imbalance.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_WAIT_DIRECT_LATESENDER" = [
+    PARENT    = "MPI_WAIT_DIRECT"
+    NAME      = "Direct MPI Late Sender wait states"
+    DOCNAME   = "Direct MPI Late Sender Wait States"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Wait_Direct_LS"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Waiting time in MPI Late Sender wait states that results from direct delay"
+    DESCR     = {
+        Waiting time in MPI Late Sender wait states that results from direct delay,
+        i.e., is caused by load imbalance.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_WAIT_DIRECT_LATERECEIVER" = [
+    PARENT    = "MPI_WAIT_DIRECT"
+    NAME      = "Direct MPI Late Receiver wait states"
+    DOCNAME   = "Direct MPI Late Receiver Wait States"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Wait_Direct_LR"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Waiting time in MPI Late Receiver wait states that results from direct delay"
+    DESCR     = {
+        Waiting time in MPI Late Receiver wait states that results from direct
+        delay, i.e., is caused by load imbalance.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_WAIT_INDIRECT" = [
+    PARENT    = "WAITSTATES_DIRECT_VS_INDIRECT"
+    NAME      = "Indirect MPI point-to-point wait states"
+    DOCNAME   = "Indirect MPI Point-to-point Wait States"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Wait_Indirect"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "MPI point-to-point waiting time that results from wait-state propagation"
+    DESCR     = {
+        Waiting time in MPI point-to-point operations that results from indirect
+        delay, i.e., is caused indirectly by wait-state propagation.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_WAIT_INDIRECT_LATESENDER" = [
+    PARENT    = "MPI_WAIT_INDIRECT"
+    NAME      = "Indirect MPI Late Sender wait states"
+    DOCNAME   = "Indirect MPI Late Sender Wait States"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Wait_Indirect_LS"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Indirect waiting time in MPI Late Sender wait states that results from propagation"
+    DESCR     = {
+        Waiting time in MPI Late Sender wait states that results from indirect
+        delay, i.e., is caused indirectly by wait-state propagation.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    DATA      = {
+        typedef std::map< Event, double, EventKeyCompare > eventmap_t;
+
+        eventmap_t m_pw;
+    }
+    CALLBACKS = [
+        "RPL_RESUME_FWD" = {
+            m_pw.clear();
+        }
+    ]
+    CALLBACKS("bwc") = [
+        "DELAY_LATE_SENDER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (w.mSum > 0)
+            {
+                double scale = std::min(data->mRwait / (d.mSum + w.mSum), 1.0);
+                m_pw[event] += scale * w.mSum;
+            }
+        }
+    ]
+    CALLBACKS("fwc") = [
+        "PRE_SEND" = {
+            eventmap_t::iterator it = m_pw.find(event);
+
+            Buffer* buf = new Buffer(16);
+            buf->put_double(it == m_pw.end() ? 0.0 : it->second);
+
+            data->mLocal->add_buffer(buf, BUFFER_PROPWAIT);
+        }
+        "POST_RECV" = {
+            double pw = data->mRemote->get_buffer(BUFFER_PROPWAIT)->get_double();
+
+            if (pw > 0.0)
+            {
+                m_severity[event.get_cnode()] += pw;
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_WAIT_INDIRECT_LATERECEIVER" = [
+    PARENT    = "MPI_WAIT_INDIRECT"
+    NAME      = "Indirect MPI Late Receiver wait states"
+    DOCNAME   = "Indirect MPI Late Receiver Wait States"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Wait_Indirect_LR"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Indirect waiting time in MPI Late Receiver wait states that results from propagation"
+    DESCR     = {
+        Waiting time in MPI Late Receiver wait states that results from indirect
+        delay, i.e., is caused by wait-state propagation.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    DATA      = {
+        typedef std::map< Event, double, EventKeyCompare > eventmap_t;
+
+        eventmap_t m_pw;
+    }
+    CALLBACKS = [
+        "RPL_RESUME_FWD" = {
+            m_pw.clear();
+        }
+    ]
+    CALLBACKS("bwc") = [
+        "DELAY_LATE_RECEIVER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (w.mSum > 0)
+            {
+                double scale = std::min(data->mRwait / (d.mSum + w.mSum), 1.0);
+                m_pw[event] += scale * w.mSum;
+            }
+        }
+    ]
+    CALLBACKS("fwc") = [
+        "PRE_INV_RECVREQ" = {
+            eventmap_t::iterator it = m_pw.find(event);
+
+            Buffer* buf = new Buffer(16);
+            buf->put_double(it == m_pw.end() ? 0.0 : it->second);
+
+            data->mInvLocal->add_buffer(buf, BUFFER_PROPWAIT);
+        }
+        "POST_INV_SENDCMP" = {
+            double pw = data->mInvRemote->get_buffer(BUFFER_PROPWAIT)->get_double();
+
+            if (pw > 0.0)
+            {
+                m_severity[event.get_cnode()] += pw;
+            }
+        }
+    ]
+]
+
+
+# PATTERN "MPI_WAIT_DIRECT_COLL" = [
+#   PARENT    = "MPI_WAIT_DIRECT"
+#   NAME      = "Collective"
+#   MODE      = "exclusive"
+#   DOCNAME   = "Direct waiting time in collective communication "
+#   TYPE      = "MPI"
+#   CLASS     = "PatternMPI_Wait_Direct_Coll"
+#   INFO      = "Direct waiting time in MPI collective communication"
+#   HIDDEN
+#   DESCR     = {
+#   }
+#   UNIT      = "sec"
+# ]
+
+
+# PATTERN "MPI_WAIT_INDIRECT_P2P" = [
+#   PARENT    = "MPI_WAIT_INDIRECT"
+#   NAME      = "Point-to-point"
+#   MODE      = "exclusive"
+#   DOCNAME   = "Indirect waiting time in point-to-point communication "
+#   TYPE      = "MPI"
+#   CLASS     = "PatternMPI_Wait_Indirect_P2P"
+#   INFO      = "Indirect waiting time in MPI point-to-point communication"
+#   HIDDEN
+#   DESCR     = {
+#   }
+#   UNIT      = "sec"
+# ]
+
+
+# PATTERN "MPI_WAIT_INDIRECT_COLL" = [
+#   PARENT    = "MPI_WAIT_INDIRECT"
+#   NAME      = "Collective"
+#   MODE      = "exclusive"
+#   DOCNAME   = "Indirect waiting time in collective communication "
+#   TYPE      = "MPI"
+#   CLASS     = "PatternMPI_Wait_Indirect_Coll"
+#   INFO      = "Indirect waiting time in MPI collective communication"
+#   HIDDEN
+#   DESCR     = {
+#   }
+#   UNIT      = "sec"
+# ]
+
+
+# PATTERN "MPI_WAIT_INDIRECT_BARRIER" = [
+#   PARENT    = "MPI_WAIT_INDIRECT_COLL"
+#   NAME      = "Barrier"
+#   DOCNAME   = "Indirect waiting time in MPI Barriers"
+#   TYPE      = "MPI"
+#   CLASS     = "PatternMPI_Wait_Indirect_Barrier"
+#   INFO      = "Indirect waiting time in MPI Barriers"
+#   DESCR     = {
+#   }
+#   UNIT      = "sec"
+#   CALLBACKS("bwc") = [
+#     "DELAY_BARRIER" = {
+#       if (data->m_rwait > 0.0)
+#         m_severity[event.get_cnode()] += data->m_rwait;
+#     }
+#   ]
+# ]
+
+
+# PATTERN "MPI_WAIT_INDIRECT_N2N" = [
+#   PARENT    = "MPI_WAIT_INDIRECT_COLL"
+#   NAME      = "N x N communication"
+#   DOCNAME   = "Indirect waiting time in MPI NxN collectives"
+#   TYPE      = "MPI"
+#   CLASS     = "PatternMPI_Wait_Indirect_N2N"
+#   INFO      = "Indirect waiting time in MPI NxN collective operations"
+#   DESCR     = {
+#     Indirect waiting time in MPI NxN collective operations, such as MPI_Allreduce(),
+#     MPI_Allgather(), and MPI_Alltoall().
+#   }
+#   UNIT      = "sec"
+#   CALLBACKS("bwc") = [
+#     "DELAY_N2N" = {
+#       if (data->m_rwait > 0.0)
+#         m_severity[event.get_cnode()] += data->m_rwait;
+#     }
+#   ]
+# ]
+
+
+# PATTERN "MPI_WAIT_INDIRECT_12N" = [
+#   PARENT    = "MPI_WAIT_INDIRECT_COLL"
+#   NAME      = "1-to-N communication"
+#   DOCNAME   = "Indirect waiting time in MPI 1-to-N collectives"
+#   TYPE      = "MPI"
+#   CLASS     = "PatternMPI_Wait_Indirect_12N"
+#   INFO      = "Indirect waiting time in MPI 1-to-N collective operations"
+#   DESCR     = {
+#     Indirect waiting time in MPI 1-to-N collective operations, such as MPI_Bcast()
+#     or MPI_Scatter().
+#   }
+#   UNIT      = "sec"
+#   CALLBACKS("bwc") = [
+#     "DELAY_12N" = {
+#       if (data->m_rwait > 0.0)
+#         m_severity[event.get_cnode()] += data->m_rwait;
+#     }
+#   ]
+# ]
+
+
+# PATTERN "MPI_WAIT_INDIRECT_N21" = [
+#   PARENT    = "MPI_WAIT_INDIRECT_COLL"
+#   NAME      = "N-to-1 communication"
+#   DOCNAME   = "Indirect waiting time in MPI N-to-1 collectives"
+#   TYPE      = "MPI"
+#   CLASS     = "PatternMPI_Wait_Indirect_N21"
+#   INFO      = "Indirect waiting time in MPI N-to-1 collective operations"
+#   HIDDEN
+#   DESCR     = {
+#     Indirect waiting time in MPI N-to-1 collective operations, such as MPI_Reduce()
+#     or MPI_Gather().
+#   }
+#   UNIT      = "sec"
+# ]
+
+
+PATTERN "WAITSTATES_PROPAGATING_VS_TERMINAL" = [
+    NAME      = "MPI point-to-point wait states (propagating vs. terminal)"
+    DOCNAME   = "MPI Point-to-point Wait State Classification: Propagating vs. Terminal"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Wait_PT"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Classification of MPI point-to-point waiting time into propagating and terminal wait states"
+    DESCR     = {
+        Partitions MPI point-to-point waiting time into wait states that propagate
+        further (i.e., cause wait states on other processes) and those that do not.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_WAIT_PROPAGATING" = [
+    PARENT    = "WAITSTATES_PROPAGATING_VS_TERMINAL"
+    NAME      = "Propagating MPI point-to-point wait states"
+    DOCNAME   = "Propagating MPI Point-to-point Wait States"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_Wait_PT"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Aggregate amount of MPI point-to-point waiting time that propagates further"
+    DESCR     = {
+        Waiting time in MPI point-to-point operations that propagates further and
+        causes additional waiting time on other processes.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+    DATA      = {
+        typedef std::map< Event, double, EventKeyCompare > eventmap_t;
+
+        eventmap_t m_pw;
+    }
+    CALLBACKS = [
+        "RPL_RESUME_FWD" = {
+            m_pw.clear();
+        }
+    ]
+    CALLBACKS("bwc") = [
+        "DELAY_LATE_SENDER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!(w.mSum > 0))
+            {
+                return;
+            }
+
+            double scale = std::min(data->mRwait / (d.mSum + w.mSum), 1.0);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            // --- update maximum propagating wait time for wait states in current sync interval
+
+            for (SynchpointInfoMap::const_iterator it = data->mPropSpMap.begin();
+                 it != data->mPropSpMap.end();
+                 ++it)
+            {
+                if (it->second.waitTime > 0)
+                {
+                    eventmap_t::iterator pwit = m_pw.find(it->first);
+
+                    if (pwit == m_pw.end())
+                    {
+                        m_pw.insert(std::make_pair(it->first, scale * it->second.waitTime));
+                    }
+                    else
+                    {
+                        pwit->second = std::max(scale * it->second.waitTime, pwit->second);
+                    }
+                }
+            }
+        }
+        "DELAY_LATE_RECEIVER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!(w.mSum > 0))
+            {
+                return;
+            }
+
+            double scale = std::min(data->mRwait / (d.mSum + w.mSum), 1.0);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            // --- update maximum propagating wait time for wait states in current sync interval
+
+            for (SynchpointInfoMap::const_iterator it = data->mPropSpMap.begin();
+                 it != data->mPropSpMap.end();
+                 ++it)
+            {
+                if (it->second.waitTime > 0)
+                {
+                    eventmap_t::iterator pwit = m_pw.find(it->first);
+
+                    if (pwit == m_pw.end())
+                    {
+                        m_pw.insert(std::make_pair(it->first, scale * it->second.waitTime));
+                    }
+                    else
+                    {
+                        pwit->second = std::max(scale * it->second.waitTime, pwit->second);
+                    }
+                }
+            }
+        }
+
+#--- Further propagating wait-state callbacks that need to be reviewed --
+#
+#    "DELAY_BARRIER" = {
+#      collinfo_map_t::iterator cit = data->m_collinfo.find(event);
+#
+#      // --- set propagating wait time
+#
+#      if (cit->second.my.rank == cit->second.last.rank) {
+#        synchpoint_map_t::iterator end = data->m_synchpoints.find(event);
+#
+#        if (end == data->m_synchpoints.end() || end->second.sync_ranks.empty() || data->m_maxrscales.empty())
+#          return;
+#
+#        synchpoint_map_t::iterator it = data->m_synchpoints.find(data->m_prevsp);
+#
+#        assert(it    != data->m_synchpoints.end());
+#
+#        scalingfactormap_t::const_iterator scmit = data->m_maxrscales.find(it->first);
+#
+#        assert(scmit != data->m_maxrscales.end());
+#
+#        double scale = scmit->second;
+#
+#        for (++it; it != end; ++it) {
+#          scmit = data->m_maxrscales.find(it->first);
+#
+#          if (scmit != data->m_maxrscales.end())
+#            scale = scmit->second;
+#
+#          if (scale > 0 && it->second.waittime > 0) {
+#            eventmap_t::iterator pwit = m_pw.find(it->first);
+#
+#            if (pwit == m_pw.end())
+#              m_pw.insert(std::make_pair(it->first, scale * it->second.waittime));
+#            else
+#              pwit->second = std::max(scale * it->second.waittime, pwit->second);
+#          }
+#        }
+#      }
+#    }
+#    "DELAY_N2N" = {
+#      collinfo_map_t::iterator cit = data->m_collinfo.find(event);
+#
+#      // --- set propagating wait time
+#
+#      if (cit->second.my.rank == cit->second.last.rank) {
+#        synchpoint_map_t::iterator end = data->m_synchpoints.find(event);
+#
+#        if (end == data->m_synchpoints.end() || end->second.sync_ranks.empty() || data->m_maxrscales.empty())
+#          return;
+#
+#        synchpoint_map_t::iterator it  = data->m_synchpoints.find(data->m_prevsp);
+#
+#        assert(it    != data->m_synchpoints.end());
+#
+#        scalingfactormap_t::const_iterator scmit = data->m_maxrscales.find(it->first);
+#
+#        assert(scmit != data->m_maxrscales.end());
+#
+#        double scale = scmit->second;
+#
+#        for (++it; it != end; ++it) {
+#          scmit = data->m_maxrscales.find(it->first);
+#
+#          if (scmit != data->m_maxrscales.end())
+#            scale = scmit->second;
+#
+#          if (scale > 0 && it->second.waittime > 0) {
+#            eventmap_t::iterator pwit = m_pw.find(it->first);
+#
+#            if (pwit == m_pw.end())
+#              m_pw.insert(std::make_pair(it->first, scale * it->second.waittime));
+#            else
+#              pwit->second = std::max(scale * it->second.waittime, pwit->second);
+#          }
+#        }
+#      }
+#    }
+#    "DELAY_12N" = {
+#      collinfo_map_t::iterator cit = data->m_collinfo.find(event);
+#
+#      // --- set propagating wait time
+#
+#      if (cit->second.my.rank == cit->second.root.rank) {
+#        synchpoint_map_t::iterator end = data->m_synchpoints.find(event);
+#
+#        if (end == data->m_synchpoints.end() || end->second.sync_ranks.empty() || data->m_maxrscales.empty())
+#          return;
+#
+#        synchpoint_map_t::iterator it  = data->m_synchpoints.find(data->m_prevsp);
+#
+#        assert(it    != data->m_synchpoints.end());
+#
+#        scalingfactormap_t::const_iterator scmit = data->m_maxrscales.find(it->first);
+#
+#        assert(scmit != data->m_maxrscales.end());
+#
+#        double scale = scmit->second;
+#
+#        for (++it; it != end; ++it) {
+#          scmit = data->m_maxrscales.find(it->first);
+#
+#          if (scmit != data->m_maxrscales.end())
+#            scale = scmit->second;
+#
+#          if (scale > 0 && it->second.waittime > 0) {
+#            eventmap_t::iterator pwit = m_pw.find(it->first);
+#
+#            if (pwit == m_pw.end())
+#              m_pw.insert(std::make_pair(it->first, scale * it->second.waittime));
+#            else
+#              pwit->second = std::max(scale * it->second.waittime, pwit->second);
+#          }
+#        }
+#      }
+#    }
+#    "DELAY_WAIT_AT_FENCE" = {
+#      collinfo_map_t::iterator cit = data->m_collinfo.find(event);
+#
+#      // --- set propagating wait time
+#
+#      if (cit->second.my.rank == cit->second.root.rank) {
+#        synchpoint_map_t::iterator end = data->m_synchpoints.find(event);
+#
+#        if (end == data->m_synchpoints.end() || end->second.sync_ranks.empty() || data->m_maxrscales.empty())
+#          return;
+#
+#        synchpoint_map_t::iterator it  = data->m_synchpoints.find(data->m_prevsp);
+#
+#        assert(it    != data->m_synchpoints.end());
+#
+#        scalingfactormap_t::const_iterator scmit = data->m_maxrscales.find(it->first);
+#
+#        assert(scmit != data->m_maxrscales.end());
+#
+#        double scale = scmit->second;
+#
+#        for (++it; it != end; ++it) {
+#          scmit = data->m_maxrscales.find(it->first);
+#
+#          if (scmit != data->m_maxrscales.end())
+#            scale = scmit->second;
+#
+#          if (scale > 0 && it->second.waittime > 0) {
+#            eventmap_t::iterator pwit = m_pw.find(it->first);
+#
+#            if (pwit == m_pw.end())
+#              m_pw.insert(std::make_pair(it->first, scale * it->second.waittime));
+#            else
+#              pwit->second = std::max(scale * it->second.waittime, pwit->second);
+#          }
+#        }
+#      }
+#    }
+#    "DELAY_WAIT_AT_CREATE" = {
+#      collinfo_map_t::iterator cit = data->m_collinfo.find(event);
+#
+#      // --- set propagating wait time
+#
+#      if (cit->second.my.rank == cit->second.root.rank) {
+#        synchpoint_map_t::iterator end = data->m_synchpoints.find(event);
+#
+#        if (end == data->m_synchpoints.end() || end->second.sync_ranks.empty() || data->m_maxrscales.empty())
+#          return;
+#
+#        synchpoint_map_t::iterator it  = data->m_synchpoints.find(data->m_prevsp);
+#
+#        assert(it    != data->m_synchpoints.end());
+#
+#        scalingfactormap_t::const_iterator scmit = data->m_maxrscales.find(it->first);
+#
+#        assert(scmit != data->m_maxrscales.end());
+#
+#        double scale = scmit->second;
+#
+#        for (++it; it != end; ++it) {
+#          scmit = data->m_maxrscales.find(it->first);
+#
+#          if (scmit != data->m_maxrscales.end())
+#            scale = scmit->second;
+#
+#          if (scale > 0 && it->second.waittime > 0) {
+#            eventmap_t::iterator pwit = m_pw.find(it->first);
+#
+#            if (pwit == m_pw.end())
+#              m_pw.insert(std::make_pair(it->first, scale * it->second.waittime));
+#            else
+#              pwit->second = std::max(scale * it->second.waittime, pwit->second);
+#          }
+#        }
+#      }
+#    }
+#    "DELAY_WAIT_AT_FREE" = {
+#      collinfo_map_t::iterator cit = data->m_collinfo.find(event);
+#
+#      // --- set propagating wait time
+#
+#      if (cit->second.my.rank == cit->second.root.rank) {
+#        synchpoint_map_t::iterator end = data->m_synchpoints.find(event);
+#
+#        if (end == data->m_synchpoints.end() || end->second.sync_ranks.empty() || data->m_maxrscales.empty())
+#          return;
+#
+#        synchpoint_map_t::iterator it  = data->m_synchpoints.find(data->m_prevsp);
+#
+#        assert(it    != data->m_synchpoints.end());
+#
+#        scalingfactormap_t::const_iterator scmit = data->m_maxrscales.find(it->first);
+#
+#        assert(scmit != data->m_maxrscales.end());
+#
+#        double scale = scmit->second;
+#
+#        for (++it; it != end; ++it) {
+#          scmit = data->m_maxrscales.find(it->first);
+#
+#          if (scmit != data->m_maxrscales.end())
+#            scale = scmit->second;
+#
+#          if (scale > 0 && it->second.waittime > 0) {
+#            eventmap_t::iterator pwit = m_pw.find(it->first);
+#
+#            if (pwit == m_pw.end())
+#              m_pw.insert(std::make_pair(it->first, scale * it->second.waittime));
+#            else
+#              pwit->second = std::max(scale * it->second.waittime, pwit->second);
+#          }
+#        }
+#      }
+#    }
+#    "DELAY_LATE_POST" = {
+#      if (!(data->m_wsum > 0))
+#        return;
+#
+#      double scale = std::min(data->m_rwait / (data->m_dsum + data->m_wsum), 1.0);
+#
+#      if (!(scale > 0))
+#        return;
+#
+#      // --- update maximum propagating wait time for wait states in current sync interval
+#
+#      synchpoint_map_t::iterator it  = data->m_synchpoints.find(data->m_prevsp);
+#      synchpoint_map_t::iterator end = data->m_synchpoints.find(event);
+#
+#      assert(it  != data->m_synchpoints.end());
+#      assert(end != data->m_synchpoints.end());
+#
+#      for (++it; it != end; ++it) {
+#        if (it->second.waittime > 0) {
+#          eventmap_t::iterator pwit = m_pw.find(it->first);
+#
+#          if (pwit == m_pw.end())
+#            m_pw.insert(std::make_pair(it->first, scale * it->second.waittime));
+#          else
+#            pwit->second = std::max(scale * it->second.waittime, pwit->second);
+#        }
+#      }
+#    }
+#    "DELAY_EARLY_WAIT" = {
+#      if (!(data->m_wsum > 0))
+#        return;
+#
+#      double scale = std::min(data->m_rwait / (data->m_dsum + data->m_wsum), 1.0);
+#
+#      if (!(scale > 0))
+#        return;
+#
+#      // --- update maximum propagating wait time for wait states in current sync interval
+#
+#      synchpoint_map_t::iterator it  = data->m_synchpoints.find(data->m_prevsp);
+#      synchpoint_map_t::iterator end = data->m_synchpoints.find(event);
+#
+#      assert(it  != data->m_synchpoints.end());
+#      assert(end != data->m_synchpoints.end());
+#
+#      for (++it; it != end; ++it) {
+#        if (it->second.waittime > 0) {
+#          eventmap_t::iterator pwit = m_pw.find(it->first);
+#
+#          if (pwit == m_pw.end())
+#            m_pw.insert(std::make_pair(it->first, scale * it->second.waittime));
+#          else
+#            pwit->second = std::max(scale * it->second.waittime, pwit->second);
+#        }
+#      }
+#    }
+    ]
+    CALLBACKS("fwc") = [
+        "GROUP_RECV" = {
+            eventmap_t::iterator pwmit = m_pw.find(event);
+
+            if (pwmit != m_pw.end())
+            {
+                data->mIdle = pwmit->second;
+                cbmanager.notify(WAITSTATE_PROP_LS, event, data);
+            }
+        }
+        "MPI_SEND" = {
+            eventmap_t::iterator pwmit = m_pw.find(event);
+
+            if (pwmit != m_pw.end())
+            {
+                data->mIdle = pwmit->second;
+                cbmanager.notify(WAITSTATE_PROP_LR, event, data);
+            }
+        }
+        "MPI_SEND_COMPLETE" = {
+            eventmap_t::iterator pwmit = m_pw.find(event);
+
+            if (pwmit != m_pw.end())
+            {
+                data->mIdle = pwmit->second;
+                cbmanager.notify(WAITSTATE_PROP_LR, event, data);
+            }
+        }
+
+#--- Further propagating wait-state callbacks that need to be reviewed --
+#
+#   "MPI_COLLEXIT" = {
+#      eventmap_t::iterator pwmit = m_pw.find(event);
+#
+#      if (pwmit != m_pw.end())
+#        m_severity[event.get_cnode()] += pwmit->second;
+#    }
+#    "MPI_RMAEXIT" = {
+#      eventmap_t::iterator pwmit = m_pw.find(event);
+#
+#      if (pwmit != m_pw.end())
+#        m_severity[event.get_cnode()] += pwmit->second;
+#    }
+#    "MPI_RMACOLLEXIT" = {
+#      eventmap_t::iterator pwmit = m_pw.find(event);
+#
+#      if (pwmit != m_pw.end())
+#        m_severity[event.get_cnode()] += pwmit->second;
+#    }
+    ]
+]
+
+
+PATTERN "MPI_WAIT_PROPAGATING_LS" = [
+    PARENT    = "MPI_WAIT_PROPAGATING"
+    NAME      = "Propagating MPI Late Sender wait states"
+    DOCNAME   = "Propagating MPI Late Sender Wait States"
+    TYPE      = "MPI"
+    CLASS     = "Pattern_Wait_PropagatingLS"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "MPI Late Sender wait states which cause further waiting time on other processes"
+    DESCR     = {
+        Waiting time in MPI Late Sender wait states that propagates further and
+        causes additional waiting time on other processes.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS("fwc") = [
+        "WAITSTATE_PROP_LS" = {
+            m_severity[event.get_cnode()] += data->mIdle;
+        }
+    ]
+]
+
+
+PATTERN "MPI_WAIT_PROPAGATING_LR" = [
+    PARENT    = "MPI_WAIT_PROPAGATING"
+    NAME      = "Propagating MPI Late Receiver wait states"
+    DOCNAME   = "Propagating MPI Late Receiver Wait States"
+    TYPE      = "MPI"
+    CLASS     = "Pattern_Wait_PropagatingLR"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "MPI Late Receiver wait states which cause further waiting time on other processes"
+    DESCR     = {
+        Waiting time in MPI Late Receiver wait states that propagates further and
+        causes additional waiting time on other processes.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS("fwc") = [
+        "WAITSTATE_PROP_LR" = {
+            m_severity[event.get_cnode()] += data->mIdle;
+        }
+    ]
+]
+
+
+PATTERN "MPI_WAIT_TERMINAL" = [
+    PARENT    = "WAITSTATES_PROPAGATING_VS_TERMINAL"
+    NAME      = "Terminal MPI point-to-point wait states"
+    DOCNAME   = "Terminal MPI Point-to-point Wait States"
+    TYPE      = "MPI"
+    CLASS     = "Pattern_Wait_Terminal"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Aggregate amount of MPI point-to-point waiting time that does not propagate further"
+    DESCR     = {
+        Waiting time in MPI point-to-point operations that does not propagate
+        further.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_WAIT_TERMINAL_LS" = [
+    PARENT    = "MPI_WAIT_TERMINAL"
+    NAME      = "Terminal MPI Late Sender wait states"
+    DOCNAME   = "Terminal MPI Late Sender Wait States"
+    TYPE      = "MPI"
+    CLASS     = "Pattern_Wait_TerminalLS"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "MPI Late Sender wait states which do not propagate"
+    DESCR     = {
+        Waiting time in MPI Late Sender wait states that does not propagate
+        further.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_WAIT_TERMINAL_LR" = [
+    PARENT    = "MPI_WAIT_TERMINAL"
+    NAME      = "Terminal MPI Late Receiver wait states"
+    DOCNAME   = "Terminal MPI Late Receiver Wait States"
+    TYPE      = "MPI"
+    CLASS     = "Pattern_Wait_TerminalLR"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "MPI Late Receiver wait states which do not propagate"
+    DESCR     = {
+        Waiting time in MPI Late Receiver wait states that does not propagate
+        further.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]

@@ -1,0 +1,70 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+QUICK_REFERENCE_SRC = doc/quick-reference
+
+
+## Extra distribution files (i.e., sources)
+QUICK_REFERENCE_FILES = \
+    $(QUICK_REFERENCE_SRC)/quickref.tex \
+    $(QUICK_REFERENCE_SRC)/figures/ctest-epik-hyb.pdf \
+    $(QUICK_REFERENCE_SRC)/figures/scalasca_logo.pdf \
+    $(QUICK_REFERENCE_SRC)/figures/score_tree.pdf
+
+EXTRA_DIST += \
+    $(QUICK_REFERENCE_FILES)
+
+
+##--- Quick reference guide rules -------------------------------------------
+
+if GIT_CONTROLLED
+if HAVE_DOXYGEN_LATEX
+
+USER_DOCS_TARGETS += \
+    quick-reference-pdf
+quick-reference-pdf: doc/doxygen-common/config.tex
+	$(AM_V_at)$(MKDIR_P) "$(QUICK_REFERENCE_SRC)/latex"
+	$(AM_V_at)list='doc/doxygen-common/config.tex $(QUICK_REFERENCE_FILES)'; test -n "$$list" || exit 0; \
+	for p in $$list; do \
+	    if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	    cp -f $$d$$p "$(QUICK_REFERENCE_SRC)/latex/" || exit 1; \
+	done
+	$(STT_V_LATEX)$(am__cd) "$(QUICK_REFERENCE_SRC)/latex" \
+	    && pdflatex -file-line-error $(STT_V_pdflatex) quickref.tex $(STT_V_DEVNULL) \
+	    && pdflatex -file-line-error $(STT_V_pdflatex) quickref.tex $(STT_V_DEVNULL)
+
+COPY_USER_DOCS_TARGETS += \
+    copy-quick-reference-pdf-to-dist
+copy-quick-reference-pdf-to-dist: quick-reference-pdf
+	$(AM_V_at)$(MKDIR_P) "$(DISTDIR)/doc"
+	$(AM_V_at)cp -fp "$(QUICK_REFERENCE_SRC)/latex/quickref.pdf" \
+	       "$(DISTDIR)/doc/QuickReference.pdf"
+
+CLEAN_USER_DOCS_TARGETS += \
+    clean-quick-reference
+clean-quick-reference:
+	rm -rf "$(QUICK_REFERENCE_SRC)/latex"
+
+endif HAVE_DOXYGEN_LATEX
+else !GIT_CONTROLLED
+
+## Extra distribution files (i.e., generated documentation)
+EXTRA_DIST += \
+    doc/QuickReference.pdf
+
+## Documentation to (un)install
+manual_DATA += \
+    doc/QuickReference.pdf
+
+endif !GIT_CONTROLLED

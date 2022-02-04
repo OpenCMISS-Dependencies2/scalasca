@@ -1,0 +1,27 @@
+## -*- mode: makefile -*-
+
+##
+## This file is part of the Score-P software (http://www.score-p.org)
+##
+## Copyright (c) 2014,
+## Technische Universitaet Dresden, Germany
+##
+## This software may be modified and distributed under the terms of
+## a BSD-style license.  See the COPYING file in the package base
+## directory for details.
+##
+
+## file       doc/examples/Makefile.inc.am
+
+examplesdir = $(docdir)/examples
+dist_examples_DATA = \
+    doc/examples/Makefile \
+    doc/examples/otf2_reader_example.c \
+    doc/examples/otf2_writer_example.c \
+    doc/examples/otf2_mpi_reader_example.c \
+    doc/examples/otf2_mpi_reader_example.cc \
+    doc/examples/otf2_mpi_writer_example.c \
+    doc/examples/otf2_openmp_writer_example.c \
+    doc/examples/otf2_pthread_writer_example.c \
+    doc/examples/otf2_high_level_reader_example.py \
+    doc/examples/otf2_high_level_writer_example.py

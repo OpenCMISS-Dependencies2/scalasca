@@ -1,0 +1,419 @@
+------------------- Released version 2.3 -----------------------------
+
+- Update Jinja template engine to 2.11.2 and support Python 3 for the
+  generator. Minimum version is now 2.7.
+
+- Add paradigms for HIP accelerators and Kokkos.
+
+------------------- Released version 2.2 -----------------------------
+
+- Added a definition record to attach a parameter to a callpath.
+
+- Removed the restriction,  that AttributeLists can  only have at most
+  1024 entries.  If the list  does not fit  into the chunk,  the write
+  routines return OTF2_ERROR_INVALID_SIZE_GIVEN.
+
+- Reduce  loss of precision  when interpolating timestamps.  Thanks to
+  Alexander Grund for the suggestion.
+
+- Native build support for LLVM/Clang compiler.
+
+------------------ Released version 2.1.1 ----------------------------
+
+- Writing a SION-substrate trace  with the high level Python API works
+  now.
+
+- Fix  possible  deadlocks, when  closing  a global event  or snapshot
+  reader,  before reading  all records,  or  in  case of  errors  when
+  creating these global readers.
+
+- Fix reading  SION-substrate traces,  if locations have  no events or
+  snapshots.
+
+- Improve handling of mappings to `UNDEFINED` ids.
+
+------------------- Released version 2.1 -----------------------------
+
+- A new set  of definition and event  records were added  to model and
+  record I/O activities of applications.
+
+- Add OTF2 python bindings.
+  - Documentation is included in doc/python.tar.gz as html.
+  - Two modules are provided: A low-level one similar to C: '_otf2',
+    and a high level more pythonic API: 'otf2'.
+  - Both python2 and python3 are fully supported.
+
+- A  new set  of  event  records  were  added  to  denote the  program
+  executed, the passed arguments, and the exit status.
+
+- Added enum value OTF2_RMA_ATOMIC_TYPE_FETCH_AND_ACCUMULATE to model
+  atomic operations that retrieve the initial value and perform a
+  system/user-specified operation on the remote value.
+
+- Fix scalability bottleneck in reading OTF2 traces stored in  SIONlib
+  containers.
+
+- A project file for Microsoft Visual Studio 2014 was contributed.
+  See contrib-build-vs/Readme.txt.
+
+- OTF2 builds  now by default  position independent  object code, also
+  for static libraries.  Pass `--without-pic` to  configure to get the
+  previous mode.
+
+------------------- Released version 2.0 -----------------------------
+
+- The  experimental  CallingContextSample event and  the  accompanying
+  definition records have been redesigned and are now declared stable.
+  Though there  is no  conversion done  for traces  with these records
+  written with OTF2 1.5.
+  The changes includes:
+  - The CallingContext definition  uses a SourceCodeLocation attribute
+    now.  The  previously offset line number  to the beginning  of the
+    referenced region, was very fragile.
+  - The  IP address  attribute  was  removed  from the  CallingContext
+    definition.    Though   with    the   new   CallingContextProperty
+    definition,  the writer  is able to  pass arbitrary  attributes to
+    each node.
+  - The  InterruptGenerator  definition lost  its 'unit'  attribute in
+    favor of  a mode/base/exponent tuple, similar  to the MetricMember
+    definition.   The  mode  is  expressed  with  the  new  enum  type
+    OTF2_InterruptGeneratorMode, which includes a time based interrupt
+    generator  (OTF2_INTERRUPT_GENERATOR_MODE_TIME) and a  count based
+    one (OTF2_INTERRUPT_GENERATOR_MODE_COUNT).  The unit is implicitly
+    given by the mode than.
+  - The  addition of  the new  CallingContextEnter/CallingContextLeave
+    records.   These  complete  the  CallingContextSample  event  when
+    instrumentation  and  sampling  is   used  in  conjunction.   OTF2
+    includes  a fallback  conversion  for  old  readers which  do  not
+    register for the  new events.  They are than  converted to the old
+    Enter/Leave  events.  The  old  event pair  and  the  new  calling
+    context based events must be used mutual exclusive in one trace.
+
+- Specifying the  chunk size for the  definitions can now be postponed
+  before opening any definition or marker writers.
+  See OTF2_Archive_SetDefChunkSize for more details.
+
+- The estimator API and tool learned to estimate the chunk size needed
+  for the  definitions.  The  result can  than  be used in  a call  to
+  OTF2_Archive_SetDefChunkSize.
+
+- Three new region roles for  functions which allocate, deallocate, or
+  deallocate memory were added.
+
+- A new OTF2_Paradigm entry was added which can be used to denote that
+  the definition entity does not belong to any specific paradigm.
+
+- The move to version 2.0 was used  to cleanup API inconsistencies and
+  remove deprecated API functions.  Namely:
+  - OTF2_MetricBase was  renamed to OTF2_Base.  The enum  entries were
+    missing the 'METRIC' in their name anyway.
+  - The following functions were removed (deprecated since 1.1):
+    - OTF2_AttributeList_AddString
+    - OTF2_AttributeList_GetString
+  Additionally, the  following property definitions  were changed from
+  a (String, String) tuple to  a (String, Type, AttributeValue) tuple.
+  Conversion from the old record format is provided.
+  - SystemTreeNodeProperty
+  - LocationGroupProperty
+  - LocationProperty
+
+- The Callsite definition was marked as deprecated.
+
+------------------ Released version 1.5.1 ----------------------------
+
+- Fix build errors on AIX.
+
+------------------- Released version 1.5 -----------------------------
+
+- A new  set of  callbacks can  now be registered  to OTF2  to make it
+  thread safe.  These  callbacks are  optional.  Predefined  callbacks
+  are provided  for OpenMP and Pthread.  And  new usage  examples were
+  added too.
+
+- The new hint API  for OTF2 will be used to optimize  the writing and
+  reading process.  The first  OTF2_HINT_GLOBAL_READER hint  should be
+  set  by readers,  which  intent  to use  only the  global event  and
+  snapshot  readers.  In this  case the SION  substrate wont  allocate
+  additional file descriptors for each location to read.  On the other
+  side,  the local event and snapshot  readers are independent and can
+  be used  concurrently.  Using  the  readers  concurrently  with  the
+  OTF2_HINT_GLOBAL_READER hint set  requires proper  locking callbacks
+  than.
+
+- Added a new region role  OTF2_REGION_ROLE_TASK_UNTIED to distinguish
+  tied from untied tasks.
+
+- OTF2 learned to identify new paradigms.
+  The list includes:
+  - Windows threads
+  - Qt threads
+  - ACE threads
+  - TBB threads
+  - OpenACC directives
+  - OpenCL API functions and kernels
+  - Multicore Task API functions
+  - Functions recorded by sampling
+
+- The new Paradigm definition was introduced to attests that a certain
+  parallel paradigm was available at  the time the trace was recorded,
+  and  vice versa.  Additionally the  new ParadigmProperty  definition
+  can  be used  to  further define  a specific  paradigm.  The overall
+  intention is to help trace readers  to handle future  paradigms, not
+  yet added to  the known  list of paradigms  in OTF2.  In conjunction
+  with  these   new  definition   records,  the   new   ParadigmClass,
+  ParadigmProperty, and Boolean enum where also introduced.
+
+- The new SourceCodeLocation  definition can be  used to attach source
+  code annotations to all events.  To avoid addition record attributes
+  for  the events,  the AttributeList is the  preferred way to use the
+  new definition.  The used Attribute definition  should have the name
+  "SOURCE_CODE_LOCATION" though.
+
+- The build  process now ensures that only a  Python 2 version will be
+  used for OTF2.
+
+- OTF2 now needs at least version 1.5.3 of SIONlib, as it uses the new
+  key-value  API to support  writing an arbitrary number  of locations
+  per process.
+
+- An  experimental  set  of  new  records  to  be  used  for  sampling
+  measurements were added.  No stability guarantee is given.
+
+- Added support for Intel Xeon Phi
+
+------------------- Released version 1.4 -----------------------------
+
+- Read-only buffer arguments  in the collective  callbacks got 'const'
+  annotations.
+
+- The Attribute definition was extended with a description key.
+
+- Definition  records  are  using  the  available  buffer  space  more
+  efficiently,  in trade-off  of a  small  performance  penalty.  This
+  particularly results  in an increase of the  maximum size of records
+  with array members.  Though no trace format change was done.
+
+- OTF2  learned to identify new  paradigms.  The list  includes GASPI,
+  Unified Parallel C, and SHMEM and its derivatives.
+
+- OTF2  learned  new atomic  operations to  be used  in the  RmaAtomic
+  record:
+  - OTF2_RMA_ATOMIC_TYPE_SWAP
+  - OTF2_RMA_ATOMIC_TYPE_FETCH_AND_ADD
+  - OTF2_RMA_ATOMIC_TYPE_FETCH_AND_INCREMENT
+
+- OTF2 now provides also an OTF2_Archive_CloseGlobalDefWriter API  for
+  completeness.  The call itself is optional.
+
+- The 'gethostid' function  is used  as an  additional  entropy source
+  when generating the trace ID on systems which provide this function.
+
+- The 'otf2-print' tool shows the  metric member name in Metric events
+  in addition to the type and value.  Additionally when ranks are used
+  in  conjunction   with  communicators,  RMA  windows,  or  cartesian
+  topologies, they are resolved to the location.
+
+- The reading and writing usage examples from the documentation are
+  now provided as working C code and Makefile under:
+
+    <prefix>/share/doc/otf2/examples
+
+- OTF2 now provides example  collective callbacks to be used with MPI.
+  To prevent compiling  and installing  these callbacks for  different
+  MPI  implementation and  to keep  the build  system of  OTF2 simple,
+  these callbacks are provided as a header.  They are usable for C and
+  C++ and detailed usage examples for reading and writing are provided
+  in the aforementioned installation location.
+
+- The estimator API learned to estimate the size of an  AttributeList.
+
+- Added  the  'otf2-estimator' tool  which  provides  a  command  line
+  interface to the estimator API, introduced in 1.3.
+
+- The  '--cuda'  option  from  the  'otf2-config'  tool  is  marked as
+  deprecated and will issue a warning when specified.
+
+------------------ Released version 1.3.1 ----------------------------
+
+- The  'Future prove  reading and  writing of  not-yet-known attribute
+  types'  changes done  in  1.1.1  now also  applies when  reading and
+  writing snapshot records.  Which where introduced in 1.2.
+
+- OTF2 now returns an error if the user does not specify a collective
+  context.  This particularly helps when converting from the 1.2 API.
+
+- OTF2 fixes several issues, when dealing with absent local definition
+  files and the SIONlib substrate.  In particular  the open-file calls
+  now explicitly  return an  error code indicating  that files of this
+  type are missing.  As the local  definition files are optional,  the
+  OTF2 user can catch this error and handle it gracefully.
+
+- OTF2 was a little sloppy when operating in a collective context  and
+  only one rank encountered an error, but the other ranks were waiting
+  in a  collective operation.  These kind of errors  are now broadcast
+  to all ranks and all can than notify the caller about this error.
+
+------------------- Released version 1.3 -----------------------------
+
+- OTF2  now integrates  SIONlib via  its new  generic interface.  This
+  enables paradigm independent reading and writing of OTF2 traces with
+  the  SION  substrate.  The SIONlib  configure  option  changed  from
+  --with-sionconfig  to --with-sionlib.  SIONlib  is auto-detected  if
+  'sionconfig' is in $PATH.
+
+- OTF2  learned to  identify new  paradigms.  The list  includes POSIX
+  threads, HMPP, OpmSs, and for generic hardware.
+
+- The OTF2 tools 'otf2-marker' and  'otf2-snapshots' where broken when
+  compiled with an PGI compiler.
+
+- The two new definitions  LocationGroupProperty and  LocationProperty
+  complete the arbitrary property annotation of the system tree.
+
+- New events for create/wait based threading paradigms were added.  In
+  conjunction  with this  two  new  region  roles  were added  too  to
+  indicate functions which created and waited for an thread.
+
+- A new API was added to estimate the  resulting size of an trace file
+  based  on  the number  of  expected events  and  also accounting the
+  number of definitions, to accurately predict the online compression.
+
+- New definitions records to  specify cartesian topologies, dimensions
+  and coordinates were added.
+
+- Native build support for Mac OS X and MinGW platforms.
+
+------------------ Released version 1.2.1 ----------------------------
+
+Maintainance release. Low upgrade urgency.
+
+- Fix  build  when  the  user  has set  the  GREP_OPTIONS  environment
+  variable.
+
+- Fix output of the 'otf2-marker' tool.
+
+------------------- Released version 1.2 -----------------------------
+
+- This version  introduces a new set of event records  for generic RMA
+  operations. It is described in the following paper:
+
+  A. Knüpfer,  R. Dietrich,  J. Doleschal,  M. Geimer, M.-A. Hermanns,
+  C. Rössel, R. Tschüter, B. Wesarg & F. Wolf:
+  "Generic Support for Remote  Memory Access Operations in Score-P and
+  OTF2", Parallel Tools Workshop 2012
+
+  Which  also  serves  as  a whitepaper on  the  usage of  these event
+  records.
+
+- In conjunction with the new RMA event record set, there were changes
+  to existing definitions and types. Namely:
+  - The Group  definition was extended  to indicate in  which paradigm
+    a group,  and therefore also the referencing communicators and RMA
+    windows, operate;  the  corresponding OTF2_GroupType  entries were
+    also renamed accordingly.
+  - The OTF2_MpiCollectiveType and the corresponding enum entries were
+    renamed to OTF2_CollectiveOp and OTF2_COLLECTIVE_OP_ respectively.
+  - The MpiComm definition was  renamed to just Comm, to indicate that
+    this definition is not restricted to MPI anymore.
+
+- OTF2_Paradigm   learned  the  new   OTF2_PARADIGM_MEASUREMENT_SYSTEM
+  paradigm  which is  intended  to be used by  the measurement  system
+  which writes a trace.  Besides this the OTF2_RegionRole learned the
+  new  OTF2_REGION_ROLE_ARTIFICIAL  role  which  can  be used  by  the
+  measurement system too.
+
+- The MetricClass  definition was  extended with the  information what
+  kind of  location this  MetricClass  was  recorded by.  See the  new
+  OTF2_RecorderKind  type.  This is  also  used  to  specify that  the
+  MetricClass  will   only  be   recorded  via  MetricInstance's,  and
+  MetricInstance's should not only  reference MetricClass's which have
+  a recorder  kind  of  OTF2_RECORDER_KIND_ABSTRACT.  Additionally the
+  new MetricClassRecorder  definition was introduced  which narrow the
+  set of recorders of a specific MetricClass further.
+
+- There are  two new definitions to  more accurately define the system
+  tree of the machine the trace was run on:
+  - SystemTreeNodeProperty: Attach  tree-form  properties to one node.
+  - SystemTreeNodeDomain: Attach  defined semantics to one  node.  See
+    the new OTF2_SystemTreeDomain type.
+
+- A new  set of  generic threading event  records for  fork-join based
+  threading models is introduced. Because of technical constraints and
+  the  enhanced  level of  detail of  the  new events,  they  were not
+  implemented by extending the previous OpenMP specific event records,
+  but  deprecate  them.  Nevertheless, for  some of  the  new  records
+  backward compatibility is prepared.
+
+- Snapshots are a new feature to support partial  loading of the trace
+  data.  For that a snapshot  holds  all  information  describing  the
+  current  state  of a location. Reading this snapshot and  afterwards
+  continuing  reading  events  results in the same state,  as  reading
+  from the beginning. A trace can contain many snapshots in increasing
+  timestamp  order,  so  that  it  is possible to start  reading  from
+  these  points  on.  The 'otf2-snapshots'  tool  is  provided  to add
+  snapshots to an existing trace.
+
+- In conjunction  with  the snapshots the thumbnail feature provides a
+  way to attach sampled time-series metrics  to the trace. A thumbnail
+  can  sample  multiple  metrics of a trace, which are reflected as an
+  stacked  graph  without unit.  Metrics  must be one of the currently
+  supported classes: existing attributes, regions, or  metric members.
+  The  already  mentioned new 'otf2-snapshots'  tool creates  one such
+  thumbnail while generating the snapshots.
+
+- Both snapshots and thumbnails can be generated for an existing trace
+  without altering the original content of the trace.  Only the anchor
+  file holds new meta data to  indicate the existence of snapshots and
+  thumbnails.
+
+- OTF2 traces  can now have so called markers attached.  Markers are a
+  temporal and spatial annotation of the trace with a severity  and an
+  arbitrary message. It can be a point in time or a time range.  These
+  markers  can  be  generated by users as well as by tools to pinpoint
+  analysis  results  at  the  time of trace generation or post-mortem.
+  Markers  are  intended  for  human consumption and  therefore  their
+  number  should  be kept small.  Markers can also be shared by users,
+  because they are only  loosely coupled with  the trace itself.  This
+  feature  is   currently  an   experimental  addition   and  will  be
+  re-evaluated in the next release.
+
+------------------- Released version 1.1.1 ---------------------------
+
+- OTF2's library installation directory matches the system library
+  directory (lib/lib64). Installation directory and the flags returned
+  by otf2-config now match.
+
+- Minor documentation, portabiliy and style improvements.
+
+- Harden reading and writing of the anchor file.
+
+- Future prove reading and writing of not-yet-known attribute types.
+
+- The local definition reader returns now an error, when it detected
+  multiple definitions of the same mapping type. Though the user can
+  ignore this error and can continue reading definitions.
+
+------------------- Released version 1.1 -----------------------------
+
+- A trace can now have arbitrary properties attached (which are stored
+  in the anchor file), to help tools to decide whether the trace can
+  be used or not.
+- A trace also gets now a unique id attached.
+- The AttributeList learned to reference all definitions, and the IDs
+  will than be mapped to the global definitions.
+- The Region definition learned a new canonical name attribute. This
+  could be used to also store the mangled name of a C++ function in
+  the definition. It also splits the region type into the programming
+  paradigm and the role of the region in this paradigm, plus a new
+  flags field. This opens the definition for more paradigms without
+  duplicating many of the old region types. Forward reading
+  (ie. reading with OTF2 1.0.x a OTF2 1.1.x generated trace) is
+  ensured and also backward reading.
+- The new buffer rewind feature enables to discard a preceding section
+  of the event trace at user defined control points while writing an
+  event trace.
+- The return value of the record callbacks is now honored by OTF2. For
+  this a new type was introduced, returning something other that
+  OTF2_CALLBACK_SUCCESS will stop the reading and returns
+  OTF2_ERROR_INTERRUPTED_BY_CALLBACK to the caller. Reading of records
+  can still be resumed after this error.

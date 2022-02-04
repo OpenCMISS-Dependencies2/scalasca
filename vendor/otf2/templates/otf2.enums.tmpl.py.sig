@@ -1,0 +1,9 @@
+5c676e922556fe812045e34ec4285cc8
+9c58f007a5a82852852d237c020eeaa3
+../src/python/otf2/enums.py
+otf2.enums.tmpl.py
+../share/otf2/otf2.types
+../share/otf2/otf2.enums
+../share/otf2/otf2.defs
+../share/otf2/otf2.events
+../share/otf2/otf2.snaps

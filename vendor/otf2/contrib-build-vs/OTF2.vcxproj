@@ -1,0 +1,257 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{82A6A139-31D6-453B-A2C8-EFE52B4A28B4}</ProjectGuid>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <Keyword>ManagedCProj</Keyword>
+    <RootNamespace>OTF2</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CLRSupport>false</CLRSupport>
+    <CharacterSet>
+    </CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CLRSupport>false</CLRSupport>
+    <CharacterSet>
+    </CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CLRSupport>false</CLRSupport>
+    <CharacterSet>
+    </CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CLRSupport>false</CLRSupport>
+    <CharacterSet>
+    </CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>..\vendor\common\build-config\;.;..\include;..\src;..\vendor\common\src\utils\include;..\vendor\common\hash;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>..\vendor\common\build-config\;.;..\include;..\src;..\vendor\common\src\utils\include;..\vendor\common\hash;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>..\vendor\common\build-config\;.;..\include;..\src;..\vendor\common\src\utils\include;..\vendor\common\hash;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>..\vendor\common\build-config\;.;..\include;..\src;..\vendor\common\src\utils\include;..\vendor\common\hash;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>NOCROSS_BUILD;BACKEND_BUILD;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <CompileAsManaged>false</CompileAsManaged>
+      <PrecompiledHeaderFile />
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies />
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>NOCROSS_BUILD;BACKEND_BUILD;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <CompileAsManaged>false</CompileAsManaged>
+      <PrecompiledHeaderFile />
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies />
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>NOCROSS_BUILD;BACKEND_BUILD;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <CompileAsManaged>false</CompileAsManaged>
+      <PrecompiledHeaderFile />
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies />
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>NOCROSS_BUILD;BACKEND_BUILD;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <CompileAsManaged>false</CompileAsManaged>
+      <PrecompiledHeaderFile />
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies />
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="otf2/OTF2_ErrorCodes.h" />
+    <ClInclude Include="config-backend.h" />
+    <ClInclude Include="otf2_error_decls.gen.h" />
+    <ClInclude Include="..\src\config-custom.h" />
+    <ClInclude Include="..\src\config.h" />
+    <ClInclude Include="..\src\OTF2_AnchorFile.h" />
+    <ClInclude Include="..\src\otf2_archive.h" />
+    <ClInclude Include="..\src\otf2_archive_location.h" />
+    <ClInclude Include="..\src\otf2_attic.h" />
+    <ClInclude Include="..\src\otf2_attic_types.h" />
+    <ClInclude Include="..\src\otf2_attribute_list.h" />
+    <ClInclude Include="..\src\otf2_attribute_value.h" />
+    <ClInclude Include="..\src\OTF2_Buffer.h" />
+    <ClInclude Include="..\src\otf2_collectives.h" />
+    <ClInclude Include="..\src\otf2_collectives_serial.h" />
+    <ClInclude Include="..\src\OTF2_Compression_Zlib.h" />
+    <ClInclude Include="..\src\otf2_config_usage.h" />
+    <ClInclude Include="..\src\otf2_def_reader.h" />
+    <ClInclude Include="..\src\otf2_def_writer.h" />
+    <ClInclude Include="..\src\otf2_estimator_usage.h" />
+    <ClInclude Include="..\src\otf2_events_int.h" />
+    <ClInclude Include="..\src\otf2_evt_reader.h" />
+    <ClInclude Include="..\src\otf2_evt_writer.h" />
+    <ClInclude Include="..\src\OTF2_File.h" />
+    <ClInclude Include="..\src\otf2_file_int.h" />
+    <ClInclude Include="..\src\otf2_file_none.h" />
+    <ClInclude Include="..\src\otf2_file_posix.h" />
+    <ClInclude Include="..\src\otf2_file_sion.h" />
+    <ClInclude Include="..\src\otf2_file_substrate.h" />
+    <ClInclude Include="..\src\otf2_file_substrate_none.h" />
+    <ClInclude Include="..\src\otf2_file_substrate_posix.h" />
+    <ClInclude Include="..\src\otf2_file_substrate_sion.h" />
+    <ClInclude Include="..\src\otf2_file_substrate_sion_int.h" />
+    <ClInclude Include="..\src\otf2_file_types.h" />
+    <ClInclude Include="..\src\otf2_global_definitions.h" />
+    <ClInclude Include="..\src\otf2_global_def_reader.h" />
+    <ClInclude Include="..\src\otf2_global_def_writer.h" />
+    <ClInclude Include="..\src\otf2_global_evt_reader.h" />
+    <ClInclude Include="..\src\otf2_global_snap_reader.h" />
+    <ClInclude Include="..\src\otf2_id_map.h" />
+    <ClInclude Include="..\src\otf2_internal.h" />
+    <ClInclude Include="..\src\otf2_local_definitions.h" />
+    <ClInclude Include="..\src\otf2_lock.h" />
+    <ClInclude Include="..\src\otf2_marker_int.h" />
+    <ClInclude Include="..\src\otf2_marker_usage.h" />
+    <ClInclude Include="..\src\otf2_print_usage.h" />
+    <ClInclude Include="..\src\otf2_reader.h" />
+    <ClInclude Include="..\src\otf2_snaps.h" />
+    <ClInclude Include="..\src\otf2_snapshots_usage.h" />
+    <ClInclude Include="..\src\otf2_snap_reader.h" />
+    <ClInclude Include="..\src\otf2_snap_writer.h" />
+    <ClInclude Include="..\src\otf2_thumbnail.h" />
+    <ClInclude Include="..\vendor\common\build-config\config-common.h" />
+    <ClInclude Include="..\vendor\common\hash\jenkins_hash.h" />
+    <ClInclude Include="..\vendor\common\src\utils\exception\normalize_file.h" />
+    <ClInclude Include="..\vendor\common\src\utils\include\UTILS_CStr.h" />
+    <ClInclude Include="..\vendor\common\src\utils\include\UTILS_Debug.h" />
+    <ClInclude Include="..\vendor\common\src\utils\include\UTILS_Error.h" />
+    <ClInclude Include="..\vendor\common\src\utils\include\UTILS_IO.h" />
+    <ClInclude Include="..\vendor\common\src\utils\include\utils_package.h" />
+    <ClInclude Include="..\vendor\common\src\utils\include\UTILS_Portability.h" />
+    <ClInclude Include="..\vendor\common\src\utils\include\UTILS_DebugStream.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\OTF2_AnchorFile.c" />
+    <ClCompile Include="..\src\otf2_anchor_file_hostid.c" />
+    <ClCompile Include="..\src\otf2_anchor_file_sysinfo.c" />
+    <ClCompile Include="..\src\otf2_anchor_file_timestamp.c" />
+    <ClCompile Include="..\src\OTF2_Archive.c" />
+    <ClCompile Include="..\src\otf2_archive_int.c" />
+    <ClCompile Include="..\src\otf2_archive_location.c" />
+    <ClCompile Include="..\src\otf2_attic.c" />
+    <ClCompile Include="..\src\OTF2_AttributeList.c" />
+    <ClCompile Include="..\src\OTF2_AttributeValue.c" />
+    <ClCompile Include="..\src\OTF2_Buffer.c" />
+    <ClCompile Include="..\src\otf2_collectives.c" />
+    <ClCompile Include="..\src\otf2_collectives_serial.c" />
+    <ClCompile Include="..\src\otf2_compression_no_zlib.c" />
+    <ClCompile Include="..\src\OTF2_DefReader.c" />
+    <ClCompile Include="..\src\OTF2_DefWriter.c" />
+    <ClCompile Include="..\src\otf2_events.c" />
+    <ClCompile Include="..\src\OTF2_EventSizeEstimator.c" />
+    <ClCompile Include="..\src\OTF2_EvtReader.c" />
+    <ClCompile Include="..\src\OTF2_EvtWriter.c" />
+    <ClCompile Include="..\src\OTF2_File.c" />
+    <ClCompile Include="..\src\otf2_file_none.c" />
+    <ClCompile Include="..\src\otf2_file_posix.c" />
+    <ClCompile Include="..\src\otf2_file_substrate.c" />
+    <ClCompile Include="..\src\otf2_file_substrate_none.c" />
+    <ClCompile Include="..\src\otf2_file_substrate_posix.c" />
+    <ClCompile Include="..\src\OTF2_GlobalDefReader.c" />
+    <ClCompile Include="..\src\OTF2_GlobalDefWriter.c" />
+    <ClCompile Include="..\src\OTF2_GlobalEvtReader.c" />
+    <ClCompile Include="..\src\OTF2_GlobalSnapReader.c" />
+    <ClCompile Include="..\src\OTF2_IdMap.c" />
+    <ClCompile Include="..\src\otf2_id_map.c" />
+    <ClCompile Include="..\src\otf2_lock.c" />
+    <ClCompile Include="..\src\OTF2_MarkerReader.c" />
+    <ClCompile Include="..\src\OTF2_MarkerWriter.c" />
+    <ClCompile Include="..\src\OTF2_Reader.c" />
+    <ClCompile Include="..\src\OTF2_SnapReader.c" />
+    <ClCompile Include="..\src\OTF2_SnapWriter.c" />
+    <ClCompile Include="..\src\OTF2_Thumbnail.c" />
+    <ClCompile Include="..\vendor\common\hash\jenkins_hash.c" />
+    <ClCompile Include="..\vendor\common\src\utils\cstr\UTILS_CStr.c" />
+    <ClCompile Include="..\vendor\common\src\utils\exception\UTILS_Debug.c" />
+    <ClCompile Include="..\vendor\common\src\utils\exception\UTILS_Error.c" />
+    <ClCompile Include="..\vendor\common\src\utils\io\UTILS_IO_GetExe.c" />
+    <ClCompile Include="..\vendor\common\src\utils\io\UTILS_IO_Tools.c" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

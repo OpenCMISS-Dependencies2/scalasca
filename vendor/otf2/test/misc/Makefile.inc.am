@@ -1,0 +1,56 @@
+## -*- mode: makefile -*-
+
+##
+## This file is part of the Score-P software (http://www.score-p.org)
+##
+## Copyright (c) 2009-2012,
+## RWTH Aachen University, Germany
+##
+## Copyright (c) 2009-2012,
+## Gesellschaft fuer numerische Simulation mbH Braunschweig, Germany
+##
+## Copyright (c) 2009-2012,
+## Technische Universitaet Dresden, Germany
+##
+## Copyright (c) 2009-2012,
+## University of Oregon, Eugene, USA
+##
+## Copyright (c) 2009-2012, 2018,
+## Forschungszentrum Juelich GmbH, Germany
+##
+## Copyright (c) 2009-2012,
+## German Research School for Simulation Sciences GmbH, Juelich/Aachen, Germany
+##
+## Copyright (c) 2009-2012,
+## Technische Universitaet Muenchen, Germany
+##
+## This software may be modified and distributed under the terms of
+## a BSD-style license.  See the COPYING file in the package base
+## directory for details.
+##
+
+## file       test/misc/Makefile.inc.am
+
+misc_common_SOURCES = \
+    $(SRC_ROOT)common/utils/test/cutest/CuTest.c \
+    $(SRC_ROOT)common/utils/test/cutest/CuTest.h
+misc_common_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    $(UTILS_CPPFLAGS) \
+    -I$(INC_DIR_COMMON_CUTEST)
+
+check_PROGRAMS += otf2_undefineds otf2_undefineds_cc
+
+otf2_undefineds_SOURCES = \
+    $(SRC_ROOT)test/misc/otf2_undefineds.c \
+    $(misc_common_SOURCES)
+otf2_undefineds_CPPFLAGS = $(misc_common_CPPFLAGS)
+otf2_undefineds_LDFLAGS = $(AM_LDFLAGS) $(LINKMODE_FLAGS)
+
+otf2_undefineds_cc_SOURCES = \
+    $(SRC_ROOT)test/misc/otf2_undefineds.cc \
+    $(misc_common_SOURCES)
+otf2_undefineds_cc_CPPFLAGS = $(misc_common_CPPFLAGS)
+otf2_undefineds_cc_LDFLAGS = $(AM_LDFLAGS) $(LINKMODE_FLAGS)
+
+SCOREP_TESTS += otf2_undefineds otf2_undefineds_cc

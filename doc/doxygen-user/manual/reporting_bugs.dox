@@ -1,0 +1,32 @@
+/****************************************************************************
+**  SCALASCA    http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 2018-2019                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+/**
+@page reporting_bugs Reporting bugs
+
+Like every other software, the Scalasca Trace Tools may contain bugs.
+If you encounter obviously broken, weird, or otherwise unexplainable behavior, please report it to scalasca@fz-juelich.de.
+
+Before doing so, however, please check the <em>OPEN_ISSUES</em> file installed as part of the Scalasca Trace Tools documentation (also available online at @cite scalasca_webdocs) whether the issue is already known.
+If not, make sure to include at least the following information in your bug report:
+ - The Scalasca Trace Tools version reported by '`scalasca --version`'.
+ - The Scalasca Trace Tools configuration reported by '`scalasca --show-config`'.
+ - The Score-P version reported by '`scorep --version`'.
+ - The Score-P configuration reported by '`scorep-info config-summary`'.
+ - The exact command line of the failing command.
+ - The exact failure/error message.
+
+Also, if the trace analysis fails, please archive a copy of the entire experiment archive directory including the event trace data, as this may be required to aid in debugging.
+However, <b>ONLY PROVIDE TRACE DATA IF EXPLICITLY REQUESTED</b>, as the data volume may be excessive.
+
+@navigation_prev{commands}
+*/

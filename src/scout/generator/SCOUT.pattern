@@ -1,0 +1,35 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2014                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+INCLUDE "Generic.pattern"
+INCLUDE "Async.pattern"
+INCLUDE "MPI.pattern"
+INCLUDE "OMP.pattern"
+INCLUDE "Pthread.pattern"
+INCLUDE "Thread.pattern"
+INCLUDE "OpenACC.pattern"
+INCLUDE "OpenCL.pattern"
+INCLUDE "CUDA.pattern"
+INCLUDE "Message.pattern"
+INCLUDE "Counts.pattern"
+INCLUDE "MPI_File.pattern"
+INCLUDE "MPI_RMA.pattern"
+INCLUDE "Imbalance.pattern"
+INCLUDE "Statistics.pattern"
+INCLUDE "CriticalPath.pattern"
+INCLUDE "Delay.MPI.pattern"
+INCLUDE "Delay.OMP.pattern"
+INCLUDE "Waitstates.MPI.pattern"

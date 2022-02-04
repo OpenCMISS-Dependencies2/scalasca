@@ -1,0 +1,1043 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2018                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2015                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  Copyright (c) 2014-2015                                                ##
+##  RWTH Aachen University, JARA-HPC                                       ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+PROLOG {
+    #include <algorithm>
+    #include <cfloat>
+    #include <cstring>
+    #include <iostream>
+    #include <memory>
+    #include <set>
+    #include <sstream>
+
+    #if defined(_MPI)
+        #include <pearl/AmRequestFactory.h>
+        #include <pearl/MpiGroup.h>
+        #include <pearl/MpiWindow.h>
+        #include <pearl/RmaEpoch.h>
+
+        #include "AmWaitForProgressRequest.h"
+        #include "LockEpochQueue.h"
+        #include "MpiDatatypes.h"
+        #include "MpiOperators.h"
+        #include "Predicates.h"
+    #endif    // _MPI
+}
+
+
+PATTERN "MPI_RMA_WAIT_AT_CREATE" = [
+    PARENT    = "MPI_MGMT_WIN"
+    NAME      = "MPI Wait at Window Create"
+    DOCNAME   = "MPI Wait at Window Create Time"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMPI_RmaWaitAtCreate"
+    INFO      = "Time spent in MPI_Win_create, waiting for the last process to enter the call"
+    DESCR     = {
+        Time spent waiting in <tt>MPI_Win_create</tt> for the last process to join
+        in the collective creation of an MPI window handle.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_WAIT_AT_CREATE" = {
+            m_severity[event.get_cnode()] += data->mIdle;
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_WAIT_AT_FREE" = [
+    PARENT    = "MPI_MGMT_WIN"
+    NAME      = "MPI Wait at Window Free"
+    DOCNAME   = "MPI Wait at Window Free Time"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMPI_RmaWaitAtFree"
+    INFO      = "Time spent in MPI_Win_free, waiting for the last process to enter the call"
+    DESCR     = {
+        Time spent waiting in <tt>MPI_Win_free</tt> for the last process to join
+        in the collective deallocation of an MPI window handle.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_WAIT_AT_FREE" = {
+            m_severity[event.get_cnode()] += data->mIdle;
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_SYNCHRONIZATION" = [
+    PARENT    = "MPI_SYNCHRONIZATION"
+    NAME      = "MPI One-sided Synchronization"
+    DOCNAME   = "MPI One-sided Synchronization Time"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMPI_RmaSync"
+    INFO      = "Time spent in MPI one-sided synchronization calls"
+    DESCR     = {
+        Time spent in MPI one-sided synchronization calls.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+    DATA      = {
+        typedef struct
+        {
+            LocalData                 events;              ///< Local event set for caching GATS start events
+            map< uint32_t, RmaEpoch > lockEpoch;           ///< Map to store different
+            LockEpochQueue            epochQueue;          ///< Queue to save epoch events of remote processes
+            ContentionInfoStackMap    syncPointInfoStacks; ///< Map to store syncpoint exchange data
+        } win_t;
+
+        map< MpiWindow*, win_t > m_windows;    ///< Map of window-related cache data
+    }
+    CALLBACKS = [
+        "MPI_RMA_LOCK" = {
+            // get reference to window data cache
+            MpiWindow* win   = event->get_window();
+            win_t&     entry = m_windows[win];
+
+            // save complete lock region to epoch store
+            entry.lockEpoch[event->get_remote()].push_back(event.enterptr());
+            entry.lockEpoch[event->get_remote()].push_back(event);
+            entry.lockEpoch[event->get_remote()].push_back(event.leaveptr());
+
+            // notify direct RMA synchronization
+            cbmanager.notify(RMA_SYNC_DIRECT, event, data);
+        }
+
+        "MPI_RMA_UNLOCK" = {
+            // get reference to window data cache
+            MpiWindow* win   = event->get_window();
+            win_t&     entry = m_windows[win];
+
+            // save complete unlock region to epoch store
+            entry.lockEpoch[event->get_remote()].push_back(event.enterptr());
+            entry.lockEpoch[event->get_remote()].push_back(event);
+            entry.lockEpoch[event->get_remote()].push_back(event.leaveptr());
+
+            // create active message request
+            AmRequest::Ptr request = AmRequestFactory::create(event->get_remote(),
+                                                              *(win->get_comm()));
+
+            // pack lock epoch data to check for lock competition
+            AmLockContention::pack(win->getId(),
+                                   entry.lockEpoch[event->get_remote()],
+                                   request.get());
+
+            // enqueue request
+            AmRuntime::getInstance().enqueue(request);
+
+            // clear lock epoch cache
+            entry.lockEpoch[event->get_remote()].clear();
+        }
+
+        "MPI_RMA_GATS" = {
+            Event         enter  = event.enterptr();
+            MpiWindow*    win    = event->get_window();
+            const Region* region = &(enter->getRegion());
+            MpiGroup*     group  = event->get_group();
+            win_t&        entry  = m_windows[win];
+
+            // check which GATS region we are in
+            if (is_mpi_rma_wait(region))
+            {
+                // analyze pairwise RMA sync pattern on target
+                data->mCount = group->numRanks();
+                cbmanager.notify(MPI_RMA_PWS_COUNT, event, data);
+
+                data->mCount -= data->mCountOrigin;
+                cbmanager.notify(MPI_RMA_PWS_UNNEEDED_COUNT, event, data);
+
+                // notify callback for full GATS pattern analysis on target
+                cbmanager.notify(MPI_RMA_POST_WAIT, event, data);
+            }
+            else if (is_mpi_rma_start(region))
+            {
+                // cache start events for later analysis
+                entry.events.add_event(enter, ROLE_ENTER_RMA_START);
+                entry.events.add_event(event, ROLE_LEAVE_RMA_START);
+            }
+            else if (is_mpi_rma_complete(region))
+            {
+                // analyze pairwise RMA sync pattern on origin
+                data->mCount = group->numRanks();
+                cbmanager.notify(MPI_RMA_PWS_COUNT, event, data);
+
+                data->mCount -= data->mCountTarget;
+                cbmanager.notify(MPI_RMA_PWS_UNNEEDED_COUNT, event, data);
+
+                // set cached data as current
+                *data->mLocal = entry.events;
+
+                cbmanager.notify(MPI_RMA_POST_COMPLETE, event, data);
+
+                // Clean up local data event cache
+                entry.events.clear();
+            }
+        }
+
+        "MPI_RMA_COLLECTIVE_END" = {
+            // NOTE: The heuristic for collective calls in RMA is to check
+            //       whether all the recorded timespans of all participating
+            //       processes overlap. If not all timespans overlap, no
+            //       collective synchronization is assumed.
+            Event         enter  = event.enterptr();
+            const Region* region = &enter->getRegion();
+
+            MpiWindow* win = dynamic_cast< MpiWindow* >(event->get_window());
+            assert(win);
+
+            MPI_Comm comm = dynamic_cast< MpiComm* >(win->get_comm())->getHandle();
+            assert(comm);
+
+            // Check valid overlap & possible idle time
+            const CollectiveInfo& coll(data->mCollinfo);
+            if (  (coll.earliest_end.mTime > coll.latest.mTime)
+               && (coll.my.mTime < coll.latest.mTime))
+            {
+                data->mIdle = coll.latest.mTime - coll.my.mTime;
+            }
+            else
+            {
+                data->mIdle = 0;
+            }
+
+            if (is_mpi_rma_fence(region))
+            {
+                if (data->mIdle > 0)
+                {
+                    cbmanager.notify(MPI_RMA_WAIT_AT_FENCE, event, data);
+
+                    if (  (data->mLastRmaOp.mTime > enter->getTimestamp())
+                       && (data->mLastRmaOp.mTime <= event->getTimestamp()))
+                    {
+                        data->mIdle = data->mLastRmaOp.mTime - enter->getTimestamp();
+                        cbmanager.notify(MPI_RMA_EARLY_FENCE, event, data);
+                    }
+                }
+
+                // analyze pairwise sync pattern
+                int comm_size = 0;
+                MPI_Comm_size(comm, &comm_size);
+
+                // count of remote partners is stored in data->mCount
+                data->mCount = comm_size - data->mCount;
+                cbmanager.notify(MPI_RMA_PWS_UNNEEDED_COUNT, event, data);
+
+                data->mCount = comm_size;
+                cbmanager.notify(MPI_RMA_PWS_COUNT, event, data);
+
+                // compute lock competition
+                data->mWindow = win;
+                cbmanager.notify(MPI_RMA_LC_COMPUTE, event, data);
+            }
+            else if (is_mpi_rma_create(region))
+            {
+                MpiWindow* win   = event->get_window();
+                win_t&     entry = m_windows[win];
+
+                if (data->mIdle > 0)
+                {
+                    cbmanager.notify(MPI_RMA_WAIT_AT_CREATE, event, data);
+                }
+
+                // register lock epoch queue for new window
+                AmLockContention::getInstance().registerQueue(win->getId(), &entry.epochQueue);
+            }
+            else if (is_mpi_rma_free(region))
+            {
+                if (data->mIdle > 0)
+                {
+                    cbmanager.notify(MPI_RMA_WAIT_AT_FREE, event, data);
+
+                    if (data->mLastRmaOp.mTime > enter->getTimestamp())
+                    {
+                        data->mIdle = data->mLastRmaOp.mTime - enter->getTimestamp();
+                        cbmanager.notify(MPI_RMA_EARLY_FREE, event, data);
+                    }
+                }
+
+                // compute lock competition
+                data->mWindow = win;
+                cbmanager.notify(MPI_RMA_LC_COMPUTE, event, data);
+            }
+            data->mLastRmaOp.mTime = -DBL_MAX;
+        }
+
+        "MPI_RMA_LC_COMPUTE" = {
+            MpiWindow* win   = data->mWindow;
+            win_t&     entry = m_windows[win];
+            bool       current_exclusive_epoch;
+
+            #ifdef DEBUG_LOCK_CONTENTION
+                bool evaluate_locks = (entry.epochQueue.size() > 0);
+                if (evaluate_locks)
+                {
+                    cerr << "Starting MPI_RMA_LC_COMPUTE" << endl;
+                }
+            #endif
+
+            while (entry.epochQueue.size() >= 2)
+            {
+                // Priority queue of epochs to be processed
+                LockEpochQueue scheduled_epochs;
+
+                // Remove next epoch from queue and schedule it
+                RemoteRmaEpochPtr current_epoch(entry.epochQueue.top());
+                entry.epochQueue.pop();
+
+                // check if current_epoch is exclusive
+                RemoteRmaEpoch::const_iterator lock_it = current_epoch->begin();
+                while (  (lock_it != current_epoch->end())
+                      && (*lock_it)->isOfType(MPI_RMA_LOCK))
+                {
+                    ++lock_it;
+                }
+
+                if ((*lock_it)->is_exclusive())
+                {
+                    current_exclusive_epoch = true;
+                }
+                else
+                {
+                    current_exclusive_epoch = false;
+                }
+
+                scheduled_epochs.push(current_epoch);
+
+                #ifdef DEBUG_LOCK_CONTENTION
+                    RemoteRmaEpoch::const_iterator ex_it = current_epoch->begin();
+                    while (  (ex_it != current_epoch->end())
+                          && (*ex_it)->isOfType(MPI_RMA_UNLOCK))
+                    {
+                        ++ex_it;
+                    }
+
+                    cerr << "Unlock Time: " << (*ex_it)->getTimestamp() << endl;
+                #endif
+
+                RemoteRmaEpochPtr reference_epoch(entry.epochQueue.top());
+                bool              exclusive_epoch_found = false;
+
+                if (!current_exclusive_epoch)
+                {
+                    do
+                    {
+                        reference_epoch = entry.epochQueue.top();
+
+                        // get lock event
+                        RemoteRmaEpoch::const_iterator lock_it = reference_epoch->begin();
+                        while (  (lock_it != reference_epoch->end())
+                              && (*lock_it)->isOfType(MPI_RMA_LOCK))
+                        {
+                            ++lock_it;
+                        }
+
+                        // if lock is shared, schedule epoch and get next
+                        if (!(*lock_it)->is_exclusive())
+                        {
+                            scheduled_epochs.push(reference_epoch);
+                            entry.epochQueue.pop();
+                        }
+                        else
+                        {
+                            exclusive_epoch_found = true;
+                        }
+                    }
+                    while (!exclusive_epoch_found && !entry.epochQueue.empty());
+                }
+
+                if (current_exclusive_epoch || exclusive_epoch_found)
+                {
+                    while (scheduled_epochs.size() > 0)
+                    {
+                        current_epoch = scheduled_epochs.top();
+                        scheduled_epochs.pop();
+                        RemoteRmaEpoch::reverse_iterator ce_it = current_epoch->rbegin();
+
+                        // get previous exclusive lock owner's unlock event
+                        RemoteRmaEpoch::reverse_iterator ref_it = reference_epoch->rbegin();
+                        while ((*ref_it)->isOfType(MPI_RMA_UNLOCK))
+                        {
+                            ++ref_it;
+                        }
+
+                        #ifdef DEBUG_LOCK_CONTENTION
+                            cerr << "ref_it: " << (*ref_it)->getTimestamp() << "  " << ref_it->get_location()->get_id()
+                                 << " ce_it: " << (*ce_it)->getTimestamp() << "  " << ce_it->get_location()->get_id()
+                                 << endl;
+                        #endif
+
+                        // Search event of current lock owner preceeding previous owners unlock
+                        while (  (ce_it != current_epoch->rend())
+                              && ((*ce_it)->getTimestamp() > (*ref_it)->getTimestamp()))
+                        {
+                            ++ce_it;
+                        }
+
+                        if (  (ce_it != current_epoch->rend())
+                           && (  (*ce_it)->isOfType(GROUP_ENTER)
+                              || (*ce_it)->isOfType(MPI_RMA_LOCK)
+                              || (*ce_it)->isOfType(MPI_RMA_PUT_START)    // FIXME: this may have to be PUT_END!
+                              || (*ce_it)->isOfType(MPI_RMA_GET_START)))  // FIXME: this may have to be GET_END!
+                        {
+                            #ifdef DEBUG_LOCK_CONTENTION
+                                switch ((*ce_it)->getType())
+                                {
+                                    case ENTER:
+                                        cerr << "Lock found on ENTER" << endl;
+                                        break;
+
+                                    case MPI_RMA_LOCK:
+                                        cerr << "Lock found on LOCK" << endl;
+                                        break;
+
+                                    case MPI_RMA_PUT_START:
+                                        cerr << "Lock found on PUT" << endl;
+                                        break;
+
+                                    case MPI_RMA_GET_START:
+                                        cerr << "Lock found on GET" << endl;
+                                        break;
+
+                                    default:
+                                        cerr << "Lock found on unexpected event!" << endl;
+                                }
+                            #endif
+                            timestamp_t idle_time = (*ref_it)->getTimestamp() - (*ce_it)->getTimestamp();
+
+                            if (idle_time > 0)
+                            {
+                                RemoteEvent& wait_event = *ce_it;
+
+                                // determine next Event type of MPI_RMA_LOCK, MPI_RMA_PUT_START or MPI_RMA_GET_START
+                                if ((*ce_it)->isOfType(GROUP_ENTER))
+                                {
+                                    // set iterator to ce_it
+                                    RemoteRmaEpoch::iterator it = current_epoch->begin();
+                                    while (  (it != current_epoch->end())
+                                          && ((*it)->getTimestamp() <= (*ce_it)->getTimestamp()))
+                                    {
+                                        ++it;
+                                    }
+
+                                    // set it to MPI_RMA_LOCK, MPI_RMA_PUT_START or MPI_RMA_GET_START or MPI_RMA_UNLOCK
+                                    while (  (it != current_epoch->end())
+                                          && !(  (*it)->isOfType(MPI_RMA_LOCK)
+                                              || (*it)->isOfType(MPI_RMA_PUT_START)
+                                              || (*it)->isOfType(MPI_RMA_GET_START)
+                                              || (*it)->isOfType(MPI_RMA_UNLOCK)))
+                                    {
+                                        ++it;
+                                    }
+
+                                    wait_event = *it;
+                                }
+
+                                // prepare info to push on stacks for both events
+                                RemoteEvent first_event     = *ref_it;
+                                ident_t     wait_id         = wait_event.get_remote_index();
+                                ident_t     first_id        = first_event.get_remote_index();
+                                uint32_t    first_rank      = ref_it->get_location().getId();
+                                uint32_t    wait_rank       = ce_it->get_location().getId();
+                                uint32_t    first_sync_rank = wait_rank;
+                                uint32_t    wait_sync_rank  = first_rank;
+
+                                #ifdef DEBUG_LOCK_CONTENTION
+                                    cerr << "Stack info first: " << first_id << " " << idle_time << " " << first_sync_rank
+                                         << "\nStack info wait: " << wait_id << " " << idle_time << " " << wait_sync_rank << endl;
+                                #endif
+
+                                // build info-structs - negative idletime means other processes have waited
+                                ContentionInfo wait_info  = { wait_id, idle_time, wait_sync_rank };
+                                ContentionInfo first_info = { first_id, -idle_time, first_sync_rank };
+
+                                // push wait_info on stack of correspondent map
+                                if (entry.syncPointInfoStacks.find(wait_rank) == entry.syncPointInfoStacks.end())
+                                {
+                                    ContentionInfoStack wait_stack;
+                                    wait_stack.push(wait_info);
+                                    entry.syncPointInfoStacks[wait_rank] = wait_stack;
+                                }
+                                else
+                                {
+                                    entry.syncPointInfoStacks[wait_rank].push(wait_info);
+                                }
+
+                                // push first_info on stack of correspondent map
+                                if (entry.syncPointInfoStacks.find(first_rank) == entry.syncPointInfoStacks.end())
+                                {
+                                    ContentionInfoStack first_stack;
+                                    first_stack.push(first_info);
+                                    entry.syncPointInfoStacks[first_rank] = first_stack;
+                                }
+                                else
+                                {
+                                    entry.syncPointInfoStacks[first_rank].push(first_info);
+                                }
+                            }    // if (idle_time > 0)
+
+                            // delete current_epoch;
+                        } // if ce_it type_of...
+                    }     // while (scheduled_epochs.size() > 0)
+                }         // if (current_exclusive_epoch || exclusive_epoch_found)
+            }             // while (entry.epochQueue.size() >= 2)
+
+            // pop last entry in queue
+            if (entry.epochQueue.size() > 0)
+            {
+                entry.epochQueue.pop();
+            }
+
+            // send synchpoint information for lock-epochs to origins
+            ContentionInfoStackMap::iterator mit = entry.syncPointInfoStacks.begin();
+            while (mit != entry.syncPointInfoStacks.end())
+            {
+                ContentionInfoStack infoStack = mit->second;
+
+                MpiComm* comm = dynamic_cast< MpiComm* >(win->get_comm());
+                assert(comm);
+
+                while (!infoStack.empty())
+                {
+                    ContentionInfo& info    = infoStack.top();
+                    AmRequest::Ptr  request = AmRequestFactory::create(comm->getCommSet().getLocalRank(mit->first),
+                                                                       *comm);
+                    AmSyncpointExchange::pack(MPI_RMA_LOCK_COMPETITION, 0, info, request.get());
+
+                    AmRuntime::getInstance().enqueue(request);
+                    infoStack.pop();
+                }
+
+                ++mit;
+            }
+            entry.syncPointInfoStacks.clear();
+
+            #ifdef DEBUG_LOCK_CONTENTION
+                if (evaluate_locks)
+                {
+                    cerr << "MPI_RMA_LC_COMPUTE done." << endl;
+                }
+            #endif
+        }
+
+        "MPI_RMA_POST_COMPLETE" = {
+            Event       enter       = event.enterptr();
+            timestamp_t enter_time  = enter->getTimestamp();
+            Event       start_enter = data->mLocal->get_event(ROLE_ENTER_RMA_START);
+            Event       start_exit  = data->mLocal->get_event(ROLE_LEAVE_RMA_START);
+
+            #ifdef GATSDEBUG
+                MpiWindow* win = event->get_window();
+                assert(win);
+
+                MpiComm* comm = dynamic_cast< MpiComm* >(win->get_comm());
+                assert(comm);
+
+                int myrank;
+                MPI_Comm_rank(comm->getComm(), &myrank);
+            #endif
+
+            if (  (data->mLastPost.mTime > enter_time)
+               && (data->mLastPost.mTime < event->getTimestamp()))
+            {
+                /* non-blocking start and post concurrent to complete */
+                data->mIdle       = data->mLastPost.mTime - enter_time;
+                data->mCallpathId = enter.get_cnode()->getId();
+
+                #ifdef GATSDEBUG
+                    ostringstream out;
+                    out << "LATE POST : Event ID = " << event.get_id()
+                        << " global rank = " << myrank
+                        << " idle time = " << data->mIdle;
+                    cerr << out.str() << endl;
+                #endif
+
+                cbmanager.notify(MPI_RMA_LATE_POST, event, data);
+            }
+            else if (  (data->mLastPost.mTime < start_exit->getTimestamp())
+                    && (data->mLastPost.mTime > start_enter->getTimestamp()))
+            {
+                /* blocking start */
+                data->mIdle       = data->mLastPost.mTime - start_enter->getTimestamp();
+                data->mCallpathId = start_enter.get_cnode()->getId();
+
+                #ifdef GATSDEBUG
+                    ostringstream out;
+                    out << "LATE POST : Event ID = " << start_exit.get_id()
+                        << " global rank = " << myrank
+                        << " idle time = " << data->mIdle;
+                    cerr << out.str() << endl;
+                #endif
+
+                cbmanager.notify(MPI_RMA_LATE_POST, start_exit, data);
+            }
+            else
+            {
+                // check all RMA operations between start and complete
+                MpiWindow* win         = event->get_window();
+                Event      evt_it      = event.prev().prev();
+                bool       start_found = false;
+
+                while (!start_found)
+                {
+                    if (  (  evt_it->isOfType(MPI_RMA_PUT_START)
+                          || evt_it->isOfType(MPI_RMA_GET_START))
+                       && (evt_it->get_window() == win))
+                    {
+                        if (  (data->mLastPost.mTime > evt_it->getTimestamp())
+                           && (data->mLastPost.mTime < evt_it.leaveptr()->getTimestamp()))
+                        {
+                            data->mIdle       = data->mLastPost.mTime - evt_it->getTimestamp();
+                            data->mCallpathId = evt_it.enterptr().get_cnode()->getId();
+
+                            #ifdef GATSDEBUG
+                                ostringstream out;
+                                out << "LATE POST : Event ID = " << evt_it.get_id()
+                                    << " global rank = " << myrank
+                                    << " idle time = " << data->mIdle;
+                                cerr << out.str() << endl;
+                            #endif
+
+                            cbmanager.notify(MPI_RMA_LATE_POST, evt_it, data);
+                        }
+                    }
+
+                    // FIXME: The 'leaveptr().prev()' construct is only guaranteed to
+                    //        work for EPIK traces and needs to be revised once OTF2
+                    //        RMA records are supported!
+                    if (  evt_it->isOfType(GROUP_ENTER)
+                       && is_mpi_rma_start(evt_it->getRegion())
+                       && (evt_it.leaveptr().prev()->get_window() == win))
+                    {
+                        start_found = true;
+                    }
+
+                    /* check previous event */
+                    --evt_it;
+                }
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_SYNC_ACTIVE" = [
+    PARENT  = "MPI_RMA_SYNCHRONIZATION"
+    NAME    = "MPI Active Target Synchronization"
+    DOCNAME = "MPI Active Target Synchronization Time"
+    TYPE    = "MPI_RMA"
+    CLASS   = "PatternMPI_RmaSyncActive"
+    INFO    = "Time spent in MPI one-sided active target synchronization calls"
+    DESCR   = {
+        Time spent in MPI one-sided active target synchronization calls.
+    }
+    UNIT    = "sec"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_RMA_SYNC_LATE_POST" = [
+    PARENT    = "MPI_RMA_SYNC_ACTIVE"
+    NAME      = "MPI Late Post (Synchronization)"
+    DOCNAME   = "MPI Late Post Time in Synchronizations"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMPI_RmaSyncLatePost"
+    INFO      = "Time spent in MPI one-sided active target synchronization waiting for exposure epoch to start"
+    DESCR     = {
+        Time spent in MPI one-sided active target access epoch synchronization
+        operations, waiting for the corresponding exposure epoch to start.
+        </dd><p><dd>
+        @img(RmaLatePost.png)
+    }
+    UNIT      = "sec"
+    MODE    = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_LATE_POST" = {
+            Callpath* callpath = data->mDefs->get_cnode(data->mCallpathId);
+
+            if (is_mpi_rma_sync(&callpath->getRegion()))
+            {
+                m_severity[callpath] += data->mIdle;
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_EARLY_WAIT" = [
+    PARENT    = "MPI_RMA_SYNC_ACTIVE"
+    NAME      = "MPI Early Wait"
+    DOCNAME   = "MPI Early Wait Time"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMPI_RmaEarlyWait"
+    INFO      = "Time spent in MPI_Win_wait waiting for last exposure epoch to finish"
+    DESCR     = {
+        Idle time spent in <tt>MPI_Win_wait</tt>, waiting for the last corresponding
+        exposure epoch to finish.
+        </dd><p><dd>
+        @img(RmaEarlyWait.png)
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_POST_WAIT" = {
+            Event       enter      = event.enterptr();
+            timestamp_t enter_time = enter->getTimestamp();
+
+            if (data->mLastComplete.mTime > enter_time)
+            {
+                // compute early wait
+                data->mIdle                    = data->mLastComplete.mTime - enter_time;
+                m_severity[enter.get_cnode()] += data->mIdle;
+
+                #ifdef GATSDEBUG
+                    MpiWindow* win = event->get_window();
+                    assert(win);
+
+                    MpiComm* comm = dynamic_cast< MpiComm* >(win->get_comm());
+                    assert(comm);
+
+                    int myrank;
+                    MPI_Comm_rank(comm->getComm(), &myrank);
+
+                    ostringstream out;
+                    out << "\nPattern Early_Wait : Event ID: " << event.get_id()
+                        << " mein Rang: " << myrank
+                        << " idle time = " << data->mIdle;
+                    cerr << out.str() << endl;
+                #endif
+
+                cbmanager.notify(MPI_RMA_EARLY_WAIT, event, data);
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_LATE_COMPLETE" = [
+    PARENT    = "MPI_RMA_EARLY_WAIT"
+    NAME      = "MPI Late Complete"
+    DOCNAME   = "MPI Late Complete Time"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMPI_RmaLateComplete"
+    INFO      = "Time spent waiting in MPI_Win_wait between last RMA access and last MPI_Win_complete"
+    DESCR     = {
+        Time spent in the 'Early Wait' inefficiency pattern (see
+        @ref(MPI_RMA_EARLY_WAIT)) due to a late completion of a corresponding
+        access epoch.  It refers to the timespan between the last RMA access
+        and the last <tt>MPI_Win_complete</tt> call.
+        </dd><p><dd>
+        @img(RmaLateComplete.png)
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_EARLY_WAIT" = {
+            Event       enter      = event.enterptr();
+            timestamp_t enter_time = enter->getTimestamp();
+            timestamp_t max_ts     = max(data->mLastRmaOp.mTime, enter_time);
+
+            // save severity (it does not have to be checked as this is only
+            // triggered if an Early Wait is found.)
+            m_severity[enter.get_cnode()] +=
+                (data->mLastComplete.mTime - max_ts);
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_WAIT_AT_FENCE" = [
+    PARENT    = "MPI_RMA_SYNC_ACTIVE"
+    NAME      = "MPI Wait at Fence"
+    DOCNAME   = "MPI Wait at Fence Time"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMPI_RmaWaitAtFence"
+    INFO      = "Time spent in front of MPI_Win_fence, waiting for other processes"
+    DESCR     = {
+        Time spent in <tt>MPI_Win_fence</tt> waiting for other participating
+        processes to reach the fence synchronization.
+        </dd><p><dd>
+        @img(RmaWaitAtFence.png)
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_WAIT_AT_FENCE" = {
+            m_severity[event.get_cnode()] += data->mIdle;
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_EARLY_FENCE" = [
+    PARENT    = "MPI_RMA_WAIT_AT_FENCE"
+    NAME      = "MPI Early Fence"
+    DOCNAME   = "MPI Early Fence Time"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMPI_RmaEarlyFence"
+    INFO      = "Waiting time in MPI_Win_fence due to pending RMA operations"
+    DESCR     = {
+        Time spent in <tt>MPI_Win_fence</tt> waiting for outstanding one-sided
+        communication operations to this location to finish.
+        </dd><p><dd>
+        @img(RmaEarlyFence.png)
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_EARLY_FENCE" = {
+            m_severity[event.get_cnode()] += data->mIdle;
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_SYNC_PASSIVE" = [
+    PARENT  = "MPI_RMA_SYNCHRONIZATION"
+    NAME    = "MPI One-sided Passive Target Synchronization"
+    DOCNAME = "MPI One-sided Passive Target Synchronization Time"
+    TYPE    = "MPI_RMA"
+    CLASS   = "PatternMPI_RmaSyncPassive"
+    INFO    = "Time spent in MPI one-sided passive target synchronization calls"
+    DESCR   = {
+        Time spent in MPI one-sided passive target synchronization calls.
+    }
+    UNIT    = "sec"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_RMA_SYNC_LOCK_COMPETITION" = [
+    PARENT    = "MPI_RMA_SYNC_PASSIVE"
+    NAME      = "MPI Lock Contention (Synchronization)"
+    DOCNAME   = "MPI Lock Contention Time in Synchronizations"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMpi_RmaSyncLockContention"
+    INFO      = "Time spent waiting in MPI_Win_lock/MPI_Win_unlock acquiring a lock for a window"
+    DESCR     = {
+        Time spent waiting in <tt>MPI_Win_lock</tt> or <tt>MPI_Win_unlock</tt>
+        before the lock on a window is acquired.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_LOCK_COMPETITION" = {
+            Callpath* callpath = data->mDefs->get_cnode(data->mCallpathId);
+
+            if (  (data->mIdle > 0)
+               && is_mpi_rma_passive(&callpath->getRegion()))
+            {
+                m_severity[callpath] += data->mIdle;
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_SYNC_WAIT_FOR_PROGRESS" = [
+    PARENT    = "MPI_RMA_SYNC_PASSIVE"
+    NAME      = "MPI Wait for Progress (Synchronization)"
+    DOCNAME   = "MPI Wait for Progress Time in Synchronizations"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMpi_RmaSyncWaitForProgress"
+    INFO      = "Time spent waiting in MPI_Win_lock/MPI_Win_unlock waiting for progress on the target"
+    DESCR     = {
+        Time spent waiting in <tt>MPI_Win_lock</tt> or <tt>MPI_Win_unlock</tt>
+        until the target is calling into an MPI API function that ensures remote
+        progress.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_WAIT_FOR_PROGRESS" = {
+            Callpath* callpath = data->mDefs->get_cnode(data->mCallpathId);
+
+            if (is_mpi_rma_passive(&callpath->getRegion()))
+            {
+                m_severity[callpath] += data->mIdle;
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_COMMUNICATION" = [
+    PARENT  = "MPI_COMMUNICATION"
+    NAME    = "MPI one-sided communication"
+    DOCNAME = "MPI One-sided Communication Time"
+    TYPE    = "MPI_RMA"
+    CLASS   = "PatternMPI_RmaComm"
+    INFO    = "Time spent in MPI one-sided communication"
+    DESCR   = {
+        Time spent in MPI one-sided communication operations, for example,
+        <tt>MPI_Accumulate</tt>, <tt>MPI_Put</tt>, or <tt>MPI_Get</tt>.
+    }
+    UNIT    = "sec"
+    MODE    = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "MPI_RMA_COMM_LATE_POST" = [
+    PARENT    = "MPI_RMA_COMMUNICATION"
+    NAME      = "MPI Late Post (Communication)"
+    DOCNAME   = "MPI Late Post Time in Communications"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMPI_RmaCommLatePost"
+    INFO      = "Time spent in MPI one-sided communication operations waiting for exposure epoch to start"
+    DESCR     = {
+        Time spent in MPI one-sided communication operations waiting for the
+        corresponding exposure epoch to start.
+        </dd><p><dd>
+        @img(RmaLatePost.png)
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_LATE_POST" = {
+            Callpath* callpath = data->mDefs->get_cnode(data->mCallpathId);
+
+            if (is_mpi_rma_comm(&callpath->getRegion()))
+            {
+                m_severity[callpath] += data->mIdle;
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_COMM_LOCK_COMPETITION" = [
+    PARENT    = "MPI_RMA_COMMUNICATION"
+    NAME      = "MPI Lock Contention (Communication)"
+    DOCNAME   = "MPI Lock Contention Time in Communications"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMpi_RmaCommLockContention"
+    INFO      = "Time spent waiting in MPI_Win_lock/MPI_Win_unlock acquiring a lock for a window"
+    DESCR     = {
+        Time spent waiting in <tt>MPI_Win_lock</tt> or <tt>MPI_Win_unlock</tt>
+        before the lock on a window is acquired.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_LOCK_COMPETITION" = {
+            Callpath* callpath = data->mDefs->get_cnode(data->mCallpathId);
+
+            if (  (data->mIdle > 0)
+               && is_mpi_rma_comm(&callpath->getRegion()))
+            {
+                m_severity[callpath] += data->mIdle;
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_COMM_WAIT_FOR_PROGRESS" = [
+    PARENT    = "MPI_RMA_COMMUNICATION"
+    NAME      = "MPI Wait for Progress (Communication)"
+    DOCNAME   = "MPI Wait for Progress Time in Communications"
+    TYPE      = "MPI_RMA"
+    CLASS     = "PatternMpi_RmaCommWaitForProgress"
+    INFO      = "Time spent waiting in MPI_Win_lock/MPI_Win_unlock waiting for progress on the target"
+    DESCR     = {
+        Time spent waiting in <tt>MPI_Win_lock</tt> or <tt>MPI_Win_unlock</tt>
+        until the target is calling into an MPI API function that ensures remote
+        progress.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_WAIT_FOR_PROGRESS" = {
+            Callpath* callpath = data->mDefs->get_cnode(data->mCallpathId);
+
+            if (is_mpi_rma_comm(&callpath->getRegion()))
+            {
+                m_severity[callpath] += data->mIdle;
+            }
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_PAIRSYNC_COUNT" = [
+    NAME      = "MPI pair-wise one-sided synchronizations"
+    DOCNAME   = "Pair-wise MPI One-sided Synchronizations"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_RmaPairsyncCount"
+    INFO      = "Number of pair-wise MPI one-sided synchronizations"
+    DESCR     = {
+        MPI one-sided synchronization methods may synchronize processes when they
+        need to ensure that no further one-sided communication operation will take
+        place in the epoch to be closed.  The MPI pair-wise one-sided
+        synchronization metric counts the number of remote processes it potentially
+        has to wait for at the end of this epoch, e.g., at a fence a process will
+        wait for every other process with the same window handle in this
+        barrier-like construct.  This is required, as the target has no knowledge
+        of whether a certain remote process has already completed its access epoch.
+    }
+    DIAGNOSIS = {
+        A large count of pair-wise synchronizations indicate a tight coupling of
+        the processes.  A developer should then check, whether the level of
+        inter-process coupling is needed for her algorithm, or whether an algorithm
+        with looser coupling may be beneficial.
+    }
+    UNIT      = "occ"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_PWS_COUNT" = {
+            m_severity[event.get_cnode()] += data->mCount;
+        }
+    ]
+]
+
+
+PATTERN "MPI_RMA_PAIRSYNC_UNNEEDED_COUNT" = [
+    PARENT    = "MPI_RMA_PAIRSYNC_COUNT"
+    NAME      = "MPI unneeded pair-wise one-sided synchronizations"
+    DOCNAME   = "Unneeded Pair-wise MPI One-sided Synchronizations"
+    TYPE      = "MPI"
+    CLASS     = "PatternMPI_RmaPairsyncUnneededCount"
+    INFO      = "Number of unneeded pair-wise MPI one-sided synchronizations"
+    DESCR     = {
+        The unneeded pair-wise MPI one-sided synchronizations express the number of
+        situations where a process synchronized with a remote process at the end
+        of an epoch, although no one-sided operation from that remote process has
+        taken place in the corresponding epoch.  A synchronization therefore would
+        not be necessary to ensure consistency, and may decrease performance
+        through over-synchronization.
+    }
+    DIAGNOSIS = {
+        A high number of unneeded synchronizations indicates that a different
+        synchronization mechanism, i.e., choosing general active target
+        synchronization (GATS) over fence, or more refined/precise access groups
+        within GATS may be beneficial to the application's performance.
+    }
+    UNIT      = "occ"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "MPI_RMA_PWS_UNNEEDED_COUNT" = {
+            m_severity[event.get_cnode()] += data->mCount;
+        }
+    ]
+]

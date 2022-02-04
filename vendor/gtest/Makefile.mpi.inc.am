@@ -1,0 +1,30 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  Copyright (c) 2013                                                     ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variables
+GTEST_SRC = @GTEST_PATH@
+
+
+##--- Libraries -------------------------------------------------------------
+
+## Extensions for MPI tests
+check_LTLIBRARIES += \
+    libgtest_mpi.la
+libgtest_mpi_la_SOURCES = \
+    $(GTEST_SRC)/src/ext-main_mpi.cpp \
+    $(GTEST_SRC)/src/ext-mpi-tap-printer.h \
+    $(GTEST_SRC)/src/ext-mpi-tap-printer.cpp
+libgtest_mpi_la_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    @GTEST_CPPFLAGS@
+libgtest_mpi_la_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    @GTEST_CXXFLAGS@

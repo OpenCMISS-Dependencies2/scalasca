@@ -1,0 +1,210 @@
+/****************************************************************************
+**  SCALASCA    http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 2018-2020                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+/**
+@if MANPAGE
+@page square Scalasca analysis report explorer
+@else
+@page square square &ndash; Scalasca analysis report explorer
+@endif
+@manpage
+
+
+@section commands_square_synopsis SYNOPSIS
+
+@b square
+    [@e OPTIONS]
+    (@e EXPERIMENT_DIR \| @e CUBE_FILE)
+
+
+@section commands_square_description DESCRIPTION
+
+@b square, the Scalasca analysis report explorer, facilitates post-processing, scoring, and interactive examination of analysis reports from both runtime summarization and tracing experiments.
+
+When provided with a Score-P experiment directory @e EXPERIMENT_DIR, @b square post-processes intermediate analysis reports produced by a measurement and/or an automatic trace analysis to derive additional metrics and construct a hierarchy of measured and derived metrics, and then presents this final report using the Cube GUI (unless the @b -s option is used).
+If intermediate reports were already processed, the final report is shown immediately.
+If there is more than one analysis report in a Score-P experiment directory, the most comprehensive report is shown by default.
+
+When provided with the name of a specific analysis report @e CUBE_FILE, post-processing is skipped and the corresponding report is shown immediately.
+
+Analysis report examination can only be done after measurement and analysis are completed.
+Parallel resources are not required, and it is often more convenient to examine analysis reports on a different system, such as a desktop computer where interactivity is superior.
+
+Depending on the measurement configuration and the provided options, @b square places additional files into the experiment archive directory.  For single-run experiments, the following files are created if the corresponding input files are available:
+ - `summary.cubex`: post-processed runtime summary result
+ - `trace.cubex`: post-processed trace analysis result
+
+In scoring mode (@b -s option), @b square generates:
+ - `scorep.score`: detailed measurement score report, optionally suffixed with the name of a provided filter file (@b -f option)
+
+In multi-run mode, aggregated reports are created if the corresponding input files are available:
+ - `profile_aggr.cubex`: aggregated runtime summary result
+ - `scout_aggr.cubex`: aggregated trace analysis result
+ - `scout+profile.cubex`: merged runtime summary and trace analysis result
+ - `summary_aggr.cubex`: post-processed aggregated runtime summary result
+ - `trace_aggr.cubex`: post-processed aggregated trace analysis result
+ - `trace+summary.cubex`: post-processed merged runtime summary and trace result @clearpage
+
+
+@section commands_square_options OPTIONS
+
+@subsection commands_square_common_options Common options
+<dl>
+    <dt>-C <em>LEVEL</em></dt>
+    <dd>
+        Level of sanity checks for newly created reports (default: '@b none').
+        '@b quick' performs various sanity checks on the experiment meta data, while '@b full' also executes a more time-consuming check for negative metric values (which usually indicate a serious error).
+    </dd>
+
+    <dt>-c <em>num_counter</em></dt>
+    <dd>
+        Specifies the number of hard- and software counters that shall be considered when generating a score report (option -s).
+        By default, this value is 0, which means that only a timestamp is measured on each event.
+        If you plan to record extra counters specify the number of counters.
+        Otherwise, scoring may underestimate the required space.
+    </dd>
+
+    <dt>-F</dt>
+    <dd>
+        Force post-processing of analysis reports, even if a post-processed report already exists.
+    </dd>
+
+    <dt>-f <em>filter_file</em></dt>
+    <dd>
+        Apply the specified filter file when generating a score report (option -s).
+    </dd>
+
+    <dt>-s</dt>
+    <dd>
+        Output a textual score report.
+        Skips launching the Cube GUI.
+    </dd>
+
+    <dt>-v</dt>
+    <dd>
+        Enable verbose mode.
+    </dd>
+
+    <dt>-n</dt>
+    <dd>
+        Suppress the calculation of 'Idle Threads' metric.
+    </dd>
+
+    <dt>-x <em><scorep-score opt></em></dt>
+    <dd>
+        Pass option(s) directly to @b scorep-score.
+        Any composite options have to be quoted as needed.
+    </dd>
+</dl>
+
+@subsection commands_square_multirun_options Options for multi-run experiments
+<dl>
+    <dt>-S <em>MODE</em></dt>
+    <dd>
+        Set aggregation mode for runtime summarization results of each configuration.
+        Currently supported modes are '@b mean' and '@b merge' (default).
+    </dd>
+
+    <dt>-T <em>MODE</em></dt>
+    <dd>
+        Set aggregation mode for trace analysis results of each configuration.
+        Currently supported modes are '@b mean' and '@b merge' (default).
+    </dd>
+
+    <dt>-A</dt>
+    <dd>
+        Force post-processing of every individual step report of a multi-run experiment.
+        \n@b WARNING: Depending on the number and size of the individual measurement reports, the time required to post-process all reports can be significant!
+    </dd>
+    <dt>-I</dt>
+    <dd>
+        Ignore structural sanity checks and force aggregation of measurements in a multi-run experiment.
+    </dd>
+</dl>
+
+
+@section commands_square_multirun MULTI-RUN EXPERIMENTS
+
+For multi-run experiments, @b square provides additional options to aggregate the set of measurement results into a single Cube file.
+The user can choose between the two aggregation methods '`merge`' and '`mean`' to combine results from different configurations, which underneath use the corresponding CubeLib command-line tools.
+The default aggregation mode is to '`merge`' results.
+
+@note
+    The '`merge`' operation always copies metric data from the last measurement configuration in a given set in which data for a particular metric is available.
+    This should be taken into account when setting up a multi-run experiment that is supposed to be aggregated using the @b square command later on.
+    In particular, it is recommended to include a low-overhead measurement without hardware performance counters at the end of a measurement configuration set including hardware counter measurements in order to provide more accurate time information.
+
+The aggregation of multi-run measurement results happens in the following order:
+
+ 1. Aggregate results from multiple runs for each measurement configuration.
+    At this point, the only supported mode for this aggregation is '`mean`', which is therefore hard-coded.
+ 2. Aggregate averaged runtime summarization results from all configurations in ascending order using the selected mode (@b -S option).
+ 3. Aggregate averaged trace analysis analysis results from all configurations in ascending order using the selected mode (@b -T option).
+ 4. Merge the aggregated runtime summarization and trace analysis results into a combined report.
+ 5. Post-process the combined report (step 4) if available, otherwise post-process the aggregated report(s) generated in either step 2 or step 3.
+
+Depending on the measurement settings, those steps will be applied if the respective intermediate results are found.
+Before merging intermediate results, @b square performs sanity checks to compare the call-tree structure to ensure merging will result in a valid Cube file.
+In rare cases, where the user is aware of potential call-tree differences, it may be necessary to skip these checks, which can be accomplished by passing the @b -I option.
+However, note that this may produce erroneous or at least misleading results.
+The reports of the individual runs will only be post-processed when explicitly requested (@b -A option).
+
+
+@section commands_square_exitstatus EXIT STATUS
+
+@b square exits with status 0 on success, and greater than 0 if errors occur.
+
+
+@section commands_square_notes NOTES
+
+To examine an analysis report on a different system, for example, a desktop or laptop computer, it is often best to post-process the report using <b>square</b>'s scoring functionality (@b -s option) on the system where the measurement has been taken, and then copy over the resulting post-processed Cube file.
+This is because @b square requires various command-line tools and support files from the Score-P, CubeLib, and Scalasca Trace Tools packages, which may not be available on the target computer.
+
+
+@if MANPAGE
+@section commands_square_bugs BUGS
+
+Please report bugs to <em>scalasca@fz-juelich.de</em>.
+Make sure to include at least the following information in your bug report:
+ - The Scalasca Trace Tools version reported by '`scalasca -V`'.
+ - The Scalasca Trace Tools configuration reported by '`scalasca -c`'.
+ - The Score-P version reported by '`scorep --version`'.
+ - The Score-P configuration reported by '`scorep-info config-summary`'.
+ - The exact command line of the failing command.
+ - The exact failure/error message.
+@endif
+
+
+@section commands_square_examples EXAMPLES
+<b>square scorep_foo_4_trace</b>\n
+Post-process measurement reports in <em>scorep_foo_4_trace</em> and display the most comprehensive report using the Cube GUI.
+
+<b>square -s -f filter scorep_foo_4_sum</b>\n
+Post-process measurement reports in <em>scorep_foo_4_sum</em> and generate a score report with the run-time measurement filter rules from the file <em>filter</em> applied.
+
+<b>square -S mean scorep_foo_4_multi-run_c2_r4</b>\n
+Aggregate and post-process the measurement results of the multi-run experiment with two configurations and four runs per configuration stored in <em>scorep_foo_4_multi-run_c2_r4</em>.
+Then, show the most comprehensive report using the Cube GUI.
+
+
+@section commands_square_see SEE ALSO
+
+@ref_man{scalasca,1}, @ref_man{scan,1}
+
+@if MANPAGE
+The full Scalasca Trace Tools documentation is available online at <em>https://www.scalasca.org</em>.
+@endif
+
+
+@navigation_both{scan,scout}
+@clearpage
+*/

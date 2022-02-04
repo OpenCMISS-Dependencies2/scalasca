@@ -1,0 +1,164 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+PEARL_BASE_SRC = $(SRC_ROOT)src/pearl/base
+PEARL_BASE_INC = $(INC_ROOT)src/pearl/base/include
+PEARL_BASE_INT = $(INC_ROOT)src/pearl/base
+
+
+##--- Libraries -------------------------------------------------------------
+
+## PEARL base library
+lib_LTLIBRARIES += \
+    libpearl.base.la
+libpearl_base_la_SOURCES = \
+    $(PEARL_BASE_SRC)/include/Functors.h \
+    $(PEARL_BASE_SRC)/include/Otf2CollCallbacks.h \
+    $(PEARL_BASE_SRC)/include/iomanip_detail.h \
+    $(PEARL_BASE_SRC)/include/Inline/iomanip_detail-inl.h \
+    $(PEARL_BASE_SRC)/AmHandler.cpp \
+    $(PEARL_BASE_SRC)/AmListener.cpp \
+    $(PEARL_BASE_SRC)/AmListenerFactory.cpp \
+    $(PEARL_BASE_SRC)/AmRequest.cpp \
+    $(PEARL_BASE_SRC)/AmRequestFactory.cpp \
+    $(PEARL_BASE_SRC)/AmNull.h \
+    $(PEARL_BASE_SRC)/AmNull.cpp \
+    $(PEARL_BASE_SRC)/AmRuntime.cpp \
+    $(PEARL_BASE_SRC)/Buffer.cpp \
+    $(PEARL_BASE_SRC)/CallingContext.cpp \
+    $(PEARL_BASE_SRC)/Callpath.cpp \
+    $(PEARL_BASE_SRC)/CallpathMatcher.h \
+    $(PEARL_BASE_SRC)/Callsite.cpp \
+    $(PEARL_BASE_SRC)/CallTree.h \
+    $(PEARL_BASE_SRC)/CallTree.cpp \
+    $(PEARL_BASE_SRC)/CartDimension.cpp \
+    $(PEARL_BASE_SRC)/CartTopology.cpp \
+    $(PEARL_BASE_SRC)/ContextTree.h \
+    $(PEARL_BASE_SRC)/ContextTree.cpp \
+    $(PEARL_BASE_SRC)/CommLocationSet.cpp \
+    $(PEARL_BASE_SRC)/CommSet.cpp \
+    $(PEARL_BASE_SRC)/Communicator.cpp \
+    $(PEARL_BASE_SRC)/DefinitionContainer.h \
+    $(PEARL_BASE_SRC)/DefinitionContainer-inl.h \
+    $(PEARL_BASE_SRC)/DefinitionTree.h \
+    $(PEARL_BASE_SRC)/DefinitionTree-inl.h \
+    $(PEARL_BASE_SRC)/DefsFactory.h \
+    $(PEARL_BASE_SRC)/DefsFactory.cpp \
+    $(PEARL_BASE_SRC)/Enter_rep.cpp \
+    $(PEARL_BASE_SRC)/EnterCS_rep.cpp \
+    $(PEARL_BASE_SRC)/EnterProgram_rep.cpp \
+    $(PEARL_BASE_SRC)/EpikArchive.h \
+    $(PEARL_BASE_SRC)/EpikArchive.cpp \
+    $(PEARL_BASE_SRC)/EpikDefCallbacks.h \
+    $(PEARL_BASE_SRC)/EpikDefCallbacks.cpp \
+    $(PEARL_BASE_SRC)/EpikEvtCallbacks.h \
+    $(PEARL_BASE_SRC)/EpikEvtCallbacks.cpp \
+    $(PEARL_BASE_SRC)/EpikMapCallbacks.h \
+    $(PEARL_BASE_SRC)/EpikMapCallbacks.cpp \
+    $(PEARL_BASE_SRC)/Error.cpp \
+    $(PEARL_BASE_SRC)/Event.cpp \
+    $(PEARL_BASE_SRC)/Event_rep.cpp \
+    $(PEARL_BASE_SRC)/EventFactory.h \
+    $(PEARL_BASE_SRC)/EventFactory.cpp \
+    $(PEARL_BASE_SRC)/GlobalDefs.cpp \
+    $(PEARL_BASE_SRC)/GroupingSet.cpp \
+    $(PEARL_BASE_SRC)/Leave_rep.cpp \
+    $(PEARL_BASE_SRC)/LeaveProgram_rep.cpp \
+    $(PEARL_BASE_SRC)/LocalIdMaps.h \
+    $(PEARL_BASE_SRC)/LocalIdMaps.cpp \
+    $(PEARL_BASE_SRC)/LocalTrace.cpp \
+    $(PEARL_BASE_SRC)/Location.cpp \
+    $(PEARL_BASE_SRC)/LocationGroup.cpp \
+    $(PEARL_BASE_SRC)/LocationSet.cpp \
+    $(PEARL_BASE_SRC)/Metric.cpp \
+    $(PEARL_BASE_SRC)/MutableCartTopology.h \
+    $(PEARL_BASE_SRC)/MutableCartTopology.cpp \
+    $(PEARL_BASE_SRC)/MutableGlobalDefs.h \
+    $(PEARL_BASE_SRC)/MutableGlobalDefs.cpp \
+    $(PEARL_BASE_SRC)/Otf2Archive.h \
+    $(PEARL_BASE_SRC)/Otf2Archive.cpp \
+    $(PEARL_BASE_SRC)/Otf2CollCallbacks.cpp \
+    $(PEARL_BASE_SRC)/Otf2DefCallbacks.h \
+    $(PEARL_BASE_SRC)/Otf2DefCallbacks.cpp \
+    $(PEARL_BASE_SRC)/Otf2EvtCallbacks.h \
+    $(PEARL_BASE_SRC)/Otf2EvtCallbacks.cpp \
+    $(PEARL_BASE_SRC)/Otf2LockCallbacks.h \
+    $(PEARL_BASE_SRC)/Otf2LockCallbacks.cpp \
+    $(PEARL_BASE_SRC)/Otf2TypeHelpers.h \
+    $(PEARL_BASE_SRC)/Otf2TypeHelpers.cpp \
+    $(PEARL_BASE_SRC)/Paradigm.cpp \
+    $(PEARL_BASE_SRC)/Process.h \
+    $(PEARL_BASE_SRC)/Process.cpp \
+    $(PEARL_BASE_SRC)/Region.cpp \
+    $(PEARL_BASE_SRC)/RemoteEvent.cpp \
+    $(PEARL_BASE_SRC)/RemoteTimeSegment.cpp \
+    $(PEARL_BASE_SRC)/RmaGetEnd_rep.cpp \
+    $(PEARL_BASE_SRC)/RmaGetStart_rep.cpp \
+    $(PEARL_BASE_SRC)/RmaPutEnd_rep.cpp \
+    $(PEARL_BASE_SRC)/RmaPutStart_rep.cpp \
+    $(PEARL_BASE_SRC)/RmaWindow.cpp \
+    $(PEARL_BASE_SRC)/SourceLocation.cpp \
+    $(PEARL_BASE_SRC)/String.cpp \
+    $(PEARL_BASE_SRC)/SmallObject.cpp \
+    $(PEARL_BASE_SRC)/SystemNode.cpp \
+    $(PEARL_BASE_SRC)/SystemTree.h \
+    $(PEARL_BASE_SRC)/SystemTree.cpp \
+    $(PEARL_BASE_SRC)/ThreadAcquireLock_rep.cpp \
+    $(PEARL_BASE_SRC)/ThreadBegin_rep.cpp \
+    $(PEARL_BASE_SRC)/ThreadCreate_rep.cpp \
+    $(PEARL_BASE_SRC)/ThreadEnd_rep.cpp \
+    $(PEARL_BASE_SRC)/ThreadFork_rep.cpp \
+    $(PEARL_BASE_SRC)/ThreadJoin_rep.cpp \
+    $(PEARL_BASE_SRC)/ThreadReleaseLock_rep.cpp \
+    $(PEARL_BASE_SRC)/ThreadTaskComplete_rep.cpp \
+    $(PEARL_BASE_SRC)/ThreadTaskCreate_rep.cpp \
+    $(PEARL_BASE_SRC)/ThreadTaskSwitch_rep.cpp \
+    $(PEARL_BASE_SRC)/ThreadTeamBegin_rep.cpp \
+    $(PEARL_BASE_SRC)/ThreadTeamEnd_rep.cpp \
+    $(PEARL_BASE_SRC)/ThreadWait_rep.cpp \
+    $(PEARL_BASE_SRC)/TimeSegment.cpp \
+    $(PEARL_BASE_SRC)/TraceArchive.cpp \
+    $(PEARL_BASE_SRC)/UnknownLocationGroup.h \
+    $(PEARL_BASE_SRC)/UnknownLocationGroup.cpp \
+    $(PEARL_BASE_SRC)/pearl_base.cpp \
+    $(PEARL_BASE_SRC)/pearl_iomanip.cpp \
+    $(PEARL_BASE_SRC)/pearl_statics.cpp
+libpearl_base_la_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(INC_ROOT)src/epik \
+    -I$(PEARL_BASE_INC) \
+    -I$(PEARL_IPC_INC) \
+    -I$(PEARL_THREAD_INC) \
+    -I$(PEARL_THREAD_INT) \
+    $(OTF2_CPPFLAGS)
+libpearl_base_la_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(OTF2_LDFLAGS) \
+    -version-info $(PEARL_INTERFACE_VERSION)
+libpearl_base_la_LIBADD = \
+    libepik.la \
+    libutils.la \
+    $(OTF2_LIBS)
+
+# Explicitly add internal OTF2 writer library as automake will not
+# generate a dependency for it automatically (due to using AC_SUBST)
+if !HAVE_EXTERNAL_OTF2_LIBRARY
+libpearl_base_la_LIBADD += ../vendor/otf2/build-backend/libotf2.la
+endif

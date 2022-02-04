@@ -1,0 +1,98 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variables
+PEARL_THREAD_SRC = $(SRC_ROOT)src/pearl/thread
+PEARL_THREAD_INC = $(INC_ROOT)src/pearl/thread/include
+PEARL_THREAD_INT = $(INC_ROOT)src/pearl/thread
+
+
+##--- Libraries -------------------------------------------------------------
+
+## Common PEARL thread convenience library
+noinst_LTLIBRARIES += \
+    libpearl.thread.common.la
+libpearl_thread_common_la_SOURCES = \
+    $(PEARL_THREAD_SRC)/ChunkAllocator.h \
+    $(PEARL_THREAD_SRC)/ChunkAllocator.cpp \
+    $(PEARL_THREAD_SRC)/MemoryChunk.h \
+    $(PEARL_THREAD_SRC)/MemoryChunk-inl.h \
+    $(PEARL_THREAD_SRC)/MemoryChunkTree.h \
+    $(PEARL_THREAD_SRC)/MemoryChunkTree-inl.h \
+    $(PEARL_THREAD_SRC)/SmallBlockAllocator.h \
+    $(PEARL_THREAD_SRC)/SmallBlockAllocator.cpp \
+    $(PEARL_THREAD_SRC)/include/pearl_memory.h \
+    $(PEARL_THREAD_SRC)/pearl_memory_common.cpp \
+    $(PEARL_THREAD_SRC)/wrap-memcheck.h
+libpearl_thread_common_la_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(PEARL_BASE_INC) \
+    -I$(PEARL_THREAD_INC)
+libpearl_thread_common_la_LIBADD = \
+    libutils.la
+
+
+## PEARL threading library (serial version)
+lib_LTLIBRARIES += \
+    libpearl.thread.ser.la
+libpearl_thread_ser_la_SOURCES = \
+    $(PEARL_THREAD_SRC)/Threading.h \
+    $(PEARL_THREAD_SRC)/Threading.cpp \
+    $(PEARL_THREAD_SRC)/SerialMutex.cpp \
+    $(PEARL_THREAD_SRC)/include/pearl_memory.h \
+    $(PEARL_THREAD_SRC)/pearl_memory_serial.cpp
+libpearl_thread_ser_la_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(PEARL_THREAD_INC)
+libpearl_thread_ser_la_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    -version-info $(PEARL_INTERFACE_VERSION)
+libpearl_thread_ser_la_LIBADD = \
+    libpearl.thread.common.la
+
+
+if OPENMP_SUPPORTED
+
+## PEARL threading library (OpenMP version)
+lib_LTLIBRARIES += \
+    libpearl.thread.omp.la
+libpearl_thread_omp_la_SOURCES = \
+    $(PEARL_THREAD_SRC)/Threading.h \
+    $(PEARL_THREAD_SRC)/Threading.cpp \
+    $(PEARL_THREAD_SRC)/OmpMutex.cpp \
+    $(PEARL_THREAD_SRC)/include/pearl_memory.h \
+    $(PEARL_THREAD_SRC)/pearl_memory_omp.cpp
+libpearl_thread_omp_la_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(PEARL_BASE_INC) \
+    -I$(PEARL_THREAD_INC)
+libpearl_thread_omp_la_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(OPENMP_CXXFLAGS)
+libpearl_thread_omp_la_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    -version-info $(PEARL_INTERFACE_VERSION)
+libpearl_thread_omp_la_LIBADD = \
+    libpearl.thread.common.la
+
+endif OPENMP_SUPPORTED

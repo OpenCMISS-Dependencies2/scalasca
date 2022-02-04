@@ -1,0 +1,91 @@
+## -*- mode: makefile -*-
+
+##
+## This file is part of the Score-P software (http://www.score-p.org)
+##
+## Copyright (c) 2009-2013,
+## RWTH Aachen University, Germany
+##
+## Copyright (c) 2009-2013,
+## Gesellschaft fuer numerische Simulation mbH Braunschweig, Germany
+##
+## Copyright (c) 2009-2014,
+## Technische Universitaet Dresden, Germany
+##
+## Copyright (c) 2009-2013,
+## University of Oregon, Eugene, USA
+##
+## Copyright (c) 2009-2013,
+## Forschungszentrum Juelich GmbH, Germany
+##
+## Copyright (c) 2009-2013,
+## German Research School for Simulation Sciences GmbH, Juelich/Aachen, Germany
+##
+## Copyright (c) 2009-2013,
+## Technische Universitaet Muenchen, Germany
+##
+## This software may be modified and distributed under the terms of
+## a BSD-style license.  See the COPYING file in the package base
+## directory for details.
+##
+
+## file       include/otf2/Makefile.inc.am
+
+otf2includedir = $(includedir)/otf2
+otf2include_HEADERS = \
+    $(srcdir)/include/otf2/otf2.h                                  \
+\
+    $(srcdir)/include/otf2/OTF2_GeneralDefinitions.h               \
+    $(srcdir)/include/otf2/OTF2_Events.h                           \
+    $(srcdir)/include/otf2/OTF2_Definitions.h                      \
+\
+    $(srcdir)/include/otf2/OTF2_AttributeValue.h                   \
+    $(srcdir)/include/otf2/OTF2_AttributeList.h                    \
+    $(srcdir)/include/otf2/OTF2_IdMap.h                            \
+\
+    $(srcdir)/include/otf2/OTF2_Archive.h                          \
+    $(srcdir)/include/otf2/OTF2_Callbacks.h                        \
+\
+    $(srcdir)/include/otf2/OTF2_Reader.h                           \
+\
+    $(srcdir)/include/otf2/OTF2_EvtWriter.h                        \
+\
+    $(srcdir)/include/otf2/OTF2_GlobalDefWriter.h                  \
+\
+    $(srcdir)/include/otf2/OTF2_DefWriter.h                        \
+\
+    $(srcdir)/include/otf2/OTF2_GlobalEvtReader.h                  \
+    $(srcdir)/include/otf2/OTF2_GlobalEvtReaderCallbacks.h         \
+\
+    $(srcdir)/include/otf2/OTF2_EvtReader.h                        \
+    $(srcdir)/include/otf2/OTF2_EvtReaderCallbacks.h               \
+\
+    $(srcdir)/include/otf2/OTF2_GlobalDefReader.h                  \
+    $(srcdir)/include/otf2/OTF2_GlobalDefReaderCallbacks.h         \
+\
+    $(srcdir)/include/otf2/OTF2_DefReader.h                        \
+    $(srcdir)/include/otf2/OTF2_DefReaderCallbacks.h               \
+\
+    $(srcdir)/include/otf2/OTF2_SnapWriter.h                       \
+\
+    $(srcdir)/include/otf2/OTF2_SnapReader.h                       \
+    $(srcdir)/include/otf2/OTF2_SnapReaderCallbacks.h              \
+\
+    $(srcdir)/include/otf2/OTF2_GlobalSnapReader.h                 \
+    $(srcdir)/include/otf2/OTF2_GlobalSnapReaderCallbacks.h        \
+\
+    $(srcdir)/include/otf2/OTF2_Thumbnail.h                        \
+\
+    $(srcdir)/include/otf2/OTF2_Marker.h                           \
+    $(srcdir)/include/otf2/OTF2_MarkerReader.h                     \
+    $(srcdir)/include/otf2/OTF2_MarkerReaderCallbacks.h            \
+    $(srcdir)/include/otf2/OTF2_MarkerWriter.h \
+\
+    $(srcdir)/include/otf2/OTF2_EventSizeEstimator.h \
+\
+    $(srcdir)/include/otf2/OTF2_MPI_Collectives.h \
+    $(srcdir)/include/otf2/OTF2_OpenMP_Locks.h \
+    $(srcdir)/include/otf2/OTF2_Pthread_Locks.h
+
+nodist_otf2include_HEADERS = \
+    include/otf2/OTF2_ErrorCodes.h

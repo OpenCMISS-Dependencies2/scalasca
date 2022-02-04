@@ -1,0 +1,294 @@
+/****************************************************************************
+**  CUBE        http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 1998-2017                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  Copyright (c) 2009-2013                                                **
+**  German Research School for Simulation Sciences GmbH,                   **
+**  Laboratory for Parallel Programming                                    **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+/** @page cubew-example Examples of using CUBE c-writer library
+
+Present example shows in several short steps the main idea of creating a cube file using C writer  library. 
+
+In this example we do not show the optimization, which is needed to prevent unnecessary \texttt{seek}s while writing. 
+
+
+@section cubew-example-source Commented source
+
+
+Include standard c header
+@code
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+@endcode
+Include CUBE headers.
+
+Notice, that CUBE4 c-writer headers got an prefix \texttt{cubew_XXX.h}
+
+@code
+#include "cubew_cube.h"
+@endcode
+Start main and define a name of the cube file. Extension ".cubex" will be append automatically. 
+@code
+
+/// Start point of this example.
+int main(int argc, char* argv[])
+{
+
+    char cubefile[12] = "simple-cube";
+
+@endcode
+Create the structure of the cube. CUBE_MASTER defines, that in parallel MPI environment this cube (usually rank 0) writes all parts of the cube (anchor, indexes and data).
+The last argument is ignored in current version of CUBE c-writer. 
+@code
+
+    cube_t* cube=cube_create("example", CUBE_MASTER, CUBE_FALSE);
+    if (!cube) {
+        fprintf(stderr,"cube_create failed!\n");
+        exit(1);
+    }
+@endcode
+Specify general properties of cube object.
+@code
+    cube_def_mirror(cube, "http://icl.cs.utk.edu/software/kojak/");
+    cube_def_mirror(cube, "http://www.fz-juelich.de/jsc/kojak/");
+    cube_def_attr(cube, "description", "a simple example");
+    cube_def_attr(cube, "experiment time", "November 1st, 2004");
+
+    cube_set_statistic_name(cube, "mystat");
+
+
+@endcode
+
+Now we start to define the dimensions of the cube. 
+ 
+
+First we define \texttt{metric} dimension. Notice, that metrics build a tree and 
+parents have to be declared before their children. 
+
+Every metric can be of two kinds: \textit{inclusive} or \textit{exclusive}. 
+
+
+
+Every metric needs a display name, an unique name, type of values (INTEGER, DOUBLE, MAXDOUBLE, MINDOUBLE, others), 
+units of measurement, value (usually empty string), URL, where one can find the documentation about 
+this metric, description and its parent in the metric tree.
+
+The cube returns a pointer on structure \textit{cube_metric}, which has to be used for saving or reading values 
+from the cube.
+
+@code
+
+    cube_metric *met0, *met1, *met2;
+    met0 = cube_def_met(cube, "Time", "Uniq_name1", "FLOAT", "sec", "",
+                "@mirror@patterns-2.1.html#execution",
+                "root node", NULL, CUBE_METRIC_EXCLUSIVE);
+    met1 = cube_def_met(cube, "User time", "Uniq_name2", "FLOAT", "sec", "",
+                "http://www.cs.utk.edu/usr.html",
+                "2nd level", met0, CUBE_METRIC_INCLUSIVE);    
+    met2 = cube_def_met(cube, "System time", "Uniq_name3", "INTEGER", "sec", "",
+                "http://www.cs.utk.edu/sys.html",
+                "2nd level", met0, CUBE_METRIC_EXCLUSIVE);
+@endcode
+
+Then we define the \texttt{calltree} dimension. 
+This dimension gets defined in a two-step way:
+
+<ol>
+    <li> One defines a list of regions in the instrumented source code;
+    <li> One builds a call tree with the regions defined in the previous step.
+</ol>
+
+First one defines the regions.
+
+Every region has a name, start and end line, URL with the documentation of the region, description and source file (module).
+Regions build a list, therefore no "parent-child" relation is given.
+
+The cube returns a pointer on structure \textit{cube_region}, which  can be used later for the calculations, visualization or access to the data. 
+@code
+    char* mod = "/ICL/CUBE/example.c";
+    cube_region *regn0, *regn1, *regn2;
+    regn0 = cube_def_region(cube, "main", 21, 100, "", "1st level", mod);
+    regn1 = cube_def_region(cube, "<<init>>foo", 1, 10, "", "2nd level", mod);
+    regn2 = cube_def_region(cube, "<<loop>>bar", 11, 20, "", "2nd level", mod);
+@endcode
+
+Then one defines an actual dimension, the  \texttt{call tree} dimension.
+
+Call tree consists of so called CNODEs. Cnode stands for "call path".
+
+Every cnode gets as a parameter a region, source file (module), its id  and parent cnode (caller).
+
+Parent cnodes have to be defined before their children.
+Region might be entered from different places in the program, therefore different cnodes might have same region as a parameter.
+@code
+    cube_cnode *cnode0, *cnode1, *cnode2;
+    cnode0 = cube_def_cnode_cs(cube, regn0, mod, 21, NULL);
+    cnode1 = cube_def_cnode_cs(cube, regn1, mod, 60, cnode0);
+    cnode2 = cube_def_cnode_cs(cube, regn2, mod, 80, cnode0);
+@endcode
+CUBE4 supports two kind of parameters of a cnode: numeric and string parameter. 
+Every cnode can carry any number of both of them. 
+@code
+
+   
+    cube_cnode_add_numeric_parameter(cnode0, "Phase", 1);
+    cube_cnode_add_numeric_parameter(cnode0, "Phase", 2);
+    cube_cnode_add_string_parameter(cnode0, "Iteration", "Initialization");
+    cube_cnode_add_string_parameter(cnode2, "Etappe", "Finish");
+    
+ @endcode
+Thelast dimension is the \texttt{system tree} dimension.
+Currently CUBE defines the system dimension with the fixed hierarchy:
+\texttt{MACHINE} \f$\rightarrow\f$ \texttt{NODES} \f$\rightarrow\f$ \texttt{PROCESSES} \f$\rightarrow\f$ \texttt{THREADS}
+
+It leads to the fixed sequence of calls in the system dimension definition:
+<ol>
+    <li> First one creates a root for the system dimension : \textit{cube_machine}. Machine has a name and description. </li>
+    <li> Machine consists of \textit{cube_node}s. Every \textit{cube_node} has a name and a \textit{cube_machine} as a parent.</li>
+    <li> On every \textit{cube_node} run several \textit{cube_process}es (as many cores are available). \textit{cube_process} has a name, MPI rank and \textit{cube_node} as a parent.</li>
+    <li> Every \textit{cube_process} spawns several (one or more) \textit{cube_thread}s (OMP, Pthreads, Java Threads). \textit{cube_thread} has a name, its  rank and \textit{cube_process} as a parent.</li>
+</ol>
+
+The cube returns a pointer on \textit{cube_machine}, \textit{cube_node}, \textit{cube_process} or \textit{cube_thread}, which has to be used later to define further level in the system tree or to access the data in the cube.
+@code
+    cube_machine* mach  = cube_def_mach(cube, "MSC<<juelich>>", "");
+    cube_node*    node  = cube_def_node(cube, "Athena<<juropa>>", mach);
+    cube_process* proc0 = cube_def_proc(cube, "Process 0<<master>>", 0, node);
+    cube_process* proc1 = cube_def_proc(cube, "Process 1<<worker>>", 1, node);
+    cube_thread*  thrd0 = cube_def_thrd(cube, "Thread 0<<iterator>>", 0, proc0);
+    cube_thread*  thrd1 = cube_def_thrd(cube, "Thread 1<<solver>>", 1, proc1);
+@endcode
+
+CUBE can carry a set of so called "topologies": mappings \texttt{THREAD} \f$\rightarrow\f$ (x, y, z, ...)
+
+Then the GUI is used to visualize every value (\textit{cube_metric}, \textit{cube_cnode}, \textit{cube_thread}) for selected metric and cnode as a 1D, 2D or 3D set of points with the different colors. 
+
+First one specifies a number of dimensions (any number is supported), a vector with the sizes in every dimension and its periodicity 
+and creates a structure of type  \textit{cube_cartesian}
+@code
+
+    long dimv0[NDIMS] = { 5, 5 };
+    int periodv0[NDIMS] = { 1, 0 };
+    cube_cartesian* cart0 = cube_def_cart(cube, NDIMS, dimv0, periodv0);
+    cube_cart_set_name(cart0, "Application Topology 1");
+@endcode
+
+The coordinates are defined like a vector and create a mapping.
+@code
+    long coordv[NDIMS] = { 0, 0};
+    cube_def_coords(cube, cart0, thrd1, coordv);
+
+
+    long dimv1[NDIMS] = { 3, 3 };
+    int periodv1[NDIMS] = { 1, 0 };
+    cube_cartesian* cart1 = cube_def_cart(cube, NDIMS, dimv1, periodv1);
+    cube_cart_set_name(cart1, "MPI Topology 3");
+
+    long coordv0[NDIMS] = { 0, 1 };
+    long coordv1[NDIMS] = { 1, 0 };
+    cube_def_coords(cube, cart1, thrd0, coordv0);
+    cube_def_coords(cube, cart1, thrd1, coordv1);
+
+
+@endcode
+
+
+The same way one can create any number of topologies. They are shown in the GUI.
+
+@code
+
+    long dimv2[4]    = { 3, 3, 3, 3 };
+    int  periodv2[4] = { 1, 0, 0, 0 };
+    cube_cartesian* cart2 = cube_def_cart(cube, 4, dimv2, periodv2);
+
+    long coordv20[4] = { 0, 1, 0, 0 };
+    long coordv21[4] = { 1, 0, 0 ,0 };
+    cube_def_coords(cube, cart2, thrd0, coordv20);
+    cube_def_coords(cube, cart2, thrd1, coordv21);
+    cube_cart_set_name(cart2,"Second");
+
+    long dimv3[14]    = { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 };
+    int  periodv3[14] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    cube_cartesian* cart3 = cube_def_cart(cube, 14, dimv3, periodv3);
+    long coordv32[14] = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2 };
+    long coordv33[14] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    cube_def_coords(cube, cart3, thrd0, coordv32);
+    cube_def_coords(cube, cart3, thrd1, coordv33);
+    cube_cart_set_name(cart3,"Third");
+
+
+
+
+
+
+
+@endcode
+
+
+
+
+Once the dimensions are defined, one fills the cube object with the data. Definition of topologies can be done after filling the cube. 
+
+
+
+Every data value is specified by three "coordinates": (\textit{ cube_metric}, \textit{cube_cnode}, \textit{cube_thread})
+
+Note, that \textit{cube_machine}, \textit{cube_node} and \textit{cube_process} are not a "coordinate". They are used only to build up the physical construction of the machine.
+
+
+Actual writing is done metric-wise and row-wise. First all values of one metric written, then the next metric and so on. No mixing of metrics in this 
+sequence is allowed. 
+
+Cube writes data row-wise. It means, for a given cnode, one has to provide an array of values, written in the order of threads in the system dimension.
+
+
+@code
+
+
+    double sev1[2];
+    
+    sev1[0]=123.4;
+    sev1[1]=567.9;
+    cube_write_sev_row(cube, met0, cnode2, sev1);
+
+    sev1[0]=1123.4;
+    sev1[1]=2567.9;
+    cube_write_sev_row(cube, met0, cnode1, sev1);
+
+    sev1[0]=-1123.4;
+    sev1[1]=3567.9;
+    cube_write_sev_row(cube, met0, cnode0, sev1);
+
+    sev1[0]=-123.4;
+    sev1[1]=-567.9;
+    cube_write_sev_row(cube, met1, cnode0, sev1);
+    
+    uint64_t sev2[2];
+    sev2[0]=23;
+    sev2[1]=26;
+    cube_write_sev_row(cube, met2, cnode2, sev2);
+      
+
+
+    printf("Test file %s complete.\n", cubefile);
+
+    cube_free(cube);
+    return 0;
+}
+@endcode
+*/
+

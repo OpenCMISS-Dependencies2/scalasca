@@ -1,0 +1,31 @@
+Usage: otf2-config [OPTION]... COMMAND
+
+Commands:
+  --cflags     prints additional compiler flags. They already contain
+               the include flags
+  --cppflags   prints the include flags for the OTF2 headers
+  --libs       prints the required libraries for linking
+  --ldflags    prints the required linker flags
+  --cc         prints the C compiler name
+  --features <FEATURE-CATEGORY>
+               prints available features selected by <FEATURE-CATEGORY>.
+               Available feature categories:
+                * substrates
+                * compressions
+                * targets
+  --help       prints this usage information
+
+  --version    prints the version number of the OTF2 package and
+  --revision   prints the revision number of the OTF2 package
+  --interface-version
+               prints the interface version number
+  --pythonpath
+               prints the python path for the OTF2 modules
+
+Options:
+  --target <TARGET>
+               displays the requested information for the given <TARGET>.
+               On non-cross compiling systems, the 'backend' target is ignored.
+  --backend    equivalent to '--target backend' (deprecated)
+  --cuda       specifies that the required flags are for the CUDA compiler
+               nvcc (deprecated)

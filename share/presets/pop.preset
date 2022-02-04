@@ -1,0 +1,31 @@
+-- POP preset for Cube Advisor: hardware counter measurement and trace collection/analysis
+
+# Variables that interfere with the preset when set in the environment
+SCOREP_CUDA_ENABLE=no
+SCOREP_METRIC_PAPI_SEP=','
+SCOREP_METRIC_PERF_PER_PROCESS=''
+SCOREP_METRIC_PLUGINS=''
+SCOREP_METRIC_RUSAGE_PER_PROCESS=''
+SCOREP_OPENCL_ENABLE=no
+SCOREP_PROFILING_BASE_NAME='profile'
+
+# Variables that may adversely impact measurement overhead
+SCOREP_ENABLE_UNWINDING=false
+SCOREP_MEMORY_RECORDING=false
+SCOREP_METRIC_PERF=''
+SCOREP_METRIC_RUSAGE=''
+SCOREP_MPI_MEMORY_RECORDING=false
+SCOREP_MPI_ONLINE_ANALYSIS=false
+SCOREP_SUBSTRATE_PLUGINS=''
+SCOREP_VERBOSE=false
+
+
+# timing information is used from tracing run
+- Scalasca tracing run
+SCOREP_ENABLE_PROFILING=false
+SCOREP_ENABLE_TRACING=true
+
+- Profiling run with PAPI counters
+SCOREP_ENABLE_PROFILING=true
+SCOREP_ENABLE_TRACING=false
+SCOREP_METRIC_PAPI=PAPI_TOT_INS,PAPI_TOT_CYC,PAPI_RES_STL

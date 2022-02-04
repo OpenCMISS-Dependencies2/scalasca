@@ -1,0 +1,114 @@
+/****************************************************************************
+**  CUBE        http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 1998-2017                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  Copyright (c) 2009-2013                                                **
+**  German Research School for Simulation Sciences GmbH,                   **
+**  Laboratory for Parallel Programming                                    **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+/** @page makefile-example Makefile for provided examples
+
+
+@section makefile-intro Quick info about makefile.
+Here we provide a small example of a makefile, which is used to compile and build examples delivered with CUBE. Similar makefiles 
+can be used by developers to compile and build own CUBE tools.
+
+@section makefile-example-source Commented source
+
+
+First we specify the installation path of CUBE and its "cube-config" script.
+This script delivers correct flags for compiling and linking, paths to the CUBE tools and GUI. (besides of another useful technical information)
+@code
+CUBE_DIR = /path/CubeInstall
+CUBE_CONFIG = $(CUBE_DIR)/bin/cube-config
+
+@endcode
+
+Additionally we specify CPPFLAGS and LDFLAGS to compile and link examples.
+@code
+CPPFLAGS = $(shell $(CUBE_CONFIG) --cube-cxxflags) 
+CFLAGS = $(shell $(CUBE_CONFIG) --cubew-cxxflags) 
+CLDFLAGS = $(shell $(CUBE_CONFIG) --cubew-ldflags) 
+CPPLDFLAGS = $(shell $(CUBE_CONFIG) --cube-ldflags) 
+@endcode
+
+Here a compiler is selected to compile and build the example.
+
+@code
+# GNU COMPILER 
+CXX = g++
+CC = gcc -std=c99
+MPICXX= mpicxx
+@endcode
+
+We define explicit suffixes for an executable file, created from C source, from c++ source and an MPI executable.
+If one develops a tool, which is using MPI, it is useful (sometimes) to define a special suffix for automatic compilation.
+@code
+.SUFFIXES: .c .o .cpp .c.exe .cpp.exe .c.o .cpp.o .mpi.o .mpi.cpp
+.PHONY: all  clean
+
+@endcode
+Object files of examples and their targets 
+@code
+# Object files
+OBJS =  cube_example.cpp.o \
+	cubew_example.c.o 
+
+TARGET = cube_example.cpp.exe \
+	 cubew_example.c.exe 
+
+
+@endcode
+Automatic rule for the compilation of every single C++ source into .o file and for building targets.
+@code
+
+%.cpp.o : %.cpp
+	$(CXX) -c $< -o $@ $(CPPFLAGS)
+
+%.cpp.exe : %.cpp.o
+	$(CXX)  $< -o $@ $(CPPLDFLAGS)
+
+
+@endcode
+Automatic rule for the compilation of every single C++ with MPI source into .o file and for building targets.
+@code
+%.mpi.o : %.mpi.cpp
+	$(MPICXX) -c $< -o $@ $(CPPFLAGS) $(CFLAGS)
+
+%.mpi.exe : %.mpi.o
+	$(MPICXX) $< -o $@  $(CLDFLAGS)
+
+@endcode
+Automatic rule for the compilation of every single C source into .o file and for building targets.
+@code
+
+
+%.c.o : %.c
+	$(CC) -c $< -o $@ $(CFLAGS) 
+
+%.c.exe : %.c.o
+	$(CC)  $< -o $@ $(CLDFLAGS)
+
+
+#------------------------------------------------------------------------------
+# Rules
+#------------------------------------------------------------------------------
+
+all: $(TARGET)
+
+
+@endcode
+*/
+
+
+
+
+

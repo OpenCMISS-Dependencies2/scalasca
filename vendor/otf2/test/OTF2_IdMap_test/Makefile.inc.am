@@ -1,0 +1,44 @@
+## -*- mode: makefile -*-
+##
+## This file is part of the Score-P software (http://www.score-p.org)
+##
+## Copyright (c) 2009-2011,
+## RWTH Aachen University, Germany
+##
+## Copyright (c) 2009-2011,
+## Gesellschaft fuer numerische Simulation mbH Braunschweig, Germany
+##
+## Copyright (c) 2009-2011,
+## Technische Universitaet Dresden, Germany
+##
+## Copyright (c) 2009-2011,
+## University of Oregon, Eugene, USA
+##
+## Copyright (c) 2009-2011, 2018,
+## Forschungszentrum Juelich GmbH, Germany
+##
+## Copyright (c) 2009-2011,
+## German Research School for Simulation Sciences GmbH, Juelich/Aachen, Germany
+##
+## Copyright (c) 2009-2011,
+## Technische Universitaet Muenchen, Germany
+##
+## This software may be modified and distributed under the terms of
+## a BSD-style license.  See the COPYING file in the package base
+## directory for details.
+##
+
+## file       test/OTF2_IdMap_test/Makefile.inc.am
+
+check_PROGRAMS += OTF2_IdMap_test
+OTF2_IdMap_test_SOURCES = $(SRC_ROOT)test/OTF2_IdMap_test/OTF2_IdMap_test.c \
+                          $(SRC_ROOT)common/utils/test/cutest/CuTest.c \
+                          $(SRC_ROOT)common/utils/test/cutest/CuTest.h
+OTF2_IdMap_test_LDFLAGS = $(AM_LDFLAGS) $(LINKMODE_FLAGS)
+OTF2_IdMap_test_LDADD = libotf2.la
+OTF2_IdMap_test_CPPFLAGS = $(AM_CPPFLAGS) \
+                           $(UTILS_CPPFLAGS) \
+                           -I$(PUBLIC_INC_DIR) \
+                           -I$(INC_DIR_COMMON_CUTEST)
+
+SCOREP_TESTS += OTF2_IdMap_test

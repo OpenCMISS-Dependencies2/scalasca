@@ -1,0 +1,1029 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2014                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+PROLOG {
+    // #define CPADEBUG
+
+    #include <algorithm>
+    #include <numeric>
+
+    #include "DelayOps.h"
+    #include "SynchpointHandler.h"
+    #include "TmapCacheHandler.h"
+
+    #ifdef _OPENMP
+        #include <omp.h>
+
+        #include "OmpEventHandler.h"
+    #endif    // _OPENMP
+    #ifdef CPADEBUG
+        #include <fstream>
+        #include <sstream>
+    #endif    // CPADEBUG
+
+
+    extern bool enableCriticalPath;
+}
+
+PATTERN "CRITICAL_PATH" = [
+    NAME       = "Critical path profile"
+    DOCNAME    = "Critical Path Profile"
+    CLASS      = "PatternCriticalPath"
+    CONDITION  = "enableCriticalPath"
+    INFO       = "Profile of the application's critical path"
+    DESCR      = {
+        This metric provides a profile of the application's critical path.
+        Following the causality chain from the last active program
+        process/thread back to the program start, the critical path shows
+        the call paths and processes/threads that are responsible for the
+        program's wall-clock runtime.
+        </dd><p><dd>
+        @img(CriticalPath.png)
+        </dd><p><dd>
+        Note that Scalasca does not yet consider POSIX threads when determining
+        the critical path.  Thus, the critical-path profile is currently incorrect
+        if POSIX threads are being used, as only the master thread of each process
+        is taken into account.  However, it may still provide useful insights
+        across processes for hybrid MPI+Pthreads applications.
+    }
+    DIAGNOSIS  = {
+        Call paths that occupy a lot of time on the critical path are good
+        optimization candidates.  In contrast, optimizing call paths that do
+        not appear on the critical path will not improve program runtime.
+        </dd><p><dd>
+        Call paths that spend a disproportionately large amount of
+        time on the critical path with respect to their total execution
+        time indicate parallel bottlenecks, such as load imbalance or
+        serial execution.  Use the percentage view modes and compare execution
+        time and critical path profiles to identify such call paths.
+        </dd><p><dd>
+        The system tree pane shows the contribution of individual
+        processes/threads to the critical path.
+        However, note that the critical path runs only on one process at a time.
+        In a well-balanced program, the critical path follows a
+        more-or-less random course across processes and may not visit many
+        processes at all.
+        Therefore, a high critical-path time on individual processes does not
+        necessarily indicate a performance problem.
+        Exceptions are significant load imbalances or serial execution on
+        single processes.
+        Use the critical-path imbalance metric or compare with the distribution
+        of execution time across processes to identify such cases.
+    }
+    UNIT       = "sec"
+    MODE       = "exclusive"
+    STATICINIT = {
+        std::vector< double > PatternCriticalPath::m_tmpvec;
+    }
+    DATA       = {
+        // *INDENT-OFF*    Uncrustify issue #2789
+        bool  m_on_critical_path;
+        Event m_end_event;
+        // *INDENT-ON*
+
+        static std::vector< double > m_tmpvec;
+
+        #ifdef CPADEBUG
+            std::ofstream m_dbg;
+        #endif
+
+
+        /// @todo Once all Syncpoints are adjusted, `spi.waitTime` should be &le;
+        ///       the time spent in the comm/sync operation (i.e., `min` may not
+        ///       be necessary unless there are rounding errors)
+        void
+        update_path_severities(const Event         from,
+                               const CbData* const data)
+        {
+            timemap_t tmap = data->mTmapCacheHandler->getRuntimes(from, m_end_event);
+
+            for (timemap_t::const_iterator it = tmap.begin();
+                 it != tmap.end();
+                 ++it)
+            {
+                Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                m_severity[callpath] += it->second;
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                    << get_name() << " @ " << *callpath
+                    << ": " << it->second
+                    << " [total: " << m_severity[callpath] << ']';
+            }
+
+            const SynchpointInfo spi = data->mSynchpointHandler->getSynchpointInfo(from);
+
+            Callpath* const callpath = from.get_cnode();
+            const double    waitT    = min(spi.waitTime, tmap[callpath->getId()]);
+
+            m_severity[callpath] -= waitT;
+
+            UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                << get_name() << " @ " << *callpath
+                << ": -" << waitT
+                << " (wait state) [total: " << m_severity[callpath] << ']';
+        }
+
+        void
+        update_first_path_severities(const CbData* const data)
+        {
+            timemap_t tmap = data->mTmapCacheHandler->getRuntimes(Event(), m_end_event);
+
+            for (timemap_t::const_iterator it = tmap.begin();
+                 it != tmap.end();
+                 ++it)
+            {
+                Callpath* const callpath = data->mDefs->get_cnode(it->first);
+
+                m_severity[callpath] += it->second;
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                    << get_name() << " @ " << *callpath
+                    << ": " << it->second
+                    << " [total: " << m_severity[callpath] << ']';
+            }
+        }
+
+        /// @todo Once all Syncpoints are adjusted, `wtsm` entries should be &le;
+        ///       the time spent in the comm/sync operation (i.e., `min` may not
+        ///       be necessary unless there are rounding errors)
+        void
+        collate_global_critical_path(CbData* const data)
+        {
+            const uint32_t numCallpaths = data->mDefs->numCallpaths();
+
+            // Collate global critical-path profile
+            data->mGlobalCriticalPath.resize(numCallpaths, 0.0);
+            data->mLocalCriticalPath.resize(numCallpaths, 0.0);
+
+            for (map< Callpath*, double >::const_iterator it = m_severity.begin();
+                 it != m_severity.end();
+                 ++it)
+            {
+                data->mLocalCriticalPath[(it->first)->getId()] = it->second;
+            }
+
+            #pragma omp single
+            {
+                m_tmpvec.assign(numCallpaths, 0.0);
+            }
+            #pragma omp critical
+            {
+                transform(m_tmpvec.begin(), m_tmpvec.end(),
+                          data->mLocalCriticalPath.begin(),
+                          m_tmpvec.begin(),
+                          plus< double >());
+            }
+            #pragma omp barrier
+
+            #ifdef _MPI
+                #pragma omp master
+                {
+                    MPI_Allreduce(MPI_IN_PLACE, &m_tmpvec[0], numCallpaths,
+                                  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+                }
+                #pragma omp barrier
+            #endif
+
+            data->mGlobalCriticalPath.assign(m_tmpvec.begin(), m_tmpvec.end());
+
+            // Collate local non-waiting time profile
+            data->mLocalTimeProfile.resize(numCallpaths, 0.0);
+
+            timemap_t  ltmap = data->mTmapCacheHandler->getRuntimes(Event(), Event());
+            TimeMapSum wtsm  = CalculateWaitMap(data->mSynchpointHandler->getSynchpoints());
+
+            for (timemap_t::const_iterator it = ltmap.begin();
+                 it != ltmap.end();
+                 ++it)
+            {
+                data->mLocalTimeProfile[it->first] += it->second;
+
+                timemap_t::const_iterator wit = wtsm.mMap.find(it->first);
+                if (wit != wtsm.mMap.end())
+                {
+                    data->mLocalTimeProfile[it->first] -= min(it->second, wit->second);
+                }
+            }
+        }
+    }
+
+    CALLBACKS("bws") = [
+        "PREPARE" = {
+            #ifdef CPADEBUG
+                int rank = 0, thread = 0;
+                #ifdef _MPI
+                    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+                #endif
+                #ifdef _OPENMP
+                    thread = omp_get_thread_num();
+                #endif
+                std::ostringstream filename;
+                filename << "cpadbg_r" << rank << "t" << thread << ".out";
+                m_dbg.open(filename.str().c_str());
+
+                m_dbg << "bws prepare: mUpdateCallstack is " << data->mCallstack.getUpdate() << std::endl;
+            #endif    // CPADEBUG
+        }
+    ]
+
+    CALLBACKS("bwc") = [
+        "PREPARE" = {
+            m_on_critical_path = false;
+
+            #ifndef _MPI
+                #pragma omp master
+                {
+                    m_on_critical_path = true;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                        << "Critical Path: Starts on " << event.get_location();
+                }
+            #endif
+        }
+
+        "FINISHED" = {
+            #ifndef _MPI
+                #pragma omp master
+                {
+                    update_first_path_severities(data);
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                        << "Critical Path: Finishes on " << event.get_location();
+                }
+            #endif
+
+            collate_global_critical_path(data);
+
+            cbmanager.notify(CRITICALPATH_FINISHED, event, data);
+        }
+
+        "OMP_MGMT_FORK" = {
+            #ifdef _OPENMP
+                static bool flag;
+
+                #pragma omp single
+                {
+                    flag = false;
+                }
+                #pragma omp critical
+                {
+                    if (m_on_critical_path)
+                    {
+                        // --- set severities
+                        update_path_severities(event, data);
+
+                        m_on_critical_path = false;
+                        flag               = true;
+
+                        #ifdef CPADEBUG
+                            m_dbg << "Was on critical path in fork" << std::endl;
+                        #endif
+                    }
+                }
+
+                #pragma omp barrier
+                { }
+
+                #pragma omp master
+                {
+                    if (flag)
+                    {
+                        m_on_critical_path = true;
+                        m_end_event        = event;
+
+                        #ifdef CPADEBUG
+                            m_dbg << "Now on critical path in fork" << std::endl;
+                        #endif
+                    }
+                }
+                #pragma omp barrier
+                { }
+            #endif
+        }
+
+        "OMP_BARRIER" = {
+            #ifdef _OPENMP
+                static bool flag;
+
+                #pragma omp single
+                {
+                    flag = false;
+                }
+                #pragma omp critical
+                {
+                    if (m_on_critical_path)
+                    {
+                        // --- set severities
+                        update_path_severities(event, data);
+
+                        m_on_critical_path = false;
+                        flag               = true;
+                        #ifdef CPADEBUG
+                            m_dbg << "Was on critical path in omp barrier" << std::endl;
+                        #endif
+                    }
+                }
+
+                #pragma omp barrier
+                { }
+
+                if (  flag
+                   && !data->mSynchpointHandler->isWaitstate(event))
+                {
+                    // FIXME: bit of a problem here ... might have two critical paths
+                    m_on_critical_path = true;
+                    m_end_event        = event;
+                    #ifdef CPADEBUG
+                        m_dbg << "Now on critical path in omp barrier" << std::endl;
+                    #endif
+                }
+                #pragma omp barrier
+                { }
+            #endif
+        }
+
+        # Only triggered in MPI mode
+        "FINALIZE" = {
+            const CollectiveInfo& ci = data->mCollinfo;
+
+            if (ci.my.mRank == ci.latest.mRank)
+            {
+                m_on_critical_path = true;
+                m_end_event        = event;
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                    << "Critical Path: Starts on " << event.get_location();
+            }
+        }
+
+        # Only triggered in MPI mode
+        "INIT" = {
+            if (m_on_critical_path)
+            {
+                update_path_severities(event, data);
+
+                UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                    << "Critical Path: Finishes on " << event.get_location();
+            }
+        }
+
+        "COLL_12N" = {
+            #ifdef _MPI
+                const CollectiveInfo& ci = data->mCollinfo;
+
+                int inFlag = 0;
+                if (  m_on_critical_path
+                   && data->mSynchpointHandler->isWaitstate(event))
+                {
+                    update_path_severities(event, data);
+
+                    inFlag             = 1;
+                    m_on_critical_path = false;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                        << "Critical Path: Moves to rank "
+                        << event->getComm()->getCommSet().getGlobalRank(ci.root.mRank);
+                }
+
+                int outFlag = 0;
+                MPI_Reduce(&inFlag, &outFlag, 1, MPI_INT, MPI_MAX, ci.root.mRank,
+                           event->getComm()->getHandle());
+
+                if (outFlag)
+                {
+                    m_on_critical_path = true;
+                    m_end_event        = event;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                        << "Critical Path: Continues on " << event.get_location();
+                }
+            #endif
+        }
+
+        "COLL_N2N" = {
+            #ifdef _MPI
+                const CollectiveInfo& ci = data->mCollinfo;
+
+                int inFlag = 0;
+                if (  m_on_critical_path
+                   && data->mSynchpointHandler->isWaitstate(event))
+                {
+                    update_path_severities(event, data);
+
+                    inFlag             = 1;
+                    m_on_critical_path = false;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                        << "Critical Path: Moves to rank "
+                        << event->getComm()->getCommSet().getGlobalRank(ci.latest.mRank);
+                }
+
+                int outFlag = 0;
+                MPI_Reduce(&inFlag, &outFlag, 1, MPI_INT, MPI_MAX, ci.latest.mRank,
+                           event->getComm()->getHandle());
+
+                if (outFlag)
+                {
+                    m_on_critical_path = true;
+                    m_end_event        = event;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                        << "Critical Path: Continues on " << event.get_location();
+                }
+            #endif
+        }
+
+        "SYNC_COLL" = {
+            #ifdef _MPI
+                const CollectiveInfo& ci = data->mCollinfo;
+
+                int inFlag = 0;
+                if (  m_on_critical_path
+                   && data->mSynchpointHandler->isWaitstate(event))
+                {
+                    update_path_severities(event, data);
+
+                    inFlag             = 1;
+                    m_on_critical_path = false;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                        << "Critical Path: Moves to rank "
+                        << event->getComm()->getCommSet().getGlobalRank(ci.latest.mRank);
+                }
+
+                int outFlag = 0;
+                MPI_Reduce(&inFlag, &outFlag, 1, MPI_INT, MPI_MAX, ci.latest.mRank,
+                           event->getComm()->getHandle());
+
+                if (outFlag)
+                {
+                    m_on_critical_path = true;
+                    m_end_event        = event;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                        << "Critical Path: Continues on " << event.get_location();
+                }
+            #endif
+        }
+
+        "COLL_N21" = {
+            #ifdef _MPI
+                const CollectiveInfo& ci = data->mCollinfo;
+
+                int inFlag = 0;
+                if (  m_on_critical_path
+                   && data->mSynchpointHandler->isWaitstate(event))
+                {
+                    update_path_severities(event, data);
+
+                    inFlag             = 1;
+                    m_on_critical_path = false;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                        << "Critical Path: Moves to rank "
+                        << event->getComm()->getCommSet().getGlobalRank(ci.latest.mRank);
+                }
+
+                int outFlag = 0;
+                MPI_Reduce(&inFlag, &outFlag, 1, MPI_INT, MPI_MAX, ci.latest.mRank,
+                           event->getComm()->getHandle());
+
+                if (outFlag)
+                {
+                    m_on_critical_path = true;
+                    m_end_event        = event;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                        << "Critical Path: Continues on " << event.get_location();
+                }
+            #endif
+        }
+
+        "PRE_RECV" = {
+            #ifdef _MPI
+                Buffer*  buffer = new Buffer(16);
+                uint32_t flag   = 0;
+
+                if (  m_on_critical_path
+                   && data->mSynchpointHandler->isWaitstate(event))
+                {
+                    // --- set severities
+                    update_path_severities(event, data);
+
+                    // --- critical path continues on wait-state causing process
+
+                    flag               = 1;
+                    m_on_critical_path = false;
+                }
+
+                buffer->put_uint32(flag);
+                data->mLocal->add_buffer(buffer, BUFFER_CRITICALPATH);
+            #endif
+        }
+
+        "POST_SEND" = {
+            #ifdef _MPI
+                if (!data->mSynchpointHandler->isSynchpoint(event))
+                {
+                    return;
+                }
+
+                // --- get critical path info flag
+
+                uint32_t flag = data->mRemote->get_buffer(BUFFER_CRITICALPATH)->get_uint32();
+
+                if (flag)
+                {
+                    m_on_critical_path = true;
+                    m_end_event        = event;
+                    #ifdef CPADEBUG
+                        if (!data->mSynchpointHandler->isSynchpoint(event))
+                        {
+                            m_dbg << "SEND on critical path is not a registered synchpoint!" << endl;
+                        }
+                    #endif
+                }
+            #endif
+        }
+
+        "POST_INV_RECVREQ" = {
+            #ifdef _MPI
+                // --- get critical path info flag
+
+                uint32_t flag = data->mInvRemote->get_buffer(BUFFER_CRITICALPATH)->get_uint32();
+
+                if (flag)
+                {
+                    m_on_critical_path = true;
+                    m_end_event        = event;
+                    #ifdef CPADEBUG
+                        if (!data->mSynchpointHandler->isSynchpoint(event))
+                        {
+                            m_dbg << "RECVREQ on critical path is not a registered synchpoint!" << endl;
+                        }
+                    #endif
+                }
+            #endif
+        }
+
+        "PRE_INV_SENDCMP" = {
+            #ifdef _MPI
+                Buffer*  buffer = new Buffer(16);
+                uint32_t flag   = 0;
+
+                if (  m_on_critical_path
+                   && data->mSynchpointHandler->isWaitstate(event))
+                {
+                    // --- set severities
+                    update_path_severities(event, data);
+
+                    // --- critical path continues on wait-state causing process
+
+                    flag               = 1;
+                    m_on_critical_path = false;
+                }
+
+                buffer->put_uint32(flag);
+                data->mInvLocal->add_buffer(buffer, BUFFER_CRITICALPATH);
+            #endif
+        }
+    ]
+]
+
+
+PATTERN "CRITICAL_PATH_IMBALANCE" = [
+    PARENT    = "CRITICAL_PATH"
+    NAME      = "Imbalance"
+    DOCNAME   = "Critical-Path Imbalance"
+    CLASS     = "PatternCriticalPathImbalance"
+    CONDITION = "enableCriticalPath"
+    INFO      = "Imbalanced critical-path routines"
+    DESCR     = {
+        This metric highlights parallel performance bottlenecks.
+        </dd><p><dd>
+        In essence, the critical-path imbalance is the positive difference of
+        the time a call path occupies on the critical path and the call path's
+        average runtime across all CPU locations.  Thus, a high critical-path
+        imbalance identifies call paths which spend a disproportionate amount
+        of time on the critical path.
+        </dd><p><dd>
+        @img(CriticalPathImbalance.png)
+        </dd><p><dd>
+        The image above illustrates the critical-path profile and the critical-path
+        imbalance for the example in the @ref(CRITICAL_PATH) metric description.
+        Note that the excess time of regions <tt>foo</tt> and <tt>baz</tt> on the
+        critical path compared to their average execution time is marked as
+        imbalance.  While also on the critical path, region <tt>bar</tt> is
+        perfectly balanced between the processes and therefore has no contribution
+        to critical-path imbalance.
+    }
+    DIAGNOSIS = {
+        A high critical-path imbalance indicates a parallel bottleneck,
+        such as load imbalance or serial execution.  Cross-analyze with
+        other metrics, such as the distribution of execution time across
+        CPU locations, to identify the type and causes of the parallel
+        bottleneck.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "PERFORMANCE_IMPACT" = [
+    NAME      = "Performance impact"
+    DOCNAME   = "Performance Impact"
+    CLASS     = "PatternPerformanceImpact"
+    CONDITION = "enableCriticalPath"
+    INFO      = "Global performance impact of program activities"
+    DESCR     = {
+        This heuristic characterizes the performance impact of program activities
+        (call paths) on the program as a whole.  This includes the activities'
+        direct impact on the CPU time, as well as their indirect impact through
+        load imbalance.
+    }
+    DIAGNOSIS = {
+        Expand the metric tree hierarchy to identify the impact of activities on
+        the critical path of the application compared to activities not located
+        on the critical path.  For critical-path activities, further expand the
+        @ref(PERFORMANCE_IMPACT_CRITICALPATH) hierarchy to identify how much of
+        the performance impact is due to imbalance rather than actual computation.
+        </dd><p><dd>
+        Expand the call tree to identify important callpaths and routines with the
+        most impact on overall resource consumption.
+    }
+    UNIT      = "sec"
+    MODE      = "inclusive"
+    HIDDEN
+]
+
+
+PATTERN "PERFORMANCE_IMPACT_CRITICALPATH" = [
+    PARENT    = "PERFORMANCE_IMPACT"
+    NAME      = "Critical-path activities"
+    DOCNAME   = "Critical-path Activities"
+    CLASS     = "PatternPerformanceImpactCp"
+    CONDITION = "enableCriticalPath"
+    INFO      = "Overall resource consumption caused by activities on the critical path"
+    DESCR     = {
+        Overall resource comsumption caused by activities that appear on the
+        critical path. While the @ref(CRITICAL_PATH) metric calculates a profile
+        of the critical path and thus also highlights the processes/threads taking
+        part in its execution, this metric aggregates the overall resource
+        consumption associated with the execution of critical-path activities,
+        including any waiting times on processes/threads not on the critical path.
+    }
+    DIAGNOSIS = {
+        Expand the metric tree hierarchy to break down the overall resource
+        consumption into the fraction that is caused by executing the critical-path
+        activities themselves and the resources consumed by wait states caused by
+        imbalances in these activities.
+    }
+    UNIT      = "sec"
+    MODE      = "inclusive"
+    HIDDEN
+]
+
+
+PATTERN "CRITICAL_PATH_ACTIVITIES" = [
+    PARENT    = "PERFORMANCE_IMPACT_CRITICALPATH"
+    NAME      = "Activity impact"
+    DOCNAME   = "Activity Impact"
+    CLASS     = "PatternCriticalPathActivities"
+    CONDITION = "enableCriticalPath"
+    INFO      = "Resource consumption of activities on the critical path"
+    DESCR     = {
+        Resource consumption caused by executing activities that appear on the
+        critical path.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS("bwc") = [
+        "CRITICALPATH_FINISHED" = {
+            // Shortcuts
+            const vector< double >& gcpath = data->mGlobalCriticalPath;
+            const vector< double >& ltimes = data->mLocalTimeProfile;
+
+            const size_t numCallpaths = data->mDefs->numCallpaths();
+            for (size_t i = 0; i < numCallpaths; ++i)
+            {
+                if (gcpath[i] > 0)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(i);
+                    const double    impact   = min(gcpath[i], ltimes[i]);
+
+                    m_severity[callpath] = impact;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                        << get_name() << " @ " << *callpath
+                        << ": " << impact;
+                }
+            }
+        }
+    ]
+]
+
+
+PATTERN "CRITICAL_IMBALANCE_IMPACT" = [
+    PARENT     = "PERFORMANCE_IMPACT_CRITICALPATH"
+    NAME       = "Critical-path imbalance impact"
+    DOCNAME    = "Critical Imbalance Impact"
+    CLASS      = "PatternCriticalImbalanceImpact"
+    CONDITION  = "enableCriticalPath"
+    INFO       = "Performance impact of load imbalance on the critical path"
+    DESCR      = {
+        This heuristic maps waiting time onto activities that spend &quot;too
+        much&quot; time on the critical path, highlighting imbalanced activities
+        that are likely responsible for wait states.
+        </dd><p><dd>
+        Unlike the @ref(DELAY) metric which identifies any delay which leads to a
+        wait state at a synchronization point, the imbalance impact pinpoints
+        inefficiencies which have a global runtime effect by mapping overall
+        resource consumption to call paths that appear on the critical path.  This
+        allows to distinguish different types of imbalances, for example,
+        @ref(INTRA_PARTITION_IMBALANCE) and @ref(INTER_PARTITION_IMBALANCE), which
+        are especially useful for the analysis of MPMD applications.
+    }
+    DIAGNOSIS  = {
+        A high imbalance impact indicates a parallel bottleneck.
+        Expand the metric tree hierarchy to distinguish between intra- and
+        inter-partition imbalances.
+    }
+    UNIT       = "sec"
+    MODE       = "exclusive"
+    DATA       = {
+        static vector< double > globalImbalanceCosts;
+    }
+    STATICINIT = {
+        vector< double > PatternCriticalImbalanceImpact::globalImbalanceCosts;
+    }
+    CALLBACKS("bwc") = [
+        "CRITICALPATH_FINISHED" = {
+            // Shortcuts
+            const size_t numCallpaths = data->mDefs->numCallpaths();
+
+            const vector< double >& gcpath = data->mGlobalCriticalPath;
+            const vector< double >& lcpath = data->mLocalCriticalPath;
+            const vector< double >& ltimes = data->mLocalTimeProfile;
+
+            // Calculate aggregate local wait time
+            // FIXME:
+            // In theory, the wait time can be calculated as the totel time on the
+            // global critical path minus the local time profile (which excludes
+            // wait time).  However, in practice this difference may be negative.
+            // This needs to be investigated in more depth...
+            const double gcplen    = accumulate(gcpath.begin(), gcpath.end(), 0.0);
+            const double lplen     = accumulate(ltimes.begin(), ltimes.end(), 0.0);
+            const double aggrWaitT = gcplen - lplen;
+
+            // Calculate local per-callpath critical-path excess time
+            // (see thesis D. Boehme, p. 83, Eq. 1)
+            vector< double > localImbalanceCosts;
+            localImbalanceCosts.reserve(numCallpaths);
+            for (size_t i = 0; i < numCallpaths; ++i)
+            {
+                localImbalanceCosts.push_back(max(gcpath[i] - ltimes[i], 0.0));
+            }
+
+            // Calculate aggregate local critical-path excess time (p. 84, Eq. 1);
+            // excess time for call paths not on critical path is 0
+            const double aggrExcessT = accumulate(localImbalanceCosts.begin(),
+                                                  localImbalanceCosts.end(), 0.0);
+
+            // Calculate local critical-path imbalance costs (p. 83, Eq. 2)
+            const double scalingFactor = aggrWaitT / aggrExcessT;
+            transform(localImbalanceCosts.begin(), localImbalanceCosts.end(),
+                      localImbalanceCosts.begin(),
+                      bind2nd(multiplies< double >(), scalingFactor));
+
+            // Accumulate global critical-path imbalance costs
+            #pragma omp single
+            {
+                globalImbalanceCosts.assign(numCallpaths, 0.0);
+            }
+            #pragma omp critical
+            {
+                transform(globalImbalanceCosts.begin(), globalImbalanceCosts.end(),
+                          localImbalanceCosts.begin(),
+                          globalImbalanceCosts.begin(),
+                          plus< double >());
+            }
+            #pragma omp barrier
+
+            #ifdef _MPI
+                #pragma omp master
+                {
+                    MPI_Allreduce(MPI_IN_PLACE, &globalImbalanceCosts[0], numCallpaths,
+                                  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+                }
+                #pragma omp barrier
+            #endif
+
+            // Proportionally distribute global critical-path imbalance costs to
+            // call paths on the critical path
+            for (size_t i = 0; i < numCallpaths; ++i)
+            {
+                if (lcpath[i] > 0)    // implies 'gcpath[i] > 0'
+                {
+                    // FIXME: calculated costs should never be negative
+                    const double costs = (lcpath[i] / gcpath[i]) * globalImbalanceCosts[i];
+                    if (costs > 0)
+                    {
+                        Callpath* const callpath = data->mDefs->get_cnode(i);
+
+                        m_severity[callpath] = costs;
+
+                        UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                            << get_name() << " @ " << *callpath
+                            << ": " << costs;
+                    }
+                }
+            }
+        }
+    ]
+]
+
+
+PATTERN "INTRA_PARTITION_IMBALANCE" = [
+    PARENT    = "CRITICAL_IMBALANCE_IMPACT"
+    NAME      = "Intra-partition imbalance"
+    DOCNAME   = "Intra-partition Imbalance"
+    CLASS     = "PatternIntraPartitionImbalance"
+    CONDITION = "enableCriticalPath"
+    INFO      = "Performance impact of load imbalance within processpartitions that perform activities on the critical path"
+    DESCR     = {
+        Resource consumption caused by imbalances within process partitions that
+        perform activities on the critical path.
+    }
+    DIAGNOSIS  = {
+        A high intra-partition imbalance impact indicates that imbalances
+        <i>within</i> the dominating (MPMD) partitions cause significant wait
+        states.  Compare with the @ref(CRITICAL_PATH_IMBALANCE) and @ref(DELAY)
+        metrics to identify the imbalanced processes/threads.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "INTER_PARTITION_IMBALANCE" = [
+    PARENT     = "CRITICAL_IMBALANCE_IMPACT"
+    NAME       = "Inter-partition imbalance"
+    DOCNAME    = "Inter-partition Imbalance"
+    CLASS      = "PatternInterPartitionImbalance"
+    CONDITION  = "enableCriticalPath"
+    INFO       = "Performance impact of load imbalance between process partitions that perform different activities"
+    DESCR      = {
+        Resource consumption caused by imbalances within process partitions that
+        perform activities on the critical path.
+    }
+    DIAGNOSIS  = {
+        A high inter-partition imbalance impact indicates a sub-optimal
+        partitioning in MPMD applications.  Compare with the @ref(CRITICAL_PATH)
+        to identify the delaying partition and adjust the process or workload
+        partitioning accordingly to achieve a better load balance.
+        </dd><p><dd>
+        Note that in hybrid MPI+OpenMP SPMD applications, master and worker threads
+        are also considered as different partitions.
+    }
+    UNIT       = "sec"
+    MODE       = "exclusive"
+    DATA       = {
+        static vector< double > phr;
+    }
+    STATICINIT = {
+        vector< double > PatternInterPartitionImbalance::phr;
+    }
+    CALLBACKS("bwc") = [
+        "CRITICALPATH_FINISHED" = {
+            //
+            // --- calculate local headroom
+
+            // shortcuts
+            const size_t            ncnodes = data->mDefs->numCallpaths();
+            const vector< double >& gcpath(data->mGlobalCriticalPath);
+            const vector< double >& lcpath(data->mLocalCriticalPath);
+            const vector< double >& ltimes(data->mLocalTimeProfile);
+
+            double gcplen = std::accumulate(gcpath.begin(), gcpath.end(), 0.0);
+            double lplen  = 0.0;
+
+            vector< double > hr(gcpath);
+
+            for (size_t i = 0; i < ncnodes; ++i)
+            {
+                if (ltimes[i] > 0.0)
+                {
+                    lplen += ltimes[i] + (hr[i] - std::min(ltimes[i], hr[i]));
+                    hr[i]  = 0.0;
+                }
+            }
+
+            double lhrlen = std::accumulate(hr.begin(), hr.end(), 0.0);
+            double hrf    = (gcplen - lplen) / lhrlen;
+
+            for (size_t i = 0; i < ncnodes; ++i)
+            {
+                hr[i] *= hrf;
+            }
+
+            //
+            // --- exchange headrooms and calculate severity
+
+            #pragma omp master
+            {
+                phr.assign(ncnodes, 0.0);
+            }
+            #pragma omp barrier
+            { }
+            #pragma omp critical
+            {
+                std::transform(phr.begin(), phr.end(), hr.begin(),
+                               phr.begin(), std::plus< double >());
+            }
+            #pragma omp barrier
+            { }
+
+            #ifdef _MPI
+                #pragma omp master
+                {
+                    MPI_Allreduce(MPI_IN_PLACE, &phr[0], ncnodes, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+                }
+            #endif
+
+            #pragma omp barrier
+            { }
+            hr.assign(phr.begin(), phr.end());
+
+            for (uint32_t i = 0; i < ncnodes; ++i)
+            {
+                if (!(lcpath[i] > 0.0))
+                {
+                    continue;
+                }
+
+                double sev = (lcpath[i] / gcpath[i]) * hr[i];
+
+                if (sev > 0.0)
+                {
+                    m_severity[data->mDefs->get_cnode(i)] += sev;
+                }
+            }
+        }
+    ]
+]
+
+
+PATTERN "NON_CRITICAL_PATH_ACTIVITIES" = [
+    PARENT    = "PERFORMANCE_IMPACT"
+    NAME      = "Non-critical-path activities"
+    DOCNAME   = "Non-critical-path Activities"
+    CLASS     = "PatternNonCriticalPathActivities"
+    CONDITION = "enableCriticalPath"
+    INFO      = "Overall resource consumption of activities that are not on the critical path"
+    DESCR     = {
+        Overall resource comsumption caused by activities that do not appear on the
+        critical path.  As such, optimizing these activities does not improve the
+        application runtime.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS("bwc") = [
+        "CRITICALPATH_FINISHED" = {
+            // Shortcuts
+            const vector< double >& gcpath = data->mGlobalCriticalPath;
+            const vector< double >& ltimes = data->mLocalTimeProfile;
+
+            const size_t numCallpaths = data->mDefs->numCallpaths();
+            for (uint32_t i = 0; i < numCallpaths; ++i)
+            {
+                const double impact = ltimes[i] - gcpath[i];
+                if (impact > 0)
+                {
+                    Callpath* const callpath = data->mDefs->get_cnode(i);
+
+                    m_severity[callpath] = impact;
+
+                    UTILS_DLOG_LEVEL(SCALASCA_DEBUG_CRITICAL_PATH)
+                        << get_name() << " @ " << *callpath
+                        << ": " << impact;
+                }
+            }
+        }
+    ]
+]

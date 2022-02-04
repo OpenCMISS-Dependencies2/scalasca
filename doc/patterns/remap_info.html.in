@@ -1,0 +1,42 @@
+<hr style="border-top: 1px solid #004a6e">
+<a name="remapping_info"><h3>What is remapping?</h3>
+
+A number of additional metrics can be calculated during an analysis report
+postprocessing step called <em>remapping</em>.  In addition, remapping also
+organizes the performance properties in a hierarchical way, which allows to
+examine analysis reports at different levels of granularity.  The remapping
+step is automatically performed by the Scalasca convenience command
+<tt>scalasca -examine</tt> (or short <tt>square</tt>) the first time an
+experiment archive is examined.  Thus, it should be transparent to users
+following the recommended workflow as described in the
+<a href="https://apps.fz-juelich.de/scalasca/releases/scalasca/@PACKAGE_MAJOR@.@PACKAGE_MINOR@/docs/manual/">Scalasca User Guide</a>.
+<p>
+However, the remapping process can also be performed manually using the
+command-line tool <tt>cube_remap2</tt> from the CubeLib package if necessary.
+This tool reads an input Cube file and generates a corresponding output Cube
+file according to a remapping specification.  Note that this remapping
+specification has to be different for postprocessing runtime summaries and
+trace analysis reports, though.  To postprocess a Score-P runtime summary
+report <tt>profile.cubex</tt> and create a <tt>summary.cubex</tt> report, use
+<pre>
+    cube_remap2 -d -r `scorep-config --remap-specfile` -o summary.cubex profile.cubex
+</pre>
+Likewise, to postprocess a Scalasca trace analysis report <tt>scout.cubex</tt>
+and create a <tt>trace.cubex</tt> report, use
+<pre>
+    cube_remap2 -d -r `scalasca --remap-specfile` -o trace.cubex scout.cubex
+</pre>
+Note that as of Score-P v5.0 and Scalasca v2.6, respectively, the remapping
+specification is embedded in the runtime summary and trace analysis reports
+if the specification file can be read from the installation directory at
+measurement/analysis time.  In this case, the <tt>-r &lt;file&gt;</tt> option
+can be omitted from the commands above.  However, this embedded specification
+is dropped during any Cube algebra operation (e.g., <tt>cube_cut</tt> or
+<tt>cube_merge</tt>).
+
+<h4>IMPORTANT NOTE:</h4>
+Remapping specifications are typically targeted towards a particular version
+of Score-P or Scalasca.  Thus, it is <em>highly recommended</em> to use the
+remapping specification distributed with the Score-P/Scalasca version that was
+used to generate the input report.  Otherwise the remapping may produce
+unexpected results.

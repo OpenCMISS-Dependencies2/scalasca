@@ -1,0 +1,38 @@
+#!/bin/sh
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 2015                                                     ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+# Settings
+BINDIR="@BINDIR@"
+COMMAND=`basename $0`
+
+# Determine user executables directory (MIC vs. host)
+ARCH=`uname -m`
+case "${ARCH}" in
+    k1om)
+        TARGET="MIC"
+        BACKEND_SUFFIX="/mic"
+        ;;
+    *)
+        TARGET="host"
+        BACKEND_SUFFIX=""
+esac
+BINDIR="${BINDIR}${BACKEND_SUFFIX}"
+
+# Sanity check
+if [ ! -x "${BINDIR}/${COMMAND}" ]; then
+    echo "ERROR: Cannot execute Scalasca command '${COMMAND}' for ${TARGET}!"
+    exit 1
+fi
+
+# Execute command
+exec "${BINDIR}/${COMMAND}" "$@"

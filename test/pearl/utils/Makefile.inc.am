@@ -1,0 +1,41 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 2016-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+PEARL_UTILS_TEST = $(SRC_ROOT)test/pearl/utils
+
+
+## --- Tests ----------------------------------------------------------------
+
+check_PROGRAMS += \
+    pearl_utils_Test.compute
+TESTS += \
+    pearl_utils_Test.compute
+pearl_utils_Test_compute_SOURCES = \
+    $(PEARL_UTILS_TEST)/Flags_Test.cpp \
+    $(PEARL_UTILS_TEST)/ScopedPtr_Test.cpp \
+    $(PEARL_UTILS_TEST)/Utils_Test.cpp
+pearl_utils_Test_compute_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    $(GTEST_CPPFLAGS)
+pearl_utils_Test_compute_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(GTEST_CXXFLAGS)
+pearl_utils_Test_compute_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS)
+pearl_utils_Test_compute_LDADD = \
+    libgtest_plain.la \
+    libgtest_core.la \
+    $(GTEST_LIBS)

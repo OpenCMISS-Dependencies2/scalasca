@@ -1,0 +1,87 @@
+##*************************************************************************##
+##  CUBE        http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2018                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2015                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+#------------------------------------------------------------------------------
+# General Settings
+#------------------------------------------------------------------------------
+
+CUBE_DIR = @prefix@
+prefix=@prefix@
+CUBE_CONFIG = $(CUBE_DIR)/bin/cubew-config
+
+CFLAGS = $(shell $(CUBE_CONFIG) --cflags) 
+CLDFLAGS = $(shell $(CUBE_CONFIG) --ldflags)  $(shell $(CUBE_CONFIG) --libs) 
+
+# INTEL COMPILER 
+CC = @CC@
+#MPICC = @MPICC@
+
+
+.SUFFIXES: .c .o .cpp .c.exe .cpp.exe .c.o .cpp.o .java .java.class .mpi.c .mpi.cpp .mpi.c.exe .mpi.cpp.exe
+.PHONY: all  clean
+
+
+
+# Object files
+OBJS =  
+TARGET =
+
+
+
+
+%.mpi.c.o : %.mpi.c
+	$(MPICC) -c $< -o `basename $@` $(CFLAGS)
+
+%.mpi.c.exe : %.mpi.c.o
+	$(MPICC) $< -o $@  $(CLDFLAGS)
+
+%.mpi.cpp.o : %.mpi.cpp
+	$(MPICXX) -c $< -o $@ $(CPPFLAGS) $(CFLAGS)
+
+%.mpi.cpp.exe : %.mpi.cpp.o
+	$(MPICXX) $< -o $@  $(CLDFLAGS)
+
+
+%.c.o : %.c
+	$(CC) -c $< -o $@ $(CFLAGS) 
+
+%.c.exe : %.c.o
+	$(CC)  $< -o $@ $(CLDFLAGS)
+
+
+
+
+
+#------------------------------------------------------------------------------
+# Rules
+#------------------------------------------------------------------------------
+
+all: $(TARGET) run
+
+		 
+run: 
+	@echo "=============================================================="
+	@echo "Please adjust exec.@BATCHSYS@ file for your batch system and invoke 'make -f Makefile.backend run-backend'."
+	@echo "This script will be used as a template for creating scripts for backend."
+	@echo "=============================================================="
+
+
+run-backend:
+	@for mpi_app in @MPI_BACKEND_APPS_EXE@; do \
+	./$$mpi_app; \
+	done
+	@echo "All files have been submited"
+

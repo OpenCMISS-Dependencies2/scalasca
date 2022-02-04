@@ -1,0 +1,69 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+UTILS_SRC = $(SRC_ROOT)src/utils
+
+
+##--- Programs --------------------------------------------------------------
+
+## Scalasca Collection & Analysis Nexus
+if BUILD_SCAN_TOOL
+
+bin_PROGRAMS += \
+    scan
+scan_SOURCES = \
+    $(UTILS_SRC)/scan.cpp \
+    $(UTILS_SRC)/MultiRunConfig.h \
+    $(UTILS_SRC)/MultiRunConfig.cpp
+
+scan_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -DBINDIR=\"$(bindir)\" \
+    -DPKGLIBEXECDIR=\"$(pkglibexecdir)\" \
+    -DPRESETDIR=\"$(presetdir)\" \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(INC_ROOT)src/epik
+scan_LDADD = \
+    libepik.la \
+    libutils.la \
+    $(LIBIBERTY_LIBS)
+scan_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LIBIBERTY_LDFLAGS)
+
+endif BUILD_SCAN_TOOL
+
+
+## Scalasca convenience script
+if BUILD_SCALASCA_TOOL
+
+bin_SCRIPTS += \
+    scalasca
+EXTRA_DIST += \
+    $(UTILS_SRC)/scalasca.in
+CLEANFILES += \
+    scalasca
+scalasca: $(UTILS_SRC)/scalasca.in Makefile
+	$(AM_V_GEN)$(SED) \
+		-e 's|[@]VERSION[@]|$(VERSION)|g' \
+		-e 's|[@]DOCDIR[@]|$(docdir)|g' \
+		-e 's|[@]PKGDATADIR[@]|$(pkgdatadir)|g' \
+		-e 's|[@]CFG_SUMMARY[@]|$(pkgdatadir)/$(PACKAGE).summary|g' \
+		< $(abs_top_srcdir)/$(UTILS_SRC)/scalasca.in > scalasca
+
+endif BUILD_SCALASCA_TOOL

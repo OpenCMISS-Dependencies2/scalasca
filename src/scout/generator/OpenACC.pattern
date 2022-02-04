@@ -1,0 +1,90 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 2020                                                     ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+PATTERN "OPENACC_TIME" = [
+    PARENT    = "EXECUTION"
+    NAME      = "OpenACC"
+    DOCNAME   = "OpenACC Time"
+    CLASS     = "PatternOpenACC"
+    INFO      = "Time spent in the OpenACC run-time system, API calls and on device"
+    DESCR     = {
+        Time spent in the OpenACC run-time system, API calls and on device.
+        If the OpenACC implementation is based on CUDA, and OpenACC and CUDA
+        support are both enabled during measurement, the CUDA activities from
+        within OpenACC will be accounted separately (just like CUDA calls
+        within MPI and other metric hierarchies).
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "OPENACC_SETUP" = [
+    PARENT    = "OPENACC_TIME"
+    NAME      = "OpenACC Initialization/Finalization"
+    DOCNAME   = "OpenACC Initialization/Finalization Time"
+    CLASS     = "PatternOpenACC_Setup"
+    INFO      = "Time needed to initialize and finalize OpenACC and OpenACC kernels"
+    DESCR     = {
+        Time needed to initialize and finalize OpenACC and OpenACC kernels.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "OPENACC_COMM" = [
+    PARENT    = "OPENACC_TIME"
+    NAME      = "OpenACC Memory Management"
+    DOCNAME   = "OpenACC Memory Management Time"
+    CLASS     = "PatternOpenACC_MemoryMgmt"
+    INFO      = "Time spent on memory management including data transfer from host to device and vice versa"
+    DESCR     = {
+        Time spent on memory management including data transfer from host to
+        device and vice versa.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "OPENACC_SYNC" = [
+    PARENT    = "OPENACC_TIME"
+    NAME      = "OpenACC Synchronization"
+    DOCNAME   = "OpenACC Synchronization Time"
+    CLASS     = "PatternOpenACC_Sync"
+    INFO      = "Time spent on OpenACC synchronization"
+    DESCR     = {
+        Time spent on OpenACC synchronization.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "OPENACC_KERNEL_LAUNCHES" = [
+    PARENT    = "OPENACC_TIME"
+    NAME      = "OpenACC Kernel launches"
+    DOCNAME   = "OpenACC Kernel Launch Time"
+    CLASS     = "PatternOpenACC_KernelLaunch"
+    INFO      = "Time spent to launch OpenACC kernels"
+    DESCR     = {
+        Time spent to launch OpenACC kernels.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]

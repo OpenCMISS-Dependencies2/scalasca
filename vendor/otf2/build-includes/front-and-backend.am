@@ -1,0 +1,60 @@
+## -*- mode: makefile -*-
+
+##
+## This file is part of the Score-P software (http://www.score-p.org)
+##
+## Copyright (c) 2009-2013,
+## RWTH Aachen University, Germany
+##
+## Copyright (c) 2009-2013,
+## Gesellschaft fuer numerische Simulation mbH Braunschweig, Germany
+##
+## Copyright (c) 2009-2013,
+## Technische Universitaet Dresden, Germany
+##
+## Copyright (c) 2009-2013,
+## University of Oregon, Eugene, USA
+##
+## Copyright (c) 2009-2013,
+## Forschungszentrum Juelich GmbH, Germany
+##
+## Copyright (c) 2009-2013,
+## German Research School for Simulation Sciences GmbH, Juelich/Aachen, Germany
+##
+## Copyright (c) 2009-2013,
+## Technische Universitaet Muenchen, Germany
+##
+## This software may be modified and distributed under the terms of
+## a BSD-style license.  See the COPYING file in the package base
+## directory for details.
+##
+
+include ../src/Makefile.inc.am
+include ../common/hash/Makefile.inc.am
+include ../common/utils/src/cstr/Makefile.inc.am
+include ../common/utils/src/io/Makefile.inc.am
+include ../common/utils/src/exception/Makefile.inc.am
+include ../common/utils/src/Makefile.inc.am
+
+## include tests
+include ../test/include/Makefile.inc.am
+include ../test/public_headers/Makefile.inc.am
+include ../test/OTF2_AnchorFile_test/Makefile.inc.am
+include ../test/OTF2_AttributeList_test/Makefile.inc.am
+include ../test/OTF2_Buffer_test/Makefile.inc.am
+include ../test/OTF2_File_test/Makefile.inc.am
+include ../test/OTF2_Integrity_test/Makefile.inc.am
+include ../test/OTF2_Timer_sync_test/Makefile.inc.am
+include ../test/OTF2_UnknownRecord_test/Makefile.inc.am
+include ../test/OTF2_IdMap_test/Makefile.inc.am
+include ../test/OTF2_Event_Seek_test/Makefile.inc.am
+include ../test/OTF2_Snapshot_Seek_test/Makefile.inc.am
+include ../test/OTF2_Old_Chunk_List_test/Makefile.inc.am
+include ../test/OTF2_CallbackInterrupt_test/Makefile.inc.am
+include ../test/misc/Makefile.inc.am
+include ../test/cti/Makefile.inc.am
+include ../test/otf2-cti/Makefile.inc.am
+include ../test/test-parallel/Makefile.inc.am
+include ../test/sion-cti/Makefile.inc.am
+include ../common/utils/test/io/Makefile.inc.am
+include ../common/utils/test/exception/Makefile.inc.am

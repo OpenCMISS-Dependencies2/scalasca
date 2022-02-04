@@ -1,0 +1,71 @@
+##*************************************************************************##
+##  CUBE        http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2018                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+
+##--- Doxygen-related targets -----------------------------------------------
+
+if HAVE_DOXYGEN
+
+USER_DOC_DIR = $(top_distdir)$(ac_scorep_doxygen_distdir)/doc
+DEV_DOC_DIR  = doxygen-dev
+DEV_TAGS_DIR = doxygen-dev/tags
+
+PHONY_TARGETS += \
+    doxygen-covers \
+    doxygen-dev \
+    doxygen-dev-clean \
+    doxygen-user \
+    doxygen-user-clean \
+    doxygen-user-pack
+
+doxygen-covers: doxygen-tools-cover
+
+doxygen-dev: doxygen-cubew-dev
+
+doxygen-dev-clean:
+	rm -rf $(DEV_DOC_DIR) $(DEV_TAGS_DIR)
+
+doxygen-user: doxygen-tools
+
+doxygen-user-clean:
+	rm -rf $(USER_DOC_DIR)/*
+
+doxygen-user-pack: doxygen-covers doxygen-tools-pack
+
+
+doc/doxygen-dev-at-make-time.cfg: update-revision-file
+	@echo "OUTPUT_DIRECTORY = $(DEV_DOC_DIR)"                                                          > doc/doxygen-dev-at-make-time.cfg
+	@echo "PROJECT_NUMBER   = \"(@PACKAGE_STRING@, revision `cat $(srcdir)/build-config/REVISION`)\"" >> doc/doxygen-dev-at-make-time.cfg
+
+doc/doxygen-user-at-make-time.cfg: update-revision-file
+	@echo "OUTPUT_DIRECTORY = $(USER_DOC_DIR)"                                                         > doc/doxygen-user-at-make-time.cfg
+	@echo "PROJECT_NUMBER   = \"(@PACKAGE_STRING@, revision `cat $(srcdir)/build-config/REVISION`)\"" >> doc/doxygen-user-at-make-time.cfg
+
+CLEANFILES += \
+    doc/doxygen-dev-at-make-time.cfg \
+    doc/doxygen-user-at-make-time.cfg 
+
+else !HAVE_DOXYGEN
+## There's nothing we can do here...
+PHONY_TARGETS += \
+    doxygen-dev-clean \
+    doxygen-user-clean \
+    doxygen-user-pack
+doxygen-dev-clean:
+doxygen-user-clean:
+doxygen-user-pack:
+
+endif !HAVE_DOXYGEN

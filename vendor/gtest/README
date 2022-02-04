@@ -1,0 +1,18 @@
+Google C++ Testing Framework
+============================
+
+This directory contains a stripped-down but otherwise unmodified copy of
+the Google C++ Testing Framework v1.7.0 (with all files using the common
+"gtest" file name prefix).  For more details, documentation, and download
+of a full distribution package see
+
+    http://code.google.com/p/googletest/
+
+
+Extensions
+==========
+
+Besides the source code of the Google C++ Testing Framework itself, some
+custom extensions are provided -- mainly to address HPC-specific needs.
+The corresponding files all use the "ext" file name prefix to distinguish
+them from the files provided by the original framework.

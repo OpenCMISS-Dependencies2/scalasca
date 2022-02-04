@@ -1,0 +1,37 @@
+  $ export SCAN_ANALYZE_OPTS="--time-correct"
+  $ scalasca -analyze -a mpiexec -n 144 ./bt.D.144
+  S=C=A=N: Scalasca 2.5 trace analysis
+  S=C=A=N: ./scorep_bt_144_trace experiment archive
+  S=C=A=N: Mon Mar 18 14:02:57 2019: Analyze start
+  mpiexec -n 144 scout.mpi --time-correct ./scorep_bt_144_trace/traces.otf2
+  SCOUT   (Scalasca 2.5)
+  Copyright (c) 1998-2019 Forschungszentrum Juelich GmbH
+  Copyright (c) 2009-2014 German Research School for Simulation Sciences GmbH
+
+  Analyzing experiment archive ./scorep_bt_144_trace/traces.otf2
+
+  Opening experiment archive ... done (0.013s).
+  Reading definition data    ... done (0.023s).
+  Reading event trace data   ... done (0.615s).
+  Preprocessing              ... done (0.478s).
+  Timestamp correction       ... done (0.463s).
+  Analyzing trace data       ... done (2.653s).
+  Writing analysis report    ... done (0.106s).
+
+  Max. memory usage         : 174.000MB
+
+  	# passes        : 1
+  	# violated      : 9450
+  	# corrected     : 23578735
+  	# reversed-p2p  : 9450
+  	# reversed-coll : 0
+  	# reversed-omp  : 0
+  	# events        : 301330922
+  	max. error      : 0.000048 [s]
+  	error at final. : 0.000000 [%]
+  	Max slope       : 0.394363334
+
+  Total processing time     : 4.448s
+  S=C=A=N: Mon Mar 18 14:03:07 2019: Analyze done (status=0) 10s
+  Warning: 3.686GB of analyzed trace data retained in ./scorep_bt_144_trace/traces!
+  S=C=A=N: ./scorep_bt_144_trace complete.

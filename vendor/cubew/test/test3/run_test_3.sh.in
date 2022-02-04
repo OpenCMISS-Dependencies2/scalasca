@@ -1,0 +1,78 @@
+##*************************************************************************##
+##  CUBE        http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2018                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2015                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+#!/bin/bash
+CUBES_DIR="@abs_srcdir@"
+TEMPLATE_CUBE="$CUBES_DIR/template.cube"
+TEMPLATE_DATA1="$CUBES_DIR/example3_2.data"
+TEMPLATE_DATA2="$CUBES_DIR/example_system_tree.data"
+TEMPLATE_DATA3="$CUBES_DIR/flex_aggregation_incl.data"
+TEMPLATE_DATA4="$CUBES_DIR/flex_aggregation_excl.data"
+
+
+echo "######################################################"                                                                                                                                                                                                                                                                                                              
+echo "#Run test 3 : Check the cube creation by c library. "                                                                                                                                                                                                                                                                                                              
+echo "#"                                                                                                                                                                                                                                                                                                                                                                   
+echo "#"                                                                                                                                                                                                                                                                                                                                  
+echo "######################################################"      
+mkdir -p tests
+cd tests
+
+echo  "=====> Creation of the cube file used by chained test suite..."
+../cube_self_test
+echo "done."
+result0=$?
+
+
+echo  "=====> Creation of the first example cube..."
+../cube_self_test3
+echo "done."
+result1=$?
+
+echo  "=====> Creation of the compressed example cube..."
+../cube_self_test3_1
+echo "done."
+result2=$?
+
+echo  "=====> Creation of the cube with derived metrics..."
+../cube_self_test3_2
+echo "done."
+result3_2=$?
+
+echo  "=====> Creation of the cube with advanced system tree..."
+../cube_self_test3_3
+echo "done."
+result3=$?
+
+echo  "=====> Creation of the cube with histogramms..."
+../cube_self_test3_4
+echo "done."
+result3_4=$?
+
+
+
+echo  "=====> Creation of the cube with ghost metrics..."
+../cube_self_test3_5
+echo "done."
+result3_5=$?
+
+cd ..
+if [[ $result0 -ne 0 || $result1 -ne 0 || $result2 -ne 0 || $result3_2 -ne 0 || $result3 -ne 0 || $result3_4 -ne 0 || $result3_5 -ne 0 ]];
+then
+echo "Test FAILED. Inspect output above for more details."
+exit -1 
+fi
+                                       

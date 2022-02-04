@@ -1,0 +1,99 @@
+##*************************************************************************##
+##  CUBE        http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 2009-2018                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2015                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  Copyright (c) 2009-2011                                                ##
+##  RWTH Aachen University, JARA-HPC                                       ##
+##                                                                         ##
+##  Copyright (c) 2009-2016                                                ##
+##  TU Dresden, Zentrum fuer Informationsdienste und Hochleistungsrechnen  ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  Technische Universitaet Muenchen, Germany                              ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  University of Oregon, Eugene, USA                                      ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  Gesellschaft fuer numerische Simulation mbH Braunschweig, Germany      ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+
+bin_PROGRAMS += cubew-config
+
+EXTRA_DIST += $(SRC_ROOT)src/tools/cubew_config/cubew_config_usage.dox.in
+
+
+cubew_config_SOURCES = \
+    $(SRC_ROOT)src/tools/cubew_config/cubew_config.cpp \
+    $(SRC_ROOT)src/tools/cubew_config/cubew_config.hpp \
+    $(SRC_ROOT)src/tools/cubew_config/cubew_config_data.cpp \
+    $(SRC_ROOT)src/tools/cubew_config/cubew_config_data.hpp \
+    $(SRC_ROOT)src/tools/cubew_config/cubew_config_helper.cpp 
+ nodist_cubew_config_SOURCES =    \
+    ../src/tools/cubew_config/cubew_config_data_backend.cpp
+
+cubew_config_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    $(UTILS_CPPFLAGS) \
+    -I$(INC_ROOT)build-config/common/ \
+    -I../src/tools/cubew_config \
+    -I$(INC_ROOT)src/tools/cubew_config \
+    -I$(INC_ROOT)src/tools/include
+cubew_config_LDADD = 
+BUILT_SOURCES += \
+    ../src/tools/cubew_config/cubew_config_library_dependencies_backend_inc.hpp
+
+CLEANFILES += \
+    ../src/tools/cubew_config/cubew_config_library_dependencies_backend_inc.hpp
+
+if CROSS_BUILD
+
+cubew_config_SOURCES += \
+    ../src/tools/cubew_config/cubew_config_data_frontend.cpp
+
+BUILT_SOURCES += \
+    ../src/tools/cubew_config/cubew_config_library_dependencies_frontend_inc.hpp
+
+CLEANFILES += \
+    ../src/tools/cubew_config/cubew_config_library_dependencies_frontend_inc.hpp
+
+# The library dependencies are needed for the frontend tool. However, the
+# backend information is in the backend Makefile. Thus, invoke the backend
+# Makefile.
+../src/tools/cubew_config/cubew_config_library_dependencies_backend_inc.hpp:
+	@$(am__cd) ../build-backend && $(MAKE) $(AM_MAKEFLAGS) $@
+
+../src/tools/cubew_config/cubew_config_library_dependencies_frontend_inc.hpp: $(lib_LTLIBRARIES)
+	$(AM_V_GEN)$(srcdir)/../build-config/common/generate-library-dependencies.sh frontend $^ >$@ || \
+            ($(RM) $@; exit 1)
+
+endif
+
+
+# On MIC, install cubew-config also in $pkglibexecdir; will be renamed to
+# cubew-config-mic by install-hook rule
+if PLATFORM_MIC
+
+pkglibexec_PROGRAMS += cubew-config
+
+INSTALL_EXEC_HOOK += install-exec-hook-platform-mic
+install-exec-hook-platform-mic:
+	mv $(DESTDIR)$(pkglibexecdir)/cubew-config $(DESTDIR)$(pkglibexecdir)/cubew-config-mic
+
+UNINSTALL_HOOK += uninstall-hook-platform-mic
+uninstall-hook-platform-mic:
+	rm $(DESTDIR)$(pkglibexecdir)/cubew-config-mic
+
+endif PLATFORM_MIC

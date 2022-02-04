@@ -1,0 +1,48 @@
+##*************************************************************************##
+##  CUBE        http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2016                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2015                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+#------------------------------------------------------------------------------
+# General Settings
+#------------------------------------------------------------------------------
+CUBE_DIR = @prefix@
+ISCUBEW="@WITH_C_WRITER@"
+
+# Creates examples for backend and frontend
+all: make-frontend make-backend 
+
+
+#Makefile.frontend is demonstrating usage of CUBE libraries at frontend of the machine
+make-frontend:
+	make -f Makefile.frontend
+	@echo "=============================================================="
+	@echo "make run"
+	@echo "'make run-frontend'  - to run frontend examples"
+	@echo "'make run-backend'   - to run backend examples"
+	@echo "=============================================================="
+
+#Makefile.backend is demonstrating usage of CUBE c-writer library on backend of the machine
+make-backend:
+	cd backend; make -f Makefile.backend
+
+
+run: run-frontend run-backend
+
+
+run-frontend:
+	make -f Makefile.frontend run
+
+run-backend:
+	cd backend; make -f Makefile.backend run

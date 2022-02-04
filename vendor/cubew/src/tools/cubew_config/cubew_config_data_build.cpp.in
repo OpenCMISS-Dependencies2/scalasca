@@ -1,0 +1,61 @@
+/****************************************************************************
+**  CUBE        http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 2009-2018                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  Copyright (c) 2009-2016                                                **
+**  TU Dresden, Zentrum fuer Informationsdienste und Hochleistungsrechnen  **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+
+/**
+ * @file
+ *
+ * Implements the representation and analysis of library dependencies
+ */
+
+#include "config.h"
+
+#include <iostream>
+#include <stdlib.h>
+#include <cstring>
+
+#include <cubew_config.hpp>
+
+#include <cubew_config_data.hpp>
+
+using namespace std;
+
+#include <cubew_config_library_dependencies_@AFS_PACKAGE_BUILD_name@_inc.hpp>
+
+cubew_config_data*
+cubew_config_get_@AFS_PACKAGE_BUILD_name@_data( void )
+{
+    static cubew_config_data data;
+
+    data.m_cc                    = "@CC@";
+    data.m_cppflags              = "-I@INCLUDEDIR@/cubew";
+    data.m_incldir               = "@INCLUDEDIR@/cubew";
+    data.m_use_rpath_flag        = @HARDCODE_INTO_LIBS@;
+    data.m_rpath_flag_cc         = "@HARDCODE_LIBDIR_FLAG_CC@";
+    data.m_wl_flag               = "@HARDCODE_LIBDIR_WL@";
+    data.m_aix_libpath           = "@HARDCODE_LIBDIR_AIX_LIBPATH@";
+    data.m_sys_lib_dlsearch_path = "@SYS_LIB_DLSEARCH_PATH_SPEC@";
+
+    deque<string> libs;
+    deque<string> ldflags;
+    deque<string> rpaths;
+    deque<string> dependency_las;
+        
+    add_library_dependencies_@AFS_PACKAGE_BUILD_name@( libs, ldflags, rpaths, dependency_las, &data.m_la_objects ); 
+    
+    data.prepare_rpath_flags();
+
+    return &data;
+}

@@ -1,0 +1,19 @@
+Type('int8_t',   'Int8', py_ctype='ctypes.c_int8')
+Type('int16_t',  'Int16', py_ctype='ctypes.c_int16')
+RefType('uint8_t',  'Uint8', py_ctype='ctypes.c_uint8')
+RefType('uint16_t', 'Uint16', py_ctype='ctypes.c_uint16')
+Type('float',    'Float',  lower='float32', py_ctype='ctypes.c_float')
+Type('double',   'Double', lower='float64', py_ctype='ctypes.c_double')
+
+CompressedType('int32_t',  'Int32', py_ctype='ctypes.c_int32')
+CompressedType('int64_t',  'Int64', py_ctype='ctypes.c_int64')
+CompressedRefType('uint32_t', 'Uint32', py_ctype='ctypes.c_uint32')
+CompressedRefType('uint64_t', 'Uint64', py_ctype='ctypes.c_uint64')
+
+Type('OTF2_TimeStamp', 'Uint64Full', lower='timestamp', py_ctype='TimeStamp')
+
+CompressedType('OTF2_MetricValue', 'MetricValue', attribute='MetricValue')
+
+StringType()
+AttributeValueType()
+IdMapType()

@@ -1,0 +1,45 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2018                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+SALSA_SRC = $(SRC_ROOT)src/salsa
+
+
+##--- Programs --------------------------------------------------------------
+
+## SALSA (MPI variant)
+bin_PROGRAMS += \
+    salsa.mpi
+salsa_mpi_SOURCES = \
+    $(SALSA_SRC)/MessageChecker.h \
+    $(SALSA_SRC)/MessageChecker.cpp \
+    $(SALSA_SRC)/SalsaCallback.h \
+    $(SALSA_SRC)/SalsaCallback.cpp \
+    $(SALSA_SRC)/SalsaParser.h \
+    $(SALSA_SRC)/SalsaParser.cpp \
+    $(SALSA_SRC)/SalsaStringUtils.h \
+    $(SALSA_SRC)/salsa.h \
+    $(SALSA_SRC)/salsa.cpp
+salsa_mpi_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS)
+salsa_mpi_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS)
+salsa_mpi_LDADD = \
+    libpearl.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.replay.la \
+    $(LIB_DIR_BACKEND)/libpearl.base.la \
+    libpearl.ipc.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.thread.ser.la

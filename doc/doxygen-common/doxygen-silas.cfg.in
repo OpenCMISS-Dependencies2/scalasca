@@ -1,0 +1,25 @@
+# Doxyfile 1.8.10
+#
+# This file describes the settings to be used by the documentation system
+# doxygen (www.doxygen.org) for both the user and developer documentation
+# of the SILAS tool.
+
+
+#--- Include common configuration -------------------------------------------
+
+@INCLUDE = \
+    @abs_top_builddir@/doc/doxygen-common/doxygen-common.cfg
+
+
+#--- Project settings -------------------------------------------------------
+
+PROJECT_NAME  = "SILAS"
+PROJECT_BRIEF = "Simulator for Large-scale Applications"
+
+
+#--- Output settings --------------------------------------------------------
+
+STRIP_FROM_INC_PATH = \
+    @abs_top_srcdir@/src/silas
+STRIP_FROM_PATH     = \
+    @abs_top_srcdir@/src/silas

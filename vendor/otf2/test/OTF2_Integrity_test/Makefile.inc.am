@@ -1,0 +1,72 @@
+## -*- mode: makefile -*-
+
+##
+## This file is part of the Score-P software (http://www.score-p.org)
+##
+## Copyright (c) 2009-2011,
+## RWTH Aachen University, Germany
+##
+## Copyright (c) 2009-2011,
+## Gesellschaft fuer numerische Simulation mbH Braunschweig, Germany
+##
+## Copyright (c) 2009-2011, 2013,
+## Technische Universitaet Dresden, Germany
+##
+## Copyright (c) 2009-2011,
+## University of Oregon, Eugene, USA
+##
+## Copyright (c) 2009-2011, 2014, 2018,
+## Forschungszentrum Juelich GmbH, Germany
+##
+## Copyright (c) 2009-2011,
+## German Research School for Simulation Sciences GmbH, Juelich/Aachen, Germany
+##
+## Copyright (c) 2009-2011,
+## Technische Universitaet Muenchen, Germany
+##
+## This software may be modified and distributed under the terms of
+## a BSD-style license.  See the COPYING file in the package base
+## directory for details.
+##
+
+## file       test/OTF2_Integrity_test/Makefile.inc.am
+
+check_PROGRAMS               += OTF2_Integrity_test
+OTF2_Integrity_test_SOURCES  = $(SRC_ROOT)test/OTF2_Integrity_test/OTF2_Integrity_test.c
+OTF2_Integrity_test_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(INC_ROOT)test/include \
+    $(UTILS_CPPFLAGS)
+OTF2_Integrity_test_LDADD    = $(LIB_ROOT)libotf2.la
+
+OTF2_Integrity_test_CFLAGS = $(AM_CFLAGS)
+OTF2_Integrity_test_LDFLAGS = $(AM_LDFLAGS) $(LINKMODE_FLAGS)
+if HAVE_PTHREAD
+OTF2_Integrity_test_CFLAGS += \
+    $(PTHREAD_CFLAGS)
+OTF2_Integrity_test_LDFLAGS += \
+    $(PTHREAD_CFLAGS)
+OTF2_Integrity_test_LDADD += \
+    $(PTHREAD_LIBS)
+endif
+
+SCOREP_TESTS += ./run_otf2_integrity_test.sh
+
+if HAVE_SIONLIB_SUPPORT
+SCOREP_TESTS += \
+    $(SRC_ROOT)test/OTF2_Integrity_test/run_otf2_integrity_test_sion.sh
+endif
+
+EXTRA_DIST += \
+    $(SRC_ROOT)test/OTF2_Integrity_test/run_otf2_integrity_test.sh.in \
+    $(SRC_ROOT)test/OTF2_Integrity_test/run_otf2_integrity_test_sion.sh \
+    $(SRC_ROOT)test/OTF2_Integrity_test/OTF2_Integrity_trace_1/TestTrace.otf2 \
+    $(SRC_ROOT)test/OTF2_Integrity_test/OTF2_Integrity_trace_1/TestTrace.def \
+    $(SRC_ROOT)test/OTF2_Integrity_test/OTF2_Integrity_trace_1/TestTrace/0.evt \
+    $(SRC_ROOT)test/OTF2_Integrity_test/OTF2_Integrity_trace_1/TestTrace/0.def \
+    $(SRC_ROOT)test/OTF2_Integrity_test/OTF2_Integrity_trace_1/TestTrace/1.evt \
+    $(SRC_ROOT)test/OTF2_Integrity_test/OTF2_Integrity_trace_1/TestTrace/1.def \
+    $(SRC_ROOT)test/OTF2_Integrity_test/OTF2_Integrity_trace_1/TestTrace/4.def \
+    $(SRC_ROOT)test/OTF2_Integrity_test/OTF2_Integrity_trace_1/TestTrace/4.evt \
+    $(SRC_ROOT)test/OTF2_Integrity_test/OTF2_Integrity_trace_1/TestTrace/9.evt \
+    $(SRC_ROOT)test/OTF2_Integrity_test/OTF2_Integrity_trace_1/TestTrace/9.def

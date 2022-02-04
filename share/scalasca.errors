@@ -1,0 +1,4 @@
+error_code MEM_ALLOC_FAILED "Memory allocation failed"
+error_code END_OF_BUFFER "End of buffer/file reached"
+error_code FILE_INTERACTION "Invalid file operation"
+error_code FILE_CAN_NOT_OPEN "Unable to open file"

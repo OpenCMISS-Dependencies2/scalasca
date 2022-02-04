@@ -1,0 +1,161 @@
+/****************************************************************************
+**  SCALASCA    http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 2018-2019                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+/**
+@if MANPAGE
+@page scalasca Scalasca information and proxy command
+@else
+@page scalasca scalasca &ndash; Scalasca information and proxy command
+@endif
+@manpage
+
+
+@section commands_scalasca_synopsis SYNOPSIS
+
+@b scalasca
+    [@e OPTIONS]
+\n
+@b scalasca
+    [@e OPTIONS]
+    @e ACTION
+    @e ACTION_ARGS
+
+
+@section commands_scalasca_description DESCRIPTION
+
+The @b scalasca command allows to query information about a Scalasca Trace Tools installation, but can also be used as a proxy command for measurement, analysis, post-processing, and report examination tasks.
+
+When used without an @e ACTION argument, the @b scalasca command provides various @e OPTIONS to query and display information about the Scalasca Trace Tools installation, such as the version number, the configuration summary report, or installation-dependent path information.
+It is also possible to display a quick reference guide (if a suitable PDF viewer is found on the system).
+
+By contrast, if an @e ACTION argument is given, the @b scalasca command acts as a proxy which simply delegates the requested operation to the underlying specific command.
+It can therefore be considered a single-entry-point convenience command that is easy to remember.
+
+
+@section commands_scalasca_actions ACTIONS
+
+Since @e ACTION arguments enable the delegation of operations, please refer to the documentation of the respective underlying command for possible @e ACTION_ARGS.
+Also, note that @e ACTION_ARGS have to be provided @b after the @e ACTION argument.
+
+<dl>
+    <dt>-a, \--analyze, \--analyse</dt>
+    <dd>
+        Run application under the control of the Scalasca measurement collection and analysis nexus @ref_man{scan,1}.
+    </dd>
+
+    <dt>-e, \--examine</dt>
+    <dd>
+        Examine measurement analysis report using the Scalasca analysis report explorer @ref_man{square,1}.
+    </dd>
+</dl>
+
+@subsection commands_scalasca_deprecated_actions Deprecated actions
+
+<dl>
+    <dt>-i, -inst, \--instrument</dt>
+    <dd>
+        Prepare application objects and executable for measurement using the Score-P instrumenter.
+        This action only exists for backward compatibility with the Scalasca 1.x release series.
+        \n<b>Users are strongly encouraged to use the 'scorep' instrumenter command directly to take full advantage of its improved functionality.</b>
+    </dd>
+</dl>
+
+
+@section commands_scalasca_options OPTIONS
+
+<dl>
+    <dt>-c, \--show-config</dt>
+    <dd>
+        Print configuration summary, then exit.
+    </dd>
+
+    <dt>-h, \--help</dt>
+    <dd>
+        Print a brief usage summary, then exit.
+    </dd>
+
+    <dt>-n, \--dry-run</dt>
+    <dd>
+        Print the command(s) to be launched, but do not execute them.
+    </dd>
+
+    <dt>\--quickref</dt>
+    <dd>
+        Display quick reference guide, then exit.
+    </dd>
+
+    <dt>\--remap-specfile</dt>
+    <dd>
+        Show path to remapper specification file used for trace-analysis report post-processing, then exit.
+    </dd>
+
+    <dt>-v, \--verbose</dt>
+    <dd>
+        Enable verbose mode.
+    </dd>
+
+    <dt>-V, \--version</dt>
+    <dd>
+        Print version information, then exit.
+    </dd>
+</dl>
+
+
+@section commands_scalasca_exitstatus EXIT STATUS
+
+@b scalasca exits with status 0 on success, and greater than 0 if errors occur.
+
+
+@if MANPAGE
+@section commands_scalasca_bugs BUGS
+
+Please report bugs to <em>scalasca@fz-juelich.de</em>.
+Make sure to include at least the following information in your bug report:
+ - The Scalasca Trace Tools version reported by '`scalasca -V`'.
+ - The Scalasca Trace Tools configuration reported by '`scalasca -c`'.
+ - The Score-P version reported by '`scorep --version`'.
+ - The Score-P configuration reported by '`scorep-info config-summary`'.
+ - The exact command line of the failing command.
+ - The exact failure/error message.
+
+Also, if the trace analysis fails, please archive a copy of the entire experiment archive directory including the event trace data, as this may be required to aid in debugging.
+However, <b>ONLY PROVIDE TRACE DATA IF EXPLICITLY REQUESTED</b>, as the data volume may be excessive.
+@endif
+
+
+@section commands_scalasca_examples EXAMPLES
+
+<b>scalasca \--version</b>\n
+Displays the Scalasca Trace Tools version number.
+
+<b>scalasca \--analyze mpiexec -n 4 foo args</b>\n
+Execute the instrumented MPI program <em>foo</em> with command-line arguments <em>args</em>, collecting a runtime summary (default).
+Results in an experiment directory <em>scorep_foo_4_sum</em>.
+
+<b>scalasca \--examine -s -f filter scorep_foo_4_sum</b>\n
+Post-process measurement reports in <em>scorep_foo_4_sum</em> and generate a score report with the run-time measurement filter rules from the file <em>filter</em> applied.
+
+
+@section commands_scalasca_see SEE ALSO
+
+@ref_man{scan,1}, @ref_man{square,1}
+
+@if MANPAGE
+The Score-P instrumentation and measurement system documentation is available online at <em>https://www.score-p.org</em>.
+
+The full Scalasca Trace Tools documentation is available online at <em>https://www.scalasca.org</em>.
+@endif
+
+
+@navigation_next{scan}
+@clearpage
+*/

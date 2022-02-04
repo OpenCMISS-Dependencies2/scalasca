@@ -1,0 +1,77 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+SILAS_SRC = $(SRC_ROOT)src/silas
+
+
+##--- Programs --------------------------------------------------------------
+
+## SILAS (MPI variant)
+BUILT_SOURCES += \
+    SilasConfigParser.hh
+bin_PROGRAMS += \
+    silas.mpi
+silas_mpi_SOURCES = \
+    $(SILAS_SRC)/Buffer.h \
+    $(SILAS_SRC)/Buffer.cpp \
+    $(SILAS_SRC)/Hypothesis.h \
+    $(SILAS_SRC)/Hypothesis.cpp \
+    $(SILAS_SRC)/HypothesisPart.h \
+    $(SILAS_SRC)/HypBalance.h \
+    $(SILAS_SRC)/HypBalance.cpp \
+    $(SILAS_SRC)/HypCutMessage.h \
+    $(SILAS_SRC)/HypCutMessage.cpp \
+    $(SILAS_SRC)/HypScale.h \
+    $(SILAS_SRC)/HypScale.cpp \
+    $(SILAS_SRC)/Model.h \
+    $(SILAS_SRC)/Model.cpp \
+    $(SILAS_SRC)/ModelFactory.h \
+    $(SILAS_SRC)/ModelFactory.cpp \
+    $(SILAS_SRC)/ReenactCallbackData.h \
+    $(SILAS_SRC)/ReenactCallbackData.cpp \
+    $(SILAS_SRC)/ReenactModel.h \
+    $(SILAS_SRC)/ReenactModel.cpp \
+    $(SILAS_SRC)/SilasConfig.h \
+    $(SILAS_SRC)/SilasConfig.cpp \
+    $(SILAS_SRC)/SilasConfigParser.yy \
+    $(SILAS_SRC)/SilasConfigScanner.ll \
+    $(SILAS_SRC)/Simulator.h \
+    $(SILAS_SRC)/Simulator.cpp \
+    $(SILAS_SRC)/Timer.h \
+    $(SILAS_SRC)/Timer.cpp \
+    $(SILAS_SRC)/silas.cpp \
+    $(SILAS_SRC)/silas_events.h \
+    $(SILAS_SRC)/silas_replay.h \
+    $(SILAS_SRC)/silas_replay.cpp \
+    $(SILAS_SRC)/silas_util.h
+silas_mpi_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(INC_ROOT)src/silas \
+    $(OTF2_CPPFLAGS)
+silas_mpi_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS)
+silas_mpi_LDADD = \
+    libpearl.writer.mpi.la \
+    libpearl.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.replay.la \
+    $(LIB_DIR_BACKEND)/libpearl.base.la \
+    libpearl.ipc.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.thread.ser.la

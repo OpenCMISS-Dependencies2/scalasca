@@ -1,0 +1,159 @@
+/**
+ *  @addtogroup records OTF2 records
+ *  @{
+ *
+ *  @defgroup records_event List of all event records
+ *  @{
+ *
+@otf2 for event in events:
+ *  @anchor @@event.name@@
+ *  @htmlonly
+ *  <div class="memitem">
+ *  <div class="memproto">
+ *    <table class="memname"><tbody>
+ *      <tr><td class="memname">
+ *  @endhtmlonly
+ *  @latexonly
+ *  \section[@@event.name@@]{%
+ *  @endlatexonly
+ *      @@event.name@@
+ *  @latexonly
+ *  }
+ *  @endlatexonly
+ *  @htmlonly
+ *      </td></tr>
+ *    </tbody></table>
+ *  </div>
+ *  <div class="memdoc">
+ *  @endhtmlonly
+ *  @@event.doxygendoc()@@
+ *
+ * @ifnot LATEX
+ *  @par Attributes
+ * @endif
+ *  @htmlonly
+ *  <table class="params"><tbody>
+ *  @endhtmlonly
+ *  @latexonly
+ *  \begin{DoxyParams}[1]{Attributes}%
+ *  @endlatexonly
+ *  @htmlonly
+ *    <tr>
+ *      <td class="paramtype">
+ *  @endhtmlonly
+ *        @eref{OTF2_LocationRef}@ltab
+ *  @htmlonly
+ *      </td>
+ *      <td class="paramname">
+ *  @endhtmlonly
+ *        location @ltab
+ *  @htmlonly
+ *      </td>
+ *      <td>
+ *  @endhtmlonly
+ *        The location where this event happened. @lrowend
+ *  @htmlonly
+ *      </td>
+ *    </tr>
+ *  @endhtmlonly
+ *  @htmlonly
+ *    <tr>
+ *      <td class="paramtype">
+ *  @endhtmlonly
+ *        @eref{OTF2_TimeStamp} @ltab
+ *  @htmlonly
+ *      </td>
+ *      <td class="paramname">
+ *  @endhtmlonly
+ *        timestamp @ltab
+ *  @htmlonly
+ *      </td>
+ *      <td>
+ *  @endhtmlonly
+ *        The time when this event happened. @lrowend
+ *  @htmlonly
+ *      </td>
+ *    </tr>
+ *  @endhtmlonly
+    @otf2 for attr in event.attributes:
+ *  @htmlonly
+ *    <tr>
+ *      <td class="paramtype">
+ *  @endhtmlonly
+    @otf2   if attr.type is standard_type:
+ *        <em>@@attr.type@@</em> @ltab
+    @otf2   else:
+ *        @eref{@@attr.type@@} @ltab
+    @otf2   endif
+ *  @htmlonly
+ *      </td>
+ *      <td class="paramname">
+ *  @endhtmlonly
+ *        @anchor @@event.name@@_@@attr.name@@
+ *        @@attr.name@@ @ltab
+ *  @htmlonly
+ *      </td>
+ *      <td>
+ *  @endhtmlonly
+ *      @@attr.doxygendoc(prefix=' *      ')@@ @lrowend
+ *  @htmlonly
+ *      </td>
+ *    </tr>
+ *  @endhtmlonly
+    @otf2  if attr is array_attr:
+    @otf2   for array_attr in attr.array_attributes:
+ *  @htmlonly
+ *    <tr>
+ *      <td class="paramtype">
+ *  @endhtmlonly
+    @otf2    if array_attr.type is standard_type:
+ *        <em>@@attr.type@@</em> @ltab
+    @otf2    else:
+ *        @eref{@@array_attr.type@@} @ltab
+    @otf2    endif
+ *  @htmlonly
+ *      </td>
+ *      <td class="paramname">
+ *  @endhtmlonly
+ *        @anchor @@event.name@@_@@array_attr.name@@
+ *        @@array_attr.name@@ @hblack{[} @@attr.name@@ @hblack{]} @ltab
+ *  @htmlonly
+ *      </td>
+ *      <td>
+ *  @endhtmlonly
+ *      @@array_attr.doxygendoc(prefix=' *      ')@@ @lrowend
+ *  @htmlonly
+ *      </td>
+ *    </tr>
+ *  @endhtmlonly
+    @otf2   endfor
+    @otf2  endif
+    @otf2 endfor
+ *  @htmlonly
+ *  </tbody></table>
+ *  @endhtmlonly
+ *  @latexonly
+ *  \end{DoxyParams}%
+ *  @endlatexonly
+ *
+ *  @see OTF2_EvtWriter_@@event.name@@()
+ *  @see OTF2_GlobalEvtReaderCallbacks_Set@@event.name@@Callback()
+ *  @see OTF2_EvtReaderCallbacks_Set@@event.name@@Callback()
+ *
+ *  @since Version @@event.since@@
+@otf2  if event.deprecated:
+ *
+ *  @deprecated In version @@event.deprecated@@
+@otf2  endif
+ *
+ *  @htmlonly
+ *  </div>
+ *  </div>
+ *  @endhtmlonly
+ *
+@otf2 endfor
+ *
+ *  @}
+ *
+ *  @}
+ */

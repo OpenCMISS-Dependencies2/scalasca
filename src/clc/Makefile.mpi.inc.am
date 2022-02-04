@@ -1,0 +1,218 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+CLC_SRC = $(SRC_ROOT)src/clc
+CLC_INC = $(INC_ROOT)src/clc/include
+
+
+##--- Libraries -------------------------------------------------------------
+
+## Controlled logical clock library (common parts)
+noinst_LTLIBRARIES += \
+    libclc.common.la
+libclc_common_la_SOURCES = \
+    $(CLC_SRC)/AmortData.h \
+    $(CLC_SRC)/AmortData.cpp \
+    $(CLC_SRC)/Clock.h \
+    $(CLC_SRC)/Clock.cpp \
+    $(CLC_SRC)/Controller.h \
+    $(CLC_SRC)/Controller.cpp \
+    $(CLC_SRC)/FwdAmortData.h \
+    $(CLC_SRC)/FwdAmortData.cpp \
+    $(CLC_SRC)/Latency.h \
+    $(CLC_SRC)/Latency.cpp \
+    $(CLC_SRC)/Network.h \
+    $(CLC_SRC)/Network.cpp \
+    $(CLC_SRC)/Operator.h \
+    $(CLC_SRC)/Operator.cpp \
+    $(CLC_SRC)/StatData.h \
+    $(CLC_SRC)/StatData.cpp \
+    $(CLC_SRC)/include/clc_types.h
+libclc_common_la_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(CLC_INC) \
+    -I$(PUBLIC_INC_DIR)
+
+
+## Controlled logical clock library (MPI variant)
+noinst_LTLIBRARIES += \
+    libclc.mpi.la
+libclc_mpi_la_SOURCES = \
+    $(CLC_SRC)/IntervalStat.h \
+    $(CLC_SRC)/IntervalStat.cpp \
+    $(CLC_SRC)/Predicates.h \
+    $(CLC_SRC)/Predicates.cpp \
+    $(CLC_SRC)/RuntimeStat.h \
+    $(CLC_SRC)/RuntimeStat.cpp \
+    $(CLC_SRC)/include/Synchronizer.h \
+    $(CLC_SRC)/Synchronizer.cpp \
+    $(CLC_SRC)/Timer.h \
+    $(CLC_SRC)/Timer.cpp \
+    $(CLC_SRC)/TimeStat.h \
+    $(CLC_SRC)/TimeStat.cpp
+libclc_mpi_la_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(CLC_INC)
+libclc_mpi_la_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(NOWARN_OMP_PRAGMAS_CXXFLAGS)
+libclc_mpi_la_LIBADD = \
+    libclc.common.la
+
+
+if OPENMP_SUPPORTED
+
+## Controlled logical clock library (hybrid variant)
+noinst_LTLIBRARIES += \
+    libclc.hyb.la
+libclc_hyb_la_SOURCES = \
+    $(CLC_SRC)/IntervalStat.h \
+    $(CLC_SRC)/IntervalStat.cpp \
+    $(CLC_SRC)/OmpCommunication.h \
+    $(CLC_SRC)/OmpData.h \
+    $(CLC_SRC)/OmpData.cpp \
+    $(CLC_SRC)/Predicates.h \
+    $(CLC_SRC)/Predicates.cpp \
+    $(CLC_SRC)/RuntimeStat.h \
+    $(CLC_SRC)/RuntimeStat.cpp \
+    $(CLC_SRC)/include/Synchronizer.h \
+    $(CLC_SRC)/Synchronizer.cpp \
+    $(CLC_SRC)/Timer.h \
+    $(CLC_SRC)/Timer.cpp \
+    $(CLC_SRC)/TimeStat.h \
+    $(CLC_SRC)/TimeStat.cpp
+libclc_hyb_la_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(CLC_INC)
+libclc_hyb_la_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(OPENMP_CXXFLAGS)
+libclc_hyb_la_LIBADD = \
+    libclc.common.la
+
+endif OPENMP_SUPPORTED
+
+
+##--- Programs --------------------------------------------------------------
+
+## clc_analyze (MPI variant)
+bin_PROGRAMS += \
+    clc_analyze.mpi
+clc_analyze_mpi_SOURCES = \
+    $(CLC_SRC)/clc_analyze.cpp
+clc_analyze_mpi_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(CLC_INC)
+clc_analyze_mpi_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(NOWARN_OMP_PRAGMAS_CXXFLAGS)
+clc_analyze_mpi_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS)
+clc_analyze_mpi_LDADD = \
+    libclc.mpi.la \
+    libpearl.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.replay.la \
+    $(LIB_DIR_BACKEND)/libpearl.base.la \
+    libpearl.ipc.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.thread.ser.la
+
+
+## clc_synchronize (MPI variant)
+bin_PROGRAMS += \
+    clc_synchronize.mpi
+clc_synchronize_mpi_SOURCES = \
+    $(CLC_SRC)/clc_synchronize.cpp
+clc_synchronize_mpi_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(CLC_INC) \
+    $(OTF2_CPPFLAGS)
+clc_synchronize_mpi_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(NOWARN_OMP_PRAGMAS_CXXFLAGS)
+clc_synchronize_mpi_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS)
+clc_synchronize_mpi_LDADD = \
+    libclc.mpi.la \
+    libpearl.writer.mpi.la \
+    libpearl.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.replay.la \
+    $(LIB_DIR_BACKEND)/libpearl.base.la \
+    libpearl.ipc.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.thread.ser.la
+
+
+if OPENMP_SUPPORTED
+
+## clc_analyze (hybrid variant)
+bin_PROGRAMS += \
+    clc_analyze.hyb
+clc_analyze_hyb_SOURCES = \
+    $(CLC_SRC)/clc_analyze.cpp
+clc_analyze_hyb_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(CLC_INC)
+clc_analyze_hyb_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(OPENMP_CXXFLAGS)
+clc_analyze_hyb_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS)
+clc_analyze_hyb_LDADD = \
+    libclc.hyb.la \
+    libpearl.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.replay.la \
+    $(LIB_DIR_BACKEND)/libpearl.base.la \
+    libpearl.ipc.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.thread.omp.la
+
+
+## clc_synchronize (hybrid variant)
+bin_PROGRAMS += \
+    clc_synchronize.hyb
+clc_synchronize_hyb_SOURCES = \
+    $(CLC_SRC)/clc_synchronize.cpp
+clc_synchronize_hyb_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(CLC_INC) \
+    $(OTF2_CPPFLAGS)
+clc_synchronize_hyb_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(OPENMP_CXXFLAGS)
+clc_synchronize_hyb_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS)
+clc_synchronize_hyb_LDADD = \
+    libclc.hyb.la \
+    libpearl.writer.hyb.la \
+    libpearl.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.replay.la \
+    $(LIB_DIR_BACKEND)/libpearl.base.la \
+    libpearl.ipc.mpi.la \
+    $(LIB_DIR_BACKEND)/libpearl.thread.omp.la
+
+endif OPENMP_SUPPORTED

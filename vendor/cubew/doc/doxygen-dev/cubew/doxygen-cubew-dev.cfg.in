@@ -1,0 +1,39 @@
+# Doxyfile 1.8.10
+#
+# This file describes the settings to be used by the documentation system
+# doxygen (www.doxygen.org) for the developer documentation of the SCOUT
+# tool.
+
+
+#--- Include common configuration -------------------------------------------
+
+@INCLUDE = \
+    @abs_top_builddir@/doc/doxygen-common/doxygen-cubew.cfg
+@INCLUDE = \
+    @abs_top_builddir@/doc/doxygen-dev-at-make-time.cfg
+
+
+#--- Input settings ---------------------------------------------------------
+
+INPUT   += \
+    @abs_top_srcdir@/src/cubew \
+    @abs_top_srcdir@/doc/doxygen-dev/cubew
+EXCLUDE  = \
+
+EXTRACT_PRIVATE       = YES
+EXTRACT_STATIC        = YES
+EXTRACT_LOCAL_CLASSES = YES
+EXTRACT_ANON_NSPACES  = YES
+GENERATE_BUGLIST      = YES
+GENERATE_TESTLIST     = YES
+GENERATE_TODOLIST     = YES
+HIDE_FRIEND_COMPOUNDS = NO
+INLINE_INFO           = YES
+INTERNAL_DOCS         = YES
+SHOW_USED_FILES       = YES
+
+
+#--- Tagfile settings -------------------------------------------------------
+
+GENERATE_TAGFILE = $(TAGFILE_DIR)/cubew.tags
+TAGFILES         = $(TAGFILE_DIR)/cubew.tags=../../cubew/html

@@ -1,0 +1,166 @@
+/**
+@mainpage Open Trace Format 2
+
+@section introduction Introduction
+
+The OTF2 library provides an interface to write and read trace data.
+
+OTF2 is developed within the @scorep project. The @scorep project is funded by
+the German Federal Ministry of Education and Research.  OTF2 is available
+under the BSD open source license that allows free usage for academic and
+commercial applications.
+
+@section get_started Get started
+
+@ifnot LATEX
+\ref usage "OTF2 usage examples"
+@endif
+
+\ref records "OTF2 records"
+
+@ifnot LATEX
+\ref callbacks "OTF2 callbacks"
+@endif
+
+\ref usage_tools "Usage of OTF2 tools"
+
+@ifnot LATEX
+\ref io "OTF2 I/O recording"
+@endif
+
+@latexonly
+\appendices
+\renewcommand\chaptername{Appendix}
+@endlatexonly
+
+@defgroup usage OTF2 usage examples
+@{
+    Listing of example code.
+@}
+
+@defgroup records OTF2 records
+@{
+    Listings of all OTF2 records.
+@}
+
+@defgroup callbacks OTF2 callbacks
+@{
+    Description of the non-records callbacks available in OTF2.
+@}
+
+@defgroup usage_tools Usage of OTF2 tools
+@{
+
+Usage instructions of the @otf2 command line tools.
+
+@defgroup otf2_config_tool OTF2 config tool
+@{
+
+A call to otf2-config has the following syntax:
+
+\verbinclude otf2_config_usage.dox.in
+
+@}
+
+@defgroup otf2_print_tool OTF2 print tool
+@{
+
+A call to oft2-print has the following syntax:
+
+\verbinclude otf2_print_usage.dox.in
+
+@}
+
+@defgroup otf2_snapshots_tool OTF2 snapshots tool
+@{
+
+A call to oft2-snapshots has the following syntax:
+
+\verbinclude otf2_snapshots_usage.dox.in
+
+@}
+
+@defgroup otf2_marker_tool OTF2 marker tool
+@{
+
+A call to oft2-marker has the following syntax:
+
+\verbinclude otf2_marker_usage.dox.in
+
+@}
+
+@defgroup otf2_estimator_tool OTF2 estimator tool
+@{
+
+A call to oft2-estimator has the following syntax:
+
+\verbinclude otf2_estimator_usage.dox.in
+
+@}
+@}
+
+*/
+
+/**
+@ifnot LATEX
+@example otf2_reader_example.c
+Simple reading example
+@endif
+*/
+
+/**
+@ifnot LATEX
+@example otf2_writer_example.c
+Simple writing example
+@endif
+*/
+
+/**
+@ifnot LATEX
+@example otf2_mpi_reader_example.c
+MPI reading example
+@endif
+*/
+
+/**
+@ifnot LATEX
+@example otf2_mpi_writer_example.c
+MPI writing example
+@endif
+*/
+
+/**
+@ifnot LATEX
+@example otf2_mpi_reader_example.cc
+MPI reading example in C++
+@endif
+*/
+
+/**
+@ifnot LATEX
+@example otf2_openmp_writer_example.c
+OpenMP writing example
+@endif
+*/
+
+/**
+@ifnot LATEX
+@example otf2_pthread_writer_example.c
+Pthread writing example
+@endif
+*/
+
+/**
+@ifnot LATEX
+@example otf2_high_level_writer_example.py
+Python high-level writing example
+@endif
+*/
+
+/**
+@ifnot LATEX
+@example otf2_high_level_reader_example.py
+Python high-level reading example
+@endif
+*/
+

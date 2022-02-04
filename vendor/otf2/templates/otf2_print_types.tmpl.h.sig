@@ -1,0 +1,9 @@
+d9808da6301f271d78819443c6e1b3e8
+ffa5ea7ef000266178aa89239c0f4ef1
+../src/tools/otf2_print/otf2_print_types.h
+otf2_print_types.tmpl.h
+../share/otf2/otf2.types
+../share/otf2/otf2.enums
+../share/otf2/otf2.defs
+../share/otf2/otf2.events
+../share/otf2/otf2.snaps

@@ -1,0 +1,151 @@
+.TH "square" 1 "Mon Apr 19 2021" "Version 2.6" "Scalasca Trace Tools" \" -*- nroff -*-
+.nh
+.SH NAME
+square \- Scalasca analysis report explorer 
+.
+.SH "SYNOPSIS"
+.PP
+\fBsquare\fP [\fIOPTIONS\fP] (\fIEXPERIMENT_DIR\fP | \fICUBE_FILE\fP)
+.SH "DESCRIPTION"
+.PP
+\fBsquare\fP, the Scalasca analysis report explorer, facilitates post-processing, scoring, and interactive examination of analysis reports from both runtime summarization and tracing experiments\&.
+.PP
+When provided with a Score-P experiment directory \fIEXPERIMENT_DIR\fP, \fBsquare\fP post-processes intermediate analysis reports produced by a measurement and/or an automatic trace analysis to derive additional metrics and construct a hierarchy of measured and derived metrics, and then presents this final report using the Cube GUI (unless the \fB-s\fP option is used)\&. If intermediate reports were already processed, the final report is shown immediately\&. If there is more than one analysis report in a Score-P experiment directory, the most comprehensive report is shown by default\&.
+.PP
+When provided with the name of a specific analysis report \fICUBE_FILE\fP, post-processing is skipped and the corresponding report is shown immediately\&.
+.PP
+Analysis report examination can only be done after measurement and analysis are completed\&. Parallel resources are not required, and it is often more convenient to examine analysis reports on a different system, such as a desktop computer where interactivity is superior\&.
+.PP
+Depending on the measurement configuration and the provided options, \fBsquare\fP places additional files into the experiment archive directory\&. For single-run experiments, the following files are created if the corresponding input files are available:
+.IP "\(bu" 2
+\fCsummary\&.cubex\fP: post-processed runtime summary result
+.IP "\(bu" 2
+\fCtrace\&.cubex\fP: post-processed trace analysis result
+.PP
+.PP
+In scoring mode (\fB-s\fP option), \fBsquare\fP generates:
+.IP "\(bu" 2
+\fCscorep\&.score\fP: detailed measurement score report, optionally suffixed with the name of a provided filter file (\fB-f\fP option)
+.PP
+.PP
+In multi-run mode, aggregated reports are created if the corresponding input files are available:
+.IP "\(bu" 2
+\fCprofile_aggr\&.cubex\fP: aggregated runtime summary result
+.IP "\(bu" 2
+\fCscout_aggr\&.cubex\fP: aggregated trace analysis result
+.IP "\(bu" 2
+\fCscout+profile\&.cubex\fP: merged runtime summary and trace analysis result
+.IP "\(bu" 2
+\fCsummary_aggr\&.cubex\fP: post-processed aggregated runtime summary result
+.IP "\(bu" 2
+\fCtrace_aggr\&.cubex\fP: post-processed aggregated trace analysis result
+.IP "\(bu" 2
+\fCtrace+summary\&.cubex\fP: post-processed merged runtime summary and trace result
+.PP
+.SH "OPTIONS"
+.PP
+.SS "Common options"
+.IP "\fB-C \fILEVEL\fP \fP" 1c
+Level of sanity checks for newly created reports (default: '\fBnone'\fP)\&. '\fBquick'\fP performs various sanity checks on the experiment meta data, while '\fBfull'\fP also executes a more time-consuming check for negative metric values (which usually indicate a serious error)\&. 
+.PP
+.IP "\fB-c \fInum_counter\fP \fP" 1c
+Specifies the number of hard- and software counters that shall be considered when generating a score report (option -s)\&. By default, this value is 0, which means that only a timestamp is measured on each event\&. If you plan to record extra counters specify the number of counters\&. Otherwise, scoring may underestimate the required space\&. 
+.PP
+.IP "\fB-F \fP" 1c
+Force post-processing of analysis reports, even if a post-processed report already exists\&. 
+.PP
+.IP "\fB-f \fIfilter_file\fP \fP" 1c
+Apply the specified filter file when generating a score report (option -s)\&. 
+.PP
+.IP "\fB-s \fP" 1c
+Output a textual score report\&. Skips launching the Cube GUI\&. 
+.PP
+.IP "\fB-v \fP" 1c
+Enable verbose mode\&. 
+.PP
+.IP "\fB-n \fP" 1c
+Suppress the calculation of 'Idle Threads' metric\&. 
+.PP
+.IP "\fB-x \fI<scorep-score opt>\fP \fP" 1c
+Pass option(s) directly to \fBscorep-score\fP\&. Any composite options have to be quoted as needed\&.  
+.PP
+.SS "Options for multi-run experiments"
+.IP "\fB-S \fIMODE\fP \fP" 1c
+Set aggregation mode for runtime summarization results of each configuration\&. Currently supported modes are '\fBmean'\fP and '\fBmerge'\fP (default)\&. 
+.PP
+.IP "\fB-T \fIMODE\fP \fP" 1c
+Set aggregation mode for trace analysis results of each configuration\&. Currently supported modes are '\fBmean'\fP and '\fBmerge'\fP (default)\&. 
+.PP
+.IP "\fB-A \fP" 1c
+Force post-processing of every individual step report of a multi-run experiment\&. 
+.br
+\fBWARNING:\fP Depending on the number and size of the individual measurement reports, the time required to post-process all reports can be significant!  
+.IP "\fB-I \fP" 1c
+Ignore structural sanity checks and force aggregation of measurements in a multi-run experiment\&.  
+.PP
+.SH "MULTI-RUN EXPERIMENTS"
+.PP
+For multi-run experiments, \fBsquare\fP provides additional options to aggregate the set of measurement results into a single Cube file\&. The user can choose between the two aggregation methods '\fCmerge\fP' and '\fCmean\fP' to combine results from different configurations, which underneath use the corresponding CubeLib command-line tools\&. The default aggregation mode is to '\fCmerge\fP' results\&.
+.PP
+\fBNote:\fP
+.RS 4
+The '\fCmerge\fP' operation always copies metric data from the last measurement configuration in a given set in which data for a particular metric is available\&. This should be taken into account when setting up a multi-run experiment that is supposed to be aggregated using the \fBsquare\fP command later on\&. In particular, it is recommended to include a low-overhead measurement without hardware performance counters at the end of a measurement configuration set including hardware counter measurements in order to provide more accurate time information\&.
+.RE
+.PP
+The aggregation of multi-run measurement results happens in the following order:
+.PP
+.IP "1." 4
+Aggregate results from multiple runs for each measurement configuration\&. At this point, the only supported mode for this aggregation is '\fCmean\fP', which is therefore hard-coded\&.
+.IP "2." 4
+Aggregate averaged runtime summarization results from all configurations in ascending order using the selected mode (\fB-S\fP option)\&.
+.IP "3." 4
+Aggregate averaged trace analysis analysis results from all configurations in ascending order using the selected mode (\fB-T\fP option)\&.
+.IP "4." 4
+Merge the aggregated runtime summarization and trace analysis results into a combined report\&.
+.IP "5." 4
+Post-process the combined report (step 4) if available, otherwise post-process the aggregated report(s) generated in either step 2 or step 3\&.
+.PP
+.PP
+Depending on the measurement settings, those steps will be applied if the respective intermediate results are found\&. Before merging intermediate results, \fBsquare\fP performs sanity checks to compare the call-tree structure to ensure merging will result in a valid Cube file\&. In rare cases, where the user is aware of potential call-tree differences, it may be necessary to skip these checks, which can be accomplished by passing the \fB-I\fP option\&. However, note that this may produce erroneous or at least misleading results\&. The reports of the individual runs will only be post-processed when explicitly requested (\fB-A\fP option)\&.
+.SH "EXIT STATUS"
+.PP
+\fBsquare\fP exits with status 0 on success, and greater than 0 if errors occur\&.
+.SH "NOTES"
+.PP
+To examine an analysis report on a different system, for example, a desktop or laptop computer, it is often best to post-process the report using \fBsquare\fP's scoring functionality (\fB-s\fP option) on the system where the measurement has been taken, and then copy over the resulting post-processed Cube file\&. This is because \fBsquare\fP requires various command-line tools and support files from the Score-P, CubeLib, and Scalasca Trace Tools packages, which may not be available on the target computer\&.
+.SH "BUGS"
+.PP
+Please report bugs to \fIscalasca@fz-juelich.de\fP\&. Make sure to include at least the following information in your bug report:
+.IP "\(bu" 2
+The Scalasca Trace Tools version reported by '\fCscalasca -V\fP'\&.
+.IP "\(bu" 2
+The Scalasca Trace Tools configuration reported by '\fCscalasca -c\fP'\&.
+.IP "\(bu" 2
+The Score-P version reported by '\fCscorep --version\fP'\&.
+.IP "\(bu" 2
+The Score-P configuration reported by '\fCscorep-info config-summary\fP'\&.
+.IP "\(bu" 2
+The exact command line of the failing command\&.
+.IP "\(bu" 2
+The exact failure/error message\&.
+.PP
+.SH "EXAMPLES"
+.PP
+\fBsquare scorep_foo_4_trace\fP
+.br
+Post-process measurement reports in \fIscorep_foo_4_trace\fP and display the most comprehensive report using the Cube GUI\&.
+.PP
+\fBsquare -s -f filter scorep_foo_4_sum\fP
+.br
+Post-process measurement reports in \fIscorep_foo_4_sum\fP and generate a score report with the run-time measurement filter rules from the file \fIfilter\fP applied\&.
+.PP
+\fBsquare -S mean scorep_foo_4_multi-run_c2_r4\fP
+.br
+Aggregate and post-process the measurement results of the multi-run experiment with two configurations and four runs per configuration stored in \fIscorep_foo_4_multi-run_c2_r4\fP\&. Then, show the most comprehensive report using the Cube GUI\&.
+.SH "SEE ALSO"
+.PP
+\fBscalasca\fP(1), \fBscan\fP(1)
+.PP
+The full Scalasca Trace Tools documentation is available online at \fIhttps://www.scalasca.org\fP\&.
+.PP
+.

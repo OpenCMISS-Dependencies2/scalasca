@@ -1,0 +1,97 @@
+# Doxyfile 1.8.10
+#
+# This file describes the settings to be used by the documentation system
+# doxygen (www.doxygen.org) for the Scalasca User Guide.
+
+
+#--- Include common configuration -------------------------------------------
+
+@INCLUDE = \
+    @abs_top_builddir@/doc/doxygen-common/doxygen-common.cfg
+
+
+#--- Project settings -------------------------------------------------------
+
+PROJECT_NAME  = "Scalasca"
+PROJECT_BRIEF = "Scalable Performance Analysis of Large-Scale Applications"
+
+
+#--- Input settings ---------------------------------------------------------
+
+INPUT          += \
+    @abs_top_srcdir@/doc/doxygen-user/manual/mainpage.dox \
+    @abs_top_srcdir@/doc/doxygen-user/manual/introduction.dox \
+    @abs_top_srcdir@/doc/doxygen-user/manual/getting_started.dox \
+    @abs_top_srcdir@/doc/doxygen-user/manual/commands.dox \
+    @abs_top_srcdir@/doc/doxygen-user/manual/reporting_bugs.dox \
+    @abs_top_srcdir@/doc/doxygen-user/manpages/scalasca.dox \
+    @abs_top_srcdir@/doc/doxygen-user/manpages/scan.dox \
+    @abs_top_srcdir@/doc/doxygen-user/manpages/square.dox \
+    @abs_top_srcdir@/doc/doxygen-user/manpages/scout.dox
+# NOTE:
+#   Since we are using a custom footer, bibTeX files also neeed to be added
+#   to LATEX_EXTRA_FILES below!
+CITE_BIB_FILES  = \
+    @abs_top_srcdir@/doc/doxygen-user/manual/references.bib
+EXAMPLE_PATH    = \
+    @abs_top_srcdir@/doc/doxygen-user/manual/logs
+IMAGE_PATH      = \
+    @abs_top_srcdir@/doc/doxygen-user/manual/images
+
+EXTRACT_PRIVATE       = NO
+EXTRACT_STATIC        = NO
+EXTRACT_LOCAL_CLASSES = NO
+EXTRACT_ANON_NSPACES  = NO
+GENERATE_BUGLIST      = NO
+GENERATE_TESTLIST     = NO
+GENERATE_TODOLIST     = NO
+HIDE_FRIEND_COMPOUNDS = YES
+INLINE_INFO           = NO
+INTERNAL_DOCS         = NO
+SHOW_USED_FILES       = NO
+
+
+#--- Output settings --------------------------------------------------------
+
+OUTPUT_DIRECTORY    = doc/doxygen-user/manual
+STRIP_FROM_INC_PATH =
+STRIP_FROM_PATH     =
+
+
+#--- HTML settings ----------------------------------------------------------
+
+HTML_FOOTER  = \
+    @abs_top_srcdir@/doc/doxygen-common/footer.html
+HTML_OUTPUT  = html
+SEARCHENGINE = NO
+
+
+#--- PDF settings -----------------------------------------------------------
+
+GENERATE_LATEX     = @have_doxygen_latex@
+LATEX_OUTPUT       = latex
+LATEX_HEADER       = \
+    @abs_top_srcdir@/doc/doxygen-common/header.tex
+LATEX_FOOTER       = \
+    @abs_top_srcdir@/doc/doxygen-user/manual/footer.tex
+LATEX_EXTRA_FILES  = \
+    @abs_top_builddir@/doc/doxygen-common/config.tex \
+    @abs_top_srcdir@/doc/doxygen-common/backcover.pdf \
+    @abs_top_srcdir@/doc/doxygen-common/scalasca.sty \
+    @abs_top_srcdir@/doc/doxygen-user/manual/title.tex \
+    @abs_top_srcdir@/doc/doxygen-user/manual/references.bib
+LAYOUT_FILE        = \
+    @abs_top_srcdir@/doc/doxygen-user/manual/doxygen-layout.xml
+COMPACT_LATEX      = NO
+PDF_HYPERLINKS     = NO
+USE_PDFLATEX       = YES
+LATEX_HIDE_INDICES = YES
+
+
+#--- Custom commands --------------------------------------------------------
+
+# Include aliases for Score-P/Cube versions used for the "Getting started"
+# example.
+#
+@INCLUDE = \
+    @abs_top_srcdir@/doc/doxygen-user/manual/logs/doxygen-versions.cfg

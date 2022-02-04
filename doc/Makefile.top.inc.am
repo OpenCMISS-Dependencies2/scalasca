@@ -1,0 +1,133 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Initialize some variables to be able to use '+=' in Makefile.am snippets
+USER_DOCS_TARGETS           =
+CLEAN_USER_DOCS_TARGETS     =
+COPY_USER_DOCS_TARGETS      =
+INSTALL_USER_DOCS_TARGETS   =
+UNINSTALL_USER_DOCS_TARGETS =
+DEVELOPER_DOCS_TARGETS      =
+
+## Output directories for developer documentation.
+## NOTE: Make sure that `DEVELOPER_DOCS_DIR` is set to a unique directory
+## name, as it will be deleted during `make clean`!
+DEVELOPER_DOCS_DIR = doxygen-dev
+DEVELOPER_TAGS_DIR = $(DEVELOPER_DOCS_DIR)/tags
+
+
+##--- Custom silent rule substitutions --------------------------------------
+
+STT_V_DEVNULL    = $(stt__v_DEVNULL_@AM_V@)
+stt__v_DEVNULL_  = $(stt__v_DEVNULL_@AM_DEFAULT_V@)
+stt__v_DEVNULL_0 = >/dev/null
+stt__v_DEVNULL_1 =
+
+if HAVE_DOXYGEN
+
+STT_V_DOXYGEN    = $(stt__v_DOXYGEN_@AM_V@)
+stt__v_DOXYGEN_  = $(stt__v_DOXYGEN_@AM_DEFAULT_V@)
+stt__v_DOXYGEN_0 = @$(am__tty_colors); echo "  DOXYGEN $${blu}" $@ "$$std";
+stt__v_DOXYGEN_1 =
+
+endif HAVE_DOXYGEN
+
+if HAVE_DOXYGEN_LATEX
+
+STT_V_LATEX    = $(stt__v_LATEX_@AM_V@)
+stt__v_LATEX_  = $(stt__v_LATEX_@AM_DEFAULT_V@)
+stt__v_LATEX_0 = @$(am__tty_colors); echo "  LATEX   $${blu}" $@ "$$std";
+stt__v_LATEX_1 =
+
+STT_V_pdflatex    = $(stt__v_pdflatex_@AM_V@)
+stt__v_pdflatex_  = $(stt__v_pdflatex_@AM_DEFAULT_V@)
+stt__v_pdflatex_0 = -interaction batchmode
+stt__v_pdflatex_1 = -interaction nonstopmode
+
+endif HAVE_DOXYGEN_LATEX
+
+
+##--- Generic documentation targets -----------------------------------------
+
+PHONY_TARGETS += \
+    user-documentation \
+    clean-user-documentation \
+    copy-user-documentation-to-dist \
+    install-user-documentation \
+    uninstall-user-documentation \
+    developer-documentation \
+    clean-developer-documentation \
+    $(USER_DOCS_TARGETS) \
+    $(CLEAN_USER_DOCS_TARGETS) \
+    $(COPY_USER_DOCS_TARGETS) \
+    $(INSTALL_USER_DOCS_TARGETS) \
+    $(UNINSTALL_USER_DOCS_TARGETS) \
+    $(DEVELOPER_DOCS_TARGETS)
+
+
+user-documentation: $(USER_DOCS_TARGETS)
+
+clean-user-documentation: $(CLEAN_USER_DOCS_TARGETS)
+
+copy-user-documentation-to-dist: $(COPY_USER_DOCS_TARGETS)
+
+install-user-documentation: $(INSTALL_USER_DOCS_TARGETS)
+
+uninstall-user-documentation: $(UNINSTALL_USER_DOCS_TARGETS)
+
+
+developer-documentation: $(DEVELOPER_DOCS_TARGETS)
+
+clean-developer-documentation:
+	rm -rf $(DEVELOPER_DOCS_DIR)
+
+
+if HAVE_DOXYGEN
+
+CLEANFILES += \
+    doc/doxygen-at-make-time.cfg
+doc/doxygen-at-make-time.cfg: update-revision-file
+	$(AM_V_at){ \
+	    echo "PROJECT_NUMBER = \"(@PACKAGE_STRING@, revision `cat $(srcdir)/build-config/REVISION`)\""; \
+	    echo "LATEX_CMD_NAME = \"pdflatex -file-line-error $(STT_V_pdflatex)\""; \
+	    if $(AM_V_P); then \
+	        echo "QUIET = NO"; \
+	    else \
+	        echo "QUIET = YES"; \
+	        echo "MAKEINDEX_CMD_NAME = \"makeindex -q\""; \
+	    fi; \
+	} >doc/doxygen-at-make-time.cfg
+
+else !HAVE_DOXYGEN
+
+USER_DOCS_TARGETS += \
+    warn-about-incomplete-docs-without-doxygen
+DEVELOPER_DOCS_TARGETS += \
+    warn-about-incomplete-docs-without-doxygen
+warn-about-incomplete-docs-without-doxygen:
+	@echo "WARNING: Doxygen not available. Documentation will be incomplete!" >&2
+
+endif !HAVE_DOXYGEN
+
+if !HAVE_DOXYGEN_LATEX
+
+USER_DOCS_TARGETS += \
+    warn-about-incomplete-docs-without-pdflatex
+warn-about-incomplete-docs-without-pdflatex:
+	@echo "WARNING: pdfLaTeX not available. Documentation will be incomplete!" >&2
+
+endif !HAVE_DOXYGEN_LATEX

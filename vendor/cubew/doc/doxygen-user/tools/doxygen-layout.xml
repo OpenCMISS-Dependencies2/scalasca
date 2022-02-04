@@ -1,0 +1,6 @@
+<doxygenlayout version="1.0">
+  <navindex>
+    <tab type="mainpage" visible="yes" title="Contents"/>
+    <tab type="pages" visible="no" title="" intro=""/>
+  </navindex>
+</doxygenlayout>

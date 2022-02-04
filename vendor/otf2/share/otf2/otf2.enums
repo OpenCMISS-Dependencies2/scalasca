@@ -1,0 +1,1879 @@
+GeneralEnum(
+    """A boolean.""",
+    'Boolean',
+    EnumEntry(
+        """False.""",
+        'OTF2_FALSE',
+        0),
+    EnumEntry(
+        """True.""",
+        'OTF2_TRUE',
+        '!OTF2_FALSE'),
+    since=Version(1,5))
+
+GeneralEnum(
+    """Defines which file type is used.""",
+    'FileType',
+    EnumEntry(
+        """Represents the type for the anchor file (.otf2).""",
+        'OTF2_FILETYPE_ANCHOR',
+        0,
+        needs_location_id=False,
+        has_timestamps=False,
+        ignores_compression=True),
+    EnumEntry(
+        """Represents the type for the global definition file (.def).""",
+        'OTF2_FILETYPE_GLOBAL_DEFS',
+        1,
+        needs_location_id=False,
+        has_timestamps=False,
+        ignores_compression=False),
+    EnumEntry(
+        """Represents the type for a local definition file (.def).""",
+        'OTF2_FILETYPE_LOCAL_DEFS',
+        2,
+        needs_location_id=True,
+        has_timestamps=False,
+        ignores_compression=False),
+    EnumEntry(
+        """Represents the type for a event file (.evt).""",
+        'OTF2_FILETYPE_EVENTS',
+        3,
+        needs_location_id=True,
+        has_timestamps=True,
+        ignores_compression=False),
+    EnumEntry(
+        """Represents the type for a snapshot file (.snap).""",
+        'OTF2_FILETYPE_SNAPSHOTS',
+        4,
+        needs_location_id=True,
+        has_timestamps=True,
+        ignores_compression=False),
+    EnumEntry(
+        """Represents the type for a thumb file (.thumb).""",
+        'OTF2_FILETYPE_THUMBNAIL',
+        5,
+        needs_location_id=False,
+        has_timestamps=False,
+        ignores_compression=True),
+    EnumEntry(
+        """Represents the type for a marker file (.marker).""",
+        'OTF2_FILETYPE_MARKER',
+        6,
+        needs_location_id=False,
+        has_timestamps=False,
+        ignores_compression=True),
+    EnumEntry(
+        """Internal file which holds the SION rank map (.srm).""",
+        'OTF2_FILETYPE_SIONRANKMAP',
+        7,
+        needs_location_id=False,
+        has_timestamps=False,
+        ignores_compression=False))
+
+GeneralEnum(
+    """Defines which file substrate is used.""",
+    'FileSubstrate',
+    EnumEntry(
+        """Undefined.""",
+        'OTF2_SUBSTRATE_UNDEFINED',
+        value=0),
+    EnumEntry(
+        """Use standard posix file interface.""",
+        'OTF2_SUBSTRATE_POSIX',
+        value=1),
+    EnumEntry(
+        """Use the interface of the SIONlib to write many logical files into few physical files.""",
+        'OTF2_SUBSTRATE_SION',
+        value=2),
+    EnumEntry(
+        """Do not use any file interface. No data is written to a file.""",
+        'OTF2_SUBSTRATE_NONE',
+        value=3))
+
+GeneralEnum(
+    """Possible mappings from local to global identifiers.""",
+    'MappingType',
+    EnumEntry(
+        """Mapping of @eref{String} identifiers.""",
+        'OTF2_MAPPING_STRING'),
+    EnumEntry(
+        """Mapping of @eref{Attribute} identifiers.""",
+        'OTF2_MAPPING_ATTRIBUTE'),
+    EnumEntry(
+        """Mapping of @eref{Location} identifiers.""",
+        'OTF2_MAPPING_LOCATION'),
+    EnumEntry(
+        """Mapping of @eref{Region} identifiers.""",
+        'OTF2_MAPPING_REGION'),
+    EnumEntry(
+        """Mapping of @eref{Group} identifiers.""",
+        'OTF2_MAPPING_GROUP'),
+    EnumEntry(
+        """Mapping of @eref{Metric} identifiers.""",
+        'OTF2_MAPPING_METRIC'),
+    EnumEntry(
+        """Mapping of @eref{Comm} identifiers.""",
+        'OTF2_MAPPING_COMM'),
+    EnumEntry(
+        """Mapping of @eref{Parameter} identifiers.""",
+        'OTF2_MAPPING_PARAMETER'),
+    EnumEntry(
+        """Mapping of @eref{RmaWin} identifiers.""",
+        'OTF2_MAPPING_RMA_WIN',
+        since=Version(1,2)),
+    EnumEntry(
+        """Mapping of @eref{SourceCodeLocation} identifiers.""",
+        'OTF2_MAPPING_SOURCE_CODE_LOCATION',
+        since=Version(1,5)),
+    EnumEntry(
+        """Mapping of @eref{CallingContext} identifiers.""",
+        'OTF2_MAPPING_CALLING_CONTEXT',
+        since=Version(1,5)),
+    EnumEntry(
+        """Mapping of @eref{InterruptGenerator} identifiers.""",
+        'OTF2_MAPPING_INTERRUPT_GENERATOR',
+        since=Version(1,5)),
+    EnumEntry(
+        """Mapping of @eref{IoFile} identifiers.""",
+        'OTF2_MAPPING_IO_FILE',
+        since=Version(2,1)),
+    EnumEntry(
+        """Mapping of @eref{IoHandle} identifiers.""",
+        'OTF2_MAPPING_IO_HANDLE',
+        since=Version(2,1)),
+    terminator=True)
+
+GeneralEnum(
+    """OTF2 basic data types.""",
+    'Type',
+    EnumEntry(
+        """\
+        Undefined type.
+
+        Type category: None
+        """,
+        'OTF2_TYPE_NONE'),
+    EnumEntry(
+        """\
+        Unsigned 8-bit integer.
+
+        Type category: Integer
+        """,
+        'OTF2_TYPE_UINT8',
+        type=uint8_t),
+    EnumEntry(
+        """\
+        Unsigned 16-bit integer
+
+        Type category: Integer
+        """,
+        'OTF2_TYPE_UINT16',
+        type=uint16_t),
+    EnumEntry(
+        """\
+        Unsigned 32-bit integer
+
+        Type category: Integer
+        """,
+        'OTF2_TYPE_UINT32',
+        type=uint32_t),
+    EnumEntry(
+        """\
+        Unsigned 64-bit integer
+
+        Type category: Integer
+        """,
+        'OTF2_TYPE_UINT64',
+        type=uint64_t),
+    EnumEntry(
+        """\
+        Signed 8-bit integer
+
+        Type category: Integer
+        """,
+        'OTF2_TYPE_INT8',
+        type=int8_t),
+    EnumEntry(
+        """\
+        Signed 16-bit integer
+
+        Type category: Integer
+        """,
+        'OTF2_TYPE_INT16',
+        type=int16_t),
+    EnumEntry(
+        """\
+        Signed 32-bit integer
+
+        Type category: Integer
+        """,
+        'OTF2_TYPE_INT32',
+        type=int32_t),
+    EnumEntry(
+        """\
+        Signed 64-bit integer
+
+        Type category: Integer
+        """,
+        'OTF2_TYPE_INT64',
+        type=int64_t),
+    EnumEntry(
+        """\
+        32-bit floating point value
+
+        Type category: Floating point
+        """,
+        'OTF2_TYPE_FLOAT',
+        type=float),
+    EnumEntry(
+        """\
+        64-bit floating point value
+
+        Type category: Floating point
+        """,
+        'OTF2_TYPE_DOUBLE',
+        type=double),
+    includes=[('MappingType', 'Type category: Definition reference\n')])
+
+GeneralEnum(
+    """\
+    List of known paradigms.  Parallel paradigms have their expected paradigm
+    class and known paradigm properties attached.
+    """,
+    'Paradigm',
+    EnumEntry(
+        """An unknown paradigm.""",
+        'OTF2_PARADIGM_UNKNOWN'),
+    EnumEntry(
+        """User instrumentation.""",
+        'OTF2_PARADIGM_USER'),
+    EnumEntry(
+        """Compiler instrumentation.""",
+        'OTF2_PARADIGM_COMPILER'),
+    EnumEntry(
+        """\
+        OpenMP.
+
+        @pclass{OTF2_PARADIGM_CLASS_THREAD_FORK_JOIN}
+        """,
+        'OTF2_PARADIGM_OPENMP'),
+    EnumEntry(
+        """\
+        MPI.
+
+        @pclass{OTF2_PARADIGM_CLASS_PROCESS}
+        """,
+        'OTF2_PARADIGM_MPI'),
+    EnumEntry(
+        """\
+        CUDA.
+
+        @pclass{OTF2_PARADIGM_CLASS_ACCELERATOR}
+        @pproperty{OTF2_PARADIGM_PROPERTY_RMA_ONLY,@eref{OTF2_TRUE}}
+        """,
+        'OTF2_PARADIGM_CUDA'),
+    EnumEntry(
+        """The measurement software.""",
+        'OTF2_PARADIGM_MEASUREMENT_SYSTEM',
+        since=Version(1,2)),
+    EnumEntry(
+        """\
+        POSIX threads.
+
+        @pclass{OTF2_PARADIGM_CLASS_THREAD_CREATE_WAIT}
+        """,
+        'OTF2_PARADIGM_PTHREAD',
+        since=Version(1,3)),
+    EnumEntry(
+        """\
+        HMPP.
+
+        @pclass{OTF2_PARADIGM_CLASS_ACCELERATOR}
+        """,
+        'OTF2_PARADIGM_HMPP',
+        since=Version(1,3)),
+    EnumEntry(
+        """\
+        OmpSs.
+
+        @pclass{OTF2_PARADIGM_CLASS_THREAD_FORK_JOIN}
+        """,
+        'OTF2_PARADIGM_OMPSS',
+        since=Version(1,3)),
+    EnumEntry(
+        """Hardware.""",
+        'OTF2_PARADIGM_HARDWARE',
+        since=Version(1,3)),
+    EnumEntry(
+        """\
+        GASPI.
+
+        @pclass{OTF2_PARADIGM_CLASS_PROCESS}
+        """,
+        'OTF2_PARADIGM_GASPI',
+        since=Version(1,4)),
+    EnumEntry(
+        """\
+        Unified Parallel C (UPC).
+
+        @pclass{OTF2_PARADIGM_CLASS_PROCESS}
+        """,
+        'OTF2_PARADIGM_UPC',
+        since=Version(1,4)),
+    EnumEntry(
+        """\
+        SGI SHMEM, Cray SHMEM, OpenSHMEM.
+
+        @pclass{OTF2_PARADIGM_CLASS_PROCESS}
+        @pproperty{OTF2_PARADIGM_PROPERTY_RMA_ONLY,@eref{OTF2_TRUE}}
+        """,
+        'OTF2_PARADIGM_SHMEM',
+        since=Version(1,4)),
+    EnumEntry(
+        """\
+        Windows threads.
+
+        @pclass{OTF2_PARADIGM_CLASS_THREAD_CREATE_WAIT}
+        """,
+        'OTF2_PARADIGM_WINTHREAD',
+        since=Version(1,5)),
+    EnumEntry(
+        """\
+        Qt threads.
+
+        @pclass{OTF2_PARADIGM_CLASS_THREAD_CREATE_WAIT}
+        """,
+        'OTF2_PARADIGM_QTTHREAD',
+        since=Version(1,5)),
+    EnumEntry(
+        """\
+        ACE threads.
+
+        @pclass{OTF2_PARADIGM_CLASS_THREAD_CREATE_WAIT}
+        """,
+        'OTF2_PARADIGM_ACETHREAD',
+        since=Version(1,5)),
+    EnumEntry(
+        """\
+        TBB threads.
+
+        @pclass{OTF2_PARADIGM_CLASS_THREAD_FORK_JOIN}
+        """,
+        'OTF2_PARADIGM_TBBTHREAD',
+        since=Version(1,5)),
+    EnumEntry(
+        """\
+        OpenACC directives.
+
+        @pclass{OTF2_PARADIGM_CLASS_ACCELERATOR}
+        @pproperty{OTF2_PARADIGM_PROPERTY_RMA_ONLY,@eref{OTF2_TRUE}}
+        """,
+        'OTF2_PARADIGM_OPENACC',
+        since=Version(1,5)),
+    EnumEntry(
+        """\
+        OpenCL API functions and kernels.
+
+        @pclass{OTF2_PARADIGM_CLASS_ACCELERATOR}
+        @pproperty{OTF2_PARADIGM_PROPERTY_RMA_ONLY,@eref{OTF2_TRUE}}
+        """,
+        'OTF2_PARADIGM_OPENCL',
+        since=Version(1,5)),
+    EnumEntry(
+        """\
+        Multicore Task API functions.
+
+        @pclass{OTF2_PARADIGM_CLASS_THREAD_FORK_JOIN}
+        """,
+        'OTF2_PARADIGM_MTAPI',
+        since=Version(1,5)),
+    EnumEntry(
+        """\
+        Functions recorded by sampling, not by any means of instrumentation.
+
+        Regions belonging to this paradigm are not eligible for @eref{CallingContext}
+        definitions if these @eref{CallingContext} definitions will be referenced
+        by @eref{CallingContextEnter} or @eref{CallingContextLeave} events.
+        """,
+        'OTF2_PARADIGM_SAMPLING',
+        since=Version(1,5)),
+    EnumEntry(
+        """Entity does not belong to any specific paradigm.""",
+        'OTF2_PARADIGM_NONE',
+        since=Version(2,0)),
+    EnumEntry(
+        """\
+        HIP API functions and kernels.
+
+        @pclass{OTF2_PARADIGM_CLASS_ACCELERATOR}
+        @pproperty{OTF2_PARADIGM_PROPERTY_RMA_ONLY,@eref{OTF2_TRUE}}
+        """,
+        'OTF2_PARADIGM_HIP',
+        since=Version(2,3)),
+    EnumEntry(
+        """\
+        Kokkos API functions and kernels.
+
+        @pclass{OTF2_PARADIGM_CLASS_ACCELERATOR}
+        @pproperty{OTF2_PARADIGM_PROPERTY_RMA_ONLY,@eref{OTF2_TRUE}}
+        """,
+        'OTF2_PARADIGM_KOKKOS',
+        since=Version(2,3)),
+    since=Version(1,1))
+
+GeneralEnum(
+    """List of paradigm classes.""",
+    'ParadigmClass',
+    EnumEntry(
+        """A communication paradigm across multiple processes.""",
+        'OTF2_PARADIGM_CLASS_PROCESS'),
+    EnumEntry(
+        """A threading paradigm which uses the fork/join model.""",
+        'OTF2_PARADIGM_CLASS_THREAD_FORK_JOIN'),
+    EnumEntry(
+        """A threading paradigm which uses the create/wait model.""",
+        'OTF2_PARADIGM_CLASS_THREAD_CREATE_WAIT'),
+    EnumEntry(
+        """A paradigm which uses external accelerators to offload computation.""",
+        'OTF2_PARADIGM_CLASS_ACCELERATOR'),
+    since=Version(1,5))
+
+GeneralEnum(
+    """List of paradigm properties.""",
+    'ParadigmProperty',
+    EnumEntry(
+        """\
+        Template for unnamed @eref{Comm} definitions. A unique name can be
+        derived by replacing '${id}' with a unique id.
+
+        Type: @eref{String}
+        """,
+        'OTF2_PARADIGM_PROPERTY_COMM_NAME_TEMPLATE'),
+    EnumEntry(
+        """\
+        Template for unnamed @eref{RmaWin} definitions. A unique name can be
+        derived by replacing '${id}' with a unique id.
+
+        Type: @eref{String}
+        """,
+        'OTF2_PARADIGM_PROPERTY_RMA_WIN_NAME_TEMPLATE'),
+    EnumEntry(
+        """\
+        Attests that this parallel paradigm only uses @eref{RmaWin} definitions.
+        The @eref{Comm} definitions exists only for compliance and won't be
+        referenced in event records.
+
+        Type: @eref{OTF2_Boolean}
+        """,
+        'OTF2_PARADIGM_PROPERTY_RMA_ONLY'),
+    since=Version(1,5))
+
+GeneralEnum(
+    """Type of definitions used as metric in a thumbnail.""",
+    'ThumbnailType',
+    EnumEntry(
+        """The referenced definitions are of type @eref{Region}.""",
+        'OTF2_THUMBNAIL_TYPE_REGION'),
+    EnumEntry(
+        """The referenced definitions are of type @eref{MetricMember}.""",
+        'OTF2_THUMBNAIL_TYPE_METRIC'),
+    EnumEntry(
+        """The referenced definitions are of type @eref{Attribute}.""",
+        'OTF2_THUMBNAIL_TYPE_ATTRIBUTES'),
+    since=Version(1,2))
+
+DefEnum(
+    """List of available system tree node domains.""",
+    'SystemTreeDomain',
+    EnumEntry(
+        """\
+        All nodes below a node with this attribute encompass a tightly coupled
+        HPC system.
+        """,
+        'OTF2_SYSTEM_TREE_DOMAIN_MACHINE'),
+    EnumEntry(
+        """\
+        All nodes below a node with this attribute encompass a system where
+        processes can communicate via hardware shared memory.
+        """,
+        'OTF2_SYSTEM_TREE_DOMAIN_SHARED_MEMORY'),
+    EnumEntry(
+        """\
+        A numa domain. A set of processors around memory which the processors
+        can directly access.
+        """,
+        'OTF2_SYSTEM_TREE_DOMAIN_NUMA'),
+    EnumEntry(
+        """\
+        Socket, physical package, or chip. In the physical meaning, i.e. that
+        you can add or remove physically.
+        """,
+        'OTF2_SYSTEM_TREE_DOMAIN_SOCKET'),
+    EnumEntry(
+        """\
+        Cache. Can be L1i, L1d, L2, L3, ...
+        """,
+        'OTF2_SYSTEM_TREE_DOMAIN_CACHE'),
+    EnumEntry(
+        """\
+        Core. A computation unit (may be shared by several logical processors).
+        """,
+        'OTF2_SYSTEM_TREE_DOMAIN_CORE'),
+    EnumEntry(
+        """\
+        Processing Unit (A non-shared ALU, FPU, ...)
+        """,
+        'OTF2_SYSTEM_TREE_DOMAIN_PU'),
+    since=Version(1,2))
+
+DefEnum(
+    """List of possible definitions of type LocationGroup.""",
+    'LocationGroupType',
+    EnumEntry(
+        """A location group of unknown type.""",
+        'OTF2_LOCATION_GROUP_TYPE_UNKNOWN'),
+    EnumEntry(
+        """A process.""",
+        'OTF2_LOCATION_GROUP_TYPE_PROCESS'))
+
+DefEnum(
+    """List of possible definitions of type Location.""",
+    'LocationType',
+    EnumEntry(
+        """A location of unknown type.""",
+        'OTF2_LOCATION_TYPE_UNKNOWN'),
+    EnumEntry(
+        """A CPU thread.""",
+        'OTF2_LOCATION_TYPE_CPU_THREAD'),
+    EnumEntry(
+        """A GPU location.""",
+        'OTF2_LOCATION_TYPE_GPU'),
+    EnumEntry(
+        """A metric only location e.g. an external device.""",
+        'OTF2_LOCATION_TYPE_METRIC'))
+
+DefEnum(
+    """List of possible definitions of type Region.""",
+    'RegionType',
+    EnumEntry(
+        """A region of unknown type.""",
+        'OTF2_REGION_TYPE_UNKNOWN'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_FUNCTION'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_LOOP'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_USER_REGION'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_FILE'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_PARALLEL'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_LOOP'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_SECTIONS'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_SECTION'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_WORKSHARE'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_SINGLE'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_MASTER'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_CRITICAL'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_ATOMIC'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_BARRIER'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_IBARRIER'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_FLUSH'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_CRITICAL_SBLOCK'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_SINGLE_SBLOCK'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_WRAPPER'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_TASK'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_TASK_WAIT'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_MPI_COLL_BARRIER'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_MPI_COLL_ONE2ALL'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_MPI_COLL_ALL2ONE'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_MPI_COLL_ALL2ALL'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_MPI_COLL_OTHER'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_PHASE'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_DYNAMIC'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_DYNAMIC_PHASE'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_DYNAMIC_LOOP'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_DYNAMIC_FUNCTION'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_DYNAMIC_LOOP_PHASE'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_TASK_CREATE'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_ORDERED'),
+    EnumEntry(
+        """""",
+        'OTF2_REGION_TYPE_OMP_ORDERED_SBLOCK'),
+    attic=Version(1,1))
+
+DefEnum(
+    """List of possible roles of a Region.""",
+    'RegionRole',
+    EnumEntry(
+        """A region of unknown role.""",
+        'OTF2_REGION_ROLE_UNKNOWN'),
+    EnumEntry(
+        """An entire function/subroutine.""",
+        'OTF2_REGION_ROLE_FUNCTION'),
+    EnumEntry(
+        """An API function wrapped by Score-P.""",
+        'OTF2_REGION_ROLE_WRAPPER'),
+    EnumEntry(
+        """A loop in the code.""",
+        'OTF2_REGION_ROLE_LOOP'),
+    EnumEntry(
+        """An arbitrary section of code.""",
+        'OTF2_REGION_ROLE_CODE'),
+    EnumEntry(
+        """E.g. OpenMP "parallel" construct (structured block)""",
+        'OTF2_REGION_ROLE_PARALLEL'),
+    EnumEntry(
+        """E.g. OpenMP "sections" construct""",
+        'OTF2_REGION_ROLE_SECTIONS'),
+    EnumEntry(
+        """Individual "section" inside an OpenMP "sections" construct""",
+        'OTF2_REGION_ROLE_SECTION'),
+    EnumEntry(
+        """E.g. OpenMP "workshare" construct""",
+        'OTF2_REGION_ROLE_WORKSHARE'),
+    EnumEntry(
+        """E.g. OpenMP "single" construct""",
+        'OTF2_REGION_ROLE_SINGLE'),
+    EnumEntry(
+        """E.g. OpenMP "single" construct (structured block)""",
+        'OTF2_REGION_ROLE_SINGLE_SBLOCK'),
+    EnumEntry(
+        """E.g. OpenMP "master" construct""",
+        'OTF2_REGION_ROLE_MASTER'),
+    EnumEntry(
+        """E.g. OpenMP "critical" construct""",
+        'OTF2_REGION_ROLE_CRITICAL'),
+    EnumEntry(
+        """E.g. OpenMP "critical" construct (structured block)""",
+        'OTF2_REGION_ROLE_CRITICAL_SBLOCK'),
+    EnumEntry(
+        """E.g. OpenMP "atomic" construct""",
+        'OTF2_REGION_ROLE_ATOMIC'),
+    EnumEntry(
+        """Explicit barrier""",
+        'OTF2_REGION_ROLE_BARRIER'),
+    EnumEntry(
+        """Implicit barrier""",
+        'OTF2_REGION_ROLE_IMPLICIT_BARRIER'),
+    EnumEntry(
+        """E.g. OpenMP "flush" construct""",
+        'OTF2_REGION_ROLE_FLUSH'),
+    EnumEntry(
+        """E.g. OpenMP "ordered" construct""",
+        'OTF2_REGION_ROLE_ORDERED'),
+    EnumEntry(
+        """E.g. OpenMP "ordered" construct (structured block)""",
+        'OTF2_REGION_ROLE_ORDERED_SBLOCK'),
+    EnumEntry(
+        """"task" construct (structured block)""",
+        'OTF2_REGION_ROLE_TASK'),
+    EnumEntry(
+        """"task" construct (creation)""",
+        'OTF2_REGION_ROLE_TASK_CREATE'),
+    EnumEntry(
+        """"taskwait" construct""",
+        'OTF2_REGION_ROLE_TASK_WAIT'),
+    EnumEntry(
+        """Collective 1:N communication operation""",
+        'OTF2_REGION_ROLE_COLL_ONE2ALL'),
+    EnumEntry(
+        """Collective N:1 communication operation""",
+        'OTF2_REGION_ROLE_COLL_ALL2ONE'),
+    EnumEntry(
+        """Collective N:N communication operation""",
+        'OTF2_REGION_ROLE_COLL_ALL2ALL'),
+    EnumEntry(
+        """Collective M:N communication operation""",
+        'OTF2_REGION_ROLE_COLL_OTHER'),
+    EnumEntry(
+        """A data file I/O operation.""",
+        'OTF2_REGION_ROLE_FILE_IO'),
+    EnumEntry(
+        """A point-to-point communication function.""",
+        'OTF2_REGION_ROLE_POINT2POINT'),
+    EnumEntry(
+        """A remote memory access communication operation.""",
+        'OTF2_REGION_ROLE_RMA'),
+    EnumEntry(
+        """A data transfer operation in memory.""",
+        'OTF2_REGION_ROLE_DATA_TRANSFER'),
+    EnumEntry(
+        """An artificial region, mostly used by the monitor software.""",
+        'OTF2_REGION_ROLE_ARTIFICIAL',
+        since=Version(1,2)),
+    EnumEntry(
+        """A function which creates one thread.""",
+        'OTF2_REGION_ROLE_THREAD_CREATE',
+        since=Version(1,3)),
+    EnumEntry(
+        """A function which waits for the completion of one thread.""",
+        'OTF2_REGION_ROLE_THREAD_WAIT',
+        since=Version(1,3)),
+    EnumEntry(
+        """"untied task" construct (structured block)""",
+        'OTF2_REGION_ROLE_TASK_UNTIED',
+        since=Version(1,5)),
+    EnumEntry(
+        """A function which allocates memory.""",
+        'OTF2_REGION_ROLE_ALLOCATE',
+        since=Version(2,0)),
+    EnumEntry(
+        """A function which deallocates memory.""",
+        'OTF2_REGION_ROLE_DEALLOCATE',
+        since=Version(2,0)),
+    EnumEntry(
+        """A function which changes a previous memory allocation to either increase or decrease the amount.""",
+        'OTF2_REGION_ROLE_REALLOCATE',
+        since=Version(2,0)),
+    EnumEntry(
+        """A metadata-only file I/O operation (e.g., @eref{IoSeek}, @eref{IoChangeStatusFlags} event).""",
+        'OTF2_REGION_ROLE_FILE_IO_METADATA',
+        since=Version(2,1)),
+    since=Version(1,1))
+
+DefEnum(
+    """List of possible flags to specify special characteristics of a Region.""",
+    'RegionFlag',
+    EnumEntry(
+        """A region without special characterization.""",
+        'OTF2_REGION_FLAG_NONE',
+        value=0),
+    EnumEntry(
+        """Each time this region is entered it will get an individual call path in the profile.""",
+        'OTF2_REGION_FLAG_DYNAMIC',
+        value='( 1 << 0 )'),
+    EnumEntry(
+        """Each time this region is entered it will get an individual root node in the profile.""",
+        'OTF2_REGION_FLAG_PHASE',
+        value='( 1 << 1 )'),
+    type=uint32_t,
+    bitset_like=True,
+    since=Version(1,1))
+
+DefEnum(
+    """""",
+    'GroupTypePre12',
+    EnumEntry(
+        """Group of unknown type.""",
+        'OTF2_GROUP_TYPE_PRE_1_2_UNKNOWN'),
+    EnumEntry(
+        """Group of locations.""",
+        'OTF2_GROUP_TYPE_PRE_1_2_LOCATIONS'),
+    EnumEntry(
+        """Group of regions.""",
+        'OTF2_GROUP_TYPE_PRE_1_2_REGIONS'),
+    EnumEntry(
+        """Group of metrics.""",
+        'OTF2_GROUP_TYPE_PRE_1_2_METRIC'),
+    EnumEntry(
+        """MPI group.""",
+        'OTF2_GROUP_TYPE_PRE_1_2_MPI_GROUP'),
+    EnumEntry(
+        """\
+        Special group type to efficiently handle MPI self-like communicators.
+        """,
+        'OTF2_GROUP_TYPE_PRE_1_2_MPI_COMM_SELF'),
+    EnumEntry(
+        """\
+        List of location IDs, which are MPI ranks.
+
+        The size of this group should match the size of MPI_COMM_WORLD.
+        Each entry in the list is a location ID, where the index of the
+        entry is equal to the rank in MPI_COMM_WORLD.
+        (Ie. rank i corresponds to location members[i])
+
+        Also, if this definition is present, the location group ids of
+        locations with type OTF2_LOCATION_TYPE_CPU_THREAD should match
+        The MPI rank.
+
+        This group needs to be defined, before any group of type
+        @eref{OTF2_GROUP_TYPE_PRE_1_2_MPI_GROUP}.
+
+        Note: This does not makes sense in local definitions.
+        """,
+        'OTF2_GROUP_TYPE_PRE_1_2_MPI_LOCATIONS'),
+    attic=Version(1,2))
+
+DefEnum(
+    """List of available group types.""",
+    'GroupType',
+    EnumEntry(
+        """Group of unknown type.""",
+        'OTF2_GROUP_TYPE_UNKNOWN'),
+    EnumEntry(
+        """Group of locations.""",
+        'OTF2_GROUP_TYPE_LOCATIONS'),
+    EnumEntry(
+        """Group of regions.""",
+        'OTF2_GROUP_TYPE_REGIONS'),
+    EnumEntry(
+        """Group of metrics.""",
+        'OTF2_GROUP_TYPE_METRIC'),
+    EnumEntry(
+        """\
+        List of locations which participated in the paradigm specified by the
+        group definition.
+
+        For example:
+        In case of MPI, the size of this group should match the size of
+        @a MPI_COMM_WORLD. Each entry in the list is a @eref{Location}
+        reference, where the index of the entry is equal to the rank in
+        @a MPI_COMM_WORLD (i.e., rank @a i corresponds to location
+        <em>members[i]</em>).
+
+        Also, if this definition is present, the location group ids of
+        locations with type @eref{OTF2_LOCATION_TYPE_CPU_THREAD} should match
+        the MPI rank.
+
+        This group needs to be defined, before any group of type
+        @eref{OTF2_GROUP_TYPE_COMM_GROUP} and the same paradigm.
+
+        Note: This does not makes sense in local definitions.
+        """,
+        'OTF2_GROUP_TYPE_COMM_LOCATIONS'),
+    EnumEntry(
+        """\
+        A sub-group of the corresponding group definition with type
+        @eref{OTF2_GROUP_TYPE_COMM_LOCATIONS} and the same paradigm.
+        The sub-group is formed by listing the indexes of the
+        @eref{OTF2_GROUP_TYPE_COMM_LOCATIONS} group.
+        """,
+        'OTF2_GROUP_TYPE_COMM_GROUP'),
+    EnumEntry(
+        """\
+        Special group type to efficiently handle self-like communicators
+        (i.e., MPI_COMM_SELF and friends). At most one definition of this type
+        is allowed to exist per paradigm.
+        """,
+        'OTF2_GROUP_TYPE_COMM_SELF'),
+    since=Version(1,2))
+
+DefEnum(
+    """List of possible flags to specify special characteristics of a Group.""",
+    'GroupFlag',
+    EnumEntry(
+        """A group without special characterization.""",
+        'OTF2_GROUP_FLAG_NONE',
+        value=0),
+    EnumEntry(
+        """\
+        No translation of ranks in event records needs to be done when
+        a group of type @eref{OTF2_GROUP_TYPE_COMM_GROUP} has this flag.
+        I.e., the ranks are indexes into the
+        @eref{OTF2_GROUP_TYPE_COMM_LOCATIONS} group.
+        """,
+        'OTF2_GROUP_FLAG_GLOBAL_MEMBERS',
+        value='( 1 << 0 )'),
+    type=uint32_t,
+    bitset_like=True,
+    since=Version(1,2))
+
+DefEnum(
+    """Metric base types.""",
+    'Base',
+    EnumEntry(
+        """Binary base.""",
+        'OTF2_BASE_BINARY'),
+    EnumEntry(
+        """Decimal base.""",
+        'OTF2_BASE_DECIMAL'))
+
+DefEnum(
+    """Metric occurrence.""",
+    'MetricOccurrence',
+    EnumEntry(
+        """Metric occurs at every region enter and leave.""",
+        'OTF2_METRIC_SYNCHRONOUS_STRICT'),
+    EnumEntry(
+        """\
+        Metric occurs only at a region enter and leave, but does not need to
+        occur at every enter/leave.
+        """,
+        'OTF2_METRIC_SYNCHRONOUS'),
+    EnumEntry(
+        """\
+        Metric can occur at any place i.e. it is not related to region enter
+        and leaves.
+        """,
+        'OTF2_METRIC_ASYNCHRONOUS'))
+
+DefEnum(
+    """List of available metric types.""",
+    'MetricType',
+    EnumEntry(
+        """Any metric of a type not explicitly listed below.""",
+        'OTF2_METRIC_TYPE_OTHER'),
+    EnumEntry(
+        """PAPI counter.""",
+        'OTF2_METRIC_TYPE_PAPI'),
+    EnumEntry(
+        """Resource usage counter.""",
+        'OTF2_METRIC_TYPE_RUSAGE'),
+    EnumEntry(
+        """User metrics.""",
+        'OTF2_METRIC_TYPE_USER'))
+
+DefEnum(
+    """\
+    Information about whether the metric value is accumulated,
+    absolute, or relative. Used for the lower half-byte of
+    OTF2_MetricMode.
+    """,
+    'MetricValueProperty',
+    EnumEntry(
+        """\
+        Accumulated metric is monotonously increasing (i.e., PAPI counter for
+        number of executed floating point operations).
+        """,
+        'OTF2_METRIC_VALUE_ACCUMULATED'),
+    EnumEntry(
+        """Absolute metric (i.e., temperature, rate, mean value, etc.).""",
+        'OTF2_METRIC_VALUE_ABSOLUTE'),
+    EnumEntry(
+        """Relative metric.""",
+        'OTF2_METRIC_VALUE_RELATIVE'),
+    terminator=EnumEntry(
+        """\
+        This mask can be used to get lower half-byte in OTF2_MetricMode that is
+        used to indicate metric value property.
+        xxxx1111
+        """,
+        'OTF2_METRIC_VALUE_MASK',
+        value='15'))
+
+DefEnum(
+    """\
+    Determines when the values have been collected or for
+    which interval of time they are valid. Used for the
+    upper half-byte of OTF2_MetricMode.
+    """,
+    'MetricTiming',
+    EnumEntry(
+        """\
+        Metric value belongs to the time interval since the beginning of the
+        measurement.
+        """,
+        'OTF2_METRIC_TIMING_START'),
+    EnumEntry(
+        """\
+        Metric value is only valid at a point in time but not necessarily for
+        any interval of time.
+        """,
+        'OTF2_METRIC_TIMING_POINT',
+        value='1 << 4'),
+    EnumEntry(
+        """\
+        Metric value is related to the time interval since the last counter
+        sample of the same metric, i.e. the immediate past.
+        """,
+        'OTF2_METRIC_TIMING_LAST',
+        value='2 << 4'),
+    EnumEntry(
+        """\
+        Metric value is valid from now until the next counter sample, i.e. the
+        future right ahead.
+        """,
+        'OTF2_METRIC_TIMING_NEXT',
+        value='3 << 4'),
+    terminator=EnumEntry(
+        """\
+        This mask can be used to get the upper half-byte in OTF2_MetricMode that
+        is used to indicate metric timing information.
+        1111xxxx
+        """,
+        'OTF2_METRIC_TIMING_MASK',
+        value='240'))
+
+DefEnum(
+    """\
+    Metric mode is a combination of value property and timing information.
+    """,
+    'MetricMode',
+    EnumEntry(
+        """Accumulated metric, 'START' timing.""",
+        'OTF2_METRIC_ACCUMULATED_START',
+        value='OTF2_METRIC_VALUE_ACCUMULATED | OTF2_METRIC_TIMING_START'),
+    EnumEntry(
+        """Accumulated metric, 'POINT' timing.""",
+        'OTF2_METRIC_ACCUMULATED_POINT',
+        value='OTF2_METRIC_VALUE_ACCUMULATED | OTF2_METRIC_TIMING_POINT'),
+    EnumEntry(
+        """Accumulated metric, 'LAST' timing.""",
+        'OTF2_METRIC_ACCUMULATED_LAST',
+        value='OTF2_METRIC_VALUE_ACCUMULATED | OTF2_METRIC_TIMING_LAST'),
+    EnumEntry(
+        """Accumulated metric, 'NEXT' timing.""",
+        'OTF2_METRIC_ACCUMULATED_NEXT',
+        value='OTF2_METRIC_VALUE_ACCUMULATED | OTF2_METRIC_TIMING_NEXT'),
+    EnumEntry(
+        """Absolute metric, 'POINT' timing.""",
+        'OTF2_METRIC_ABSOLUTE_POINT',
+        value='OTF2_METRIC_VALUE_ABSOLUTE | OTF2_METRIC_TIMING_POINT'),
+    EnumEntry(
+        """Absolute metric, 'LAST' timing.""",
+        'OTF2_METRIC_ABSOLUTE_LAST',
+        value='OTF2_METRIC_VALUE_ABSOLUTE | OTF2_METRIC_TIMING_LAST'),
+    EnumEntry(
+        """Absolute metric, 'NEXT' timing.""",
+        'OTF2_METRIC_ABSOLUTE_NEXT',
+        value='OTF2_METRIC_VALUE_ABSOLUTE | OTF2_METRIC_TIMING_NEXT'),
+    EnumEntry(
+        """Relative metric, 'POINT' timing.""",
+        'OTF2_METRIC_RELATIVE_POINT',
+        value='OTF2_METRIC_VALUE_RELATIVE | OTF2_METRIC_TIMING_POINT'),
+    EnumEntry(
+        """Relative metric, 'LAST' timing.""",
+        'OTF2_METRIC_RELATIVE_LAST',
+        value='OTF2_METRIC_VALUE_RELATIVE | OTF2_METRIC_TIMING_LAST'),
+    EnumEntry(
+        """Relative metric, 'NEXT' timing.""",
+        'OTF2_METRIC_RELATIVE_NEXT',
+        value='OTF2_METRIC_VALUE_RELATIVE | OTF2_METRIC_TIMING_NEXT'))
+
+DefEnum(
+    """List of available metric scopes.""",
+    'MetricScope',
+    EnumEntry(
+        """Scope of a metric is another location.""",
+        'OTF2_SCOPE_LOCATION'),
+    EnumEntry(
+        """Scope of a metric is a location group.""",
+        'OTF2_SCOPE_LOCATION_GROUP'),
+    EnumEntry(
+        """Scope of a metric is a system tree node.""",
+        'OTF2_SCOPE_SYSTEM_TREE_NODE'),
+    EnumEntry(
+        """Scope of a metric is a generic group of locations.""",
+        'OTF2_SCOPE_GROUP'))
+
+DefEnum(
+    """List of possible kinds a MetricClass can be recorded by.""",
+    'RecorderKind',
+    EnumEntry(
+        """No specific kind of recorder.""",
+        'OTF2_RECORDER_KIND_UNKNOWN'),
+    EnumEntry(
+        """\
+        The metric class will only be recorded via a @eref{MetricInstance}
+        definitions.
+        """,
+        'OTF2_RECORDER_KIND_ABSTRACT'),
+    EnumEntry(
+        """\
+        This metric class will only be recorded by locations of type
+        @eref{OTF2_LOCATION_TYPE_CPU_THREAD}.
+        """,
+        'OTF2_RECORDER_KIND_CPU'),
+    EnumEntry(
+        """\
+        This metric class will only be recorded by locations of type
+        @eref{OTF2_LOCATION_TYPE_GPU}.
+        """,
+        'OTF2_RECORDER_KIND_GPU'),
+    since=Version(1,2))
+
+DefEnum(
+    """List of possible for definitions of type Parameter.""",
+    'ParameterType',
+    EnumEntry(
+        """Parameter is of type string.""",
+        'OTF2_PARAMETER_TYPE_STRING'),
+    EnumEntry(
+        """Parameter is of type signed 8-byte integer.""",
+        'OTF2_PARAMETER_TYPE_INT64'),
+    EnumEntry(
+        """Parameter is of type unsigned 8-byte integer.""",
+        'OTF2_PARAMETER_TYPE_UINT64'))
+
+DefEnum(
+    """Periodicity types of a cartesian topology dimension.""",
+    'CartPeriodicity',
+    EnumEntry(
+        """Dimension is not periodic.""",
+        'OTF2_CART_PERIODIC_FALSE',
+        value=0),
+    EnumEntry(
+        """Dimension is periodic.""",
+        'OTF2_CART_PERIODIC_TRUE',
+        value=1),
+    since=Version(1,3))
+
+DefEnum(
+    """List of possible modes of @eref{InterruptGenerator}.""",
+    'InterruptGeneratorMode',
+    EnumEntry(
+        """Denotes that the interrupts generated are time based.""",
+        'OTF2_INTERRUPT_GENERATOR_MODE_TIME'),
+    EnumEntry(
+        """Denotes that the interrupts generated are count based.""",
+        'OTF2_INTERRUPT_GENERATOR_MODE_COUNT'),
+    since=Version(2,0))
+
+EventEnum(
+    """Types for use in the MeasurementOnOff event.""",
+    'MeasurementMode',
+    EnumEntry(
+        """The measurement resumed with event recording.""",
+        'OTF2_MEASUREMENT_ON',
+        1),
+    EnumEntry(
+        """The measurement suspended with event recording.""",
+        'OTF2_MEASUREMENT_OFF'))
+
+EventEnum(
+    """\
+    Types of collective operations.
+    """,
+    'CollectiveOp',
+    EnumEntry(
+        """Barrier synchronization""",
+        'OTF2_COLLECTIVE_OP_BARRIER'),
+    EnumEntry(
+        """Broadcast data from one member to all group members""",
+        'OTF2_COLLECTIVE_OP_BCAST'),
+    EnumEntry(
+        """Gather data from all group members to one member""",
+        'OTF2_COLLECTIVE_OP_GATHER'),
+    EnumEntry(
+        """\
+        Gather data from all group members to one member,
+        varying count of data from each member
+        """,
+        'OTF2_COLLECTIVE_OP_GATHERV'),
+    EnumEntry(
+        """Scatter data from one member to all group members""",
+        'OTF2_COLLECTIVE_OP_SCATTER'),
+    EnumEntry(
+        """\
+        Scatter data from one member to all group members,
+        varying count of data from each member
+        """,
+        'OTF2_COLLECTIVE_OP_SCATTERV'),
+    EnumEntry(
+        """\
+        Gather data from all group members,
+        all members of the group will receive the result
+        """,
+        'OTF2_COLLECTIVE_OP_ALLGATHER'),
+    EnumEntry(
+        """\
+        Gather data from all group members,
+        varying count of data from each member,
+        all members of the group will receive the result
+        """,
+        'OTF2_COLLECTIVE_OP_ALLGATHERV'),
+    EnumEntry(
+        """Collective scatter/gather operation (complete exchange)""",
+        'OTF2_COLLECTIVE_OP_ALLTOALL'),
+    EnumEntry(
+        """\
+        Collective scatter/gather operation (complete exchange),
+        varying count of data from each member
+        """,
+        'OTF2_COLLECTIVE_OP_ALLTOALLV'),
+    EnumEntry(
+        """\
+        Collective scatter/gather operation (complete exchange),
+        varying count of data from each member,
+        varying data type from each member
+        """,
+        'OTF2_COLLECTIVE_OP_ALLTOALLW'),
+    EnumEntry(
+        """\
+        Collective reduction operation,
+        all members of the group will receive the result
+        """,
+        'OTF2_COLLECTIVE_OP_ALLREDUCE'),
+    EnumEntry(
+        """Collective reduction operation""",
+        'OTF2_COLLECTIVE_OP_REDUCE'),
+    EnumEntry(
+        """\
+        Collective reduce/scatter operation,
+        varying size of scattered blocks
+        """,
+        'OTF2_COLLECTIVE_OP_REDUCE_SCATTER'),
+    EnumEntry(
+        """Collective scan operation across all members of a group""",
+        'OTF2_COLLECTIVE_OP_SCAN'),
+    EnumEntry(
+        """Collective exclusive scan operation across all members of a group""",
+        'OTF2_COLLECTIVE_OP_EXSCAN'),
+    EnumEntry(
+        """Collective reduce/scatter operation""",
+        'OTF2_COLLECTIVE_OP_REDUCE_SCATTER_BLOCK'),
+    EnumEntry(
+        """Collectively create a handle (ie. MPI_Win, MPI_Comm, MPI_File).""",
+        'OTF2_COLLECTIVE_OP_CREATE_HANDLE'),
+    EnumEntry(
+        """Collectively destroy a handle.""",
+        'OTF2_COLLECTIVE_OP_DESTROY_HANDLE'),
+    EnumEntry(
+        """Collectively allocate memory.""",
+        'OTF2_COLLECTIVE_OP_ALLOCATE'),
+    EnumEntry(
+        """Collectively deallocate memory.""",
+        'OTF2_COLLECTIVE_OP_DEALLOCATE'),
+    EnumEntry(
+        """Collectively create a handle and allocate memory.""",
+        'OTF2_COLLECTIVE_OP_CREATE_HANDLE_AND_ALLOCATE'),
+    EnumEntry(
+        """Collectively destroy a handle and deallocate memory.""",
+        'OTF2_COLLECTIVE_OP_DESTROY_HANDLE_AND_DEALLOCATE'))
+
+EventEnum(
+    """Type of direct RMA synchronization call""",
+    'RmaSyncType',
+    EnumEntry(
+        """Synchronize memory copy.""",
+        'OTF2_RMA_SYNC_TYPE_MEMORY'),
+    EnumEntry(
+        """Incoming remote notification.""",
+        'OTF2_RMA_SYNC_TYPE_NOTIFY_IN'),
+    EnumEntry(
+        """Outgoing remote notification.""",
+        'OTF2_RMA_SYNC_TYPE_NOTIFY_OUT'),
+    since=Version(1,2))
+
+EventEnum(
+    """Synchronization level used in RMA synchronization records.""",
+    'RmaSyncLevel',
+    EnumEntry(
+        """\
+        No process synchronization or access completion (e.g.,
+        MPI_Win_post, MPI_Win_start).
+        """,
+        'OTF2_RMA_SYNC_LEVEL_NONE',
+        value=0),
+    EnumEntry(
+        """Synchronize processes (e.g., MPI_Win_create/free).""",
+        'OTF2_RMA_SYNC_LEVEL_PROCESS',
+        value='( 1 << 0 )'),
+    EnumEntry(
+        """Complete memory accesses (e.g., MPI_Win_complete, MPI_Win_wait).""",
+        'OTF2_RMA_SYNC_LEVEL_MEMORY',
+        value='( 1 << 1 )'),
+    type=uint32_t,
+    bitset_like=True,
+    since=Version(1,2))
+
+EventEnum(
+    """General Lock Type.""",
+    'LockType',
+    EnumEntry(
+        """Exclusive lock. No other lock will be granted.""",
+        'OTF2_LOCK_EXCLUSIVE'),
+    EnumEntry(
+        """Shared lock. Other shared locks will be granted, but no exclusive locks.""",
+        'OTF2_LOCK_SHARED'),
+    since=Version(1,2))
+
+EventEnum(
+    """RMA Atomic Operation Type.""",
+    'RmaAtomicType',
+    EnumEntry(
+        """Atomic accumulate operation.""",
+        'OTF2_RMA_ATOMIC_TYPE_ACCUMULATE'),
+    EnumEntry(
+        """Atomic increment operation.""",
+        'OTF2_RMA_ATOMIC_TYPE_INCREMENT'),
+    EnumEntry(
+        """Atomic test-and-set operation.""",
+        'OTF2_RMA_ATOMIC_TYPE_TEST_AND_SET'),
+    EnumEntry(
+        """Atomic compare-and-swap operation.""",
+        'OTF2_RMA_ATOMIC_TYPE_COMPARE_AND_SWAP'),
+    EnumEntry(
+        """Atomic swap operation.""",
+        'OTF2_RMA_ATOMIC_TYPE_SWAP',
+        since=Version(1,4)),
+    EnumEntry(
+        """Atomic fetch-and-add operation.""",
+        'OTF2_RMA_ATOMIC_TYPE_FETCH_AND_ADD',
+        since=Version(1,4)),
+    EnumEntry(
+        """Atomic fetch-and-increment operation.""",
+        'OTF2_RMA_ATOMIC_TYPE_FETCH_AND_INCREMENT',
+        since=Version(1,4)),
+    EnumEntry(
+        """Atomic fetch and accumulate operation with a specified operator.""",
+        'OTF2_RMA_ATOMIC_TYPE_FETCH_AND_ACCUMULATE',
+        since=Version(2,1)),
+    since=Version(1,2))
+
+DefEnum(
+    """List of I/O paradigm classes.""",
+    'IoParadigmClass',
+    EnumEntry(
+        """\
+        Serial.
+
+        No I/O operations allowed with the @eref{OTF2_IO_OPERATION_FLAG_COLLECTIVE}
+        flag set and the @eref{Comm} attribute of the @eref{IoHandle} definition is
+        always @eref{OTF2_UNDEFINED_COMM}.
+        """,
+        'OTF2_IO_PARADIGM_CLASS_SERIAL'),
+    EnumEntry(
+        """\
+        Parallel.
+
+        Collective I/O operations are allowed if the @eref{Comm} attribute of
+        the @eref{IoHandle} definition is not @eref{OTF2_UNDEFINED_COMM}.
+        """,
+        'OTF2_IO_PARADIGM_CLASS_PARALLEL'),
+    since=Version(2,1))
+
+DefEnum(
+    """List of I/O paradigm flags.""",
+    'IoParadigmFlag',
+    EnumEntry(
+        """\
+        No flags set.
+        """,
+        'OTF2_IO_PARADIGM_FLAG_NONE',
+        value=0),
+    EnumEntry(
+        """\
+        This I/O paradigm denotes an interface to the operating system.
+        Thus, no further I/O paradigms below can exist.
+        """,
+        'OTF2_IO_PARADIGM_FLAG_OS',
+        value='(1 << 0)'),
+    type=uint32_t,
+    bitset_like=True,
+    since=Version(2,1))
+
+DefEnum(
+    """List of I/O paradigm properties.""",
+    'IoParadigmProperty',
+    EnumEntry(
+        """\
+        Version of the implementation.  Optional for all I/O paradigms.
+
+        Type: @eref{String}
+        """,
+        'OTF2_IO_PARADIGM_PROPERTY_VERSION'),
+    since=Version(2,1))
+
+DefEnum(
+    """\
+    List of possible flags to specify special characteristics of an @eref{IoHandle}
+    definition.
+    """,
+    'IoHandleFlag',
+    EnumEntry(
+        """\
+        No flags set.
+        """,
+        'OTF2_IO_HANDLE_FLAG_NONE',
+        value=0),
+    EnumEntry(
+        """\
+        This I/O handle was already created by the system. No @eref{IoCreateHandle}
+        event occurs with the handle to operate on it, thus it is already @emph{active}
+        without such event.
+
+        The @eref{IoHandle} definition should be supplemented with an
+        @eref{IoPreCreatedHandleState} definition to state the access mode and
+        status flags for this @emph{pre-created} @eref{IoHandle}.
+        """,
+        'OTF2_IO_HANDLE_FLAG_PRE_CREATED',
+        value='( 1 << 0 )'),
+    EnumEntry(
+        """\
+        This I/O handle is a proxy to a group of I/O paradigm specific handles.
+        The referenced @eref{IoFile} definition of such an @eref{IoHandle} should
+        be @eref{OTF2_UNDEFINED_IO_FILE}.
+
+        No @eref{IoCreateHandle}, @eref{IoDestroyHandle}, @eref{IoDuplicateHandle},
+        @eref{IoChangeStatusFlags} events are allowed with such an @eref{IoHandle}.
+
+        Examples are, a call to @p fflush() with a @p NULL argument, which means
+        <em>all open output streams</em>; or a call to @p sync(), which means
+        <em>commit all filesystem caches to disk</em>.
+        """,
+        'OTF2_IO_HANDLE_FLAG_ALL_PROXY',
+        value='( 1 << 1 )'),
+    type=uint32_t,
+    bitset_like=True,
+    since=Version(2,1))
+
+DefEnum(
+    """\
+    Determines how the resulting I/O handle can be accessed with subsequent
+    I/O operations.
+    """,
+    'IoAccessMode',
+    EnumEntry(
+        """\
+        Read-only access.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_RDONLY}
+        @ioequivalent{ISOC,"r"}
+        @ioequivalent{MPI-IO,MPI_MODE_RDONLY}
+        </no-wrap>
+        """,
+        'OTF2_IO_ACCESS_MODE_READ_ONLY'),
+    EnumEntry(
+        """\
+        Write-only access.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_WRONLY}
+        @ioequivalent{ISOC,"w"\, "a"}
+        @ioequivalent{MPI-IO,MPI_MODE_WRONLY}
+        </no-wrap>
+        """,
+        'OTF2_IO_ACCESS_MODE_WRITE_ONLY'),
+    EnumEntry(
+        """\
+        Read-write access.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_RDWR}
+        @ioequivalent{ISOC,"r+"\, "w+"\, "a+"}
+        @ioequivalent{MPI-IO,MPI_MODE_RDWR}
+        </no-wrap>
+        """,
+        'OTF2_IO_ACCESS_MODE_READ_WRITE'),
+    EnumEntry(
+        """\
+        Execute only.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_EXEC}
+        </no-wrap>
+        """,
+        'OTF2_IO_ACCESS_MODE_EXECUTE_ONLY'),
+    EnumEntry(
+        """\
+        Search only.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_SEARCH}
+        </no-wrap>
+        """,
+        'OTF2_IO_ACCESS_MODE_SEARCH_ONLY'),
+    since=Version(2,1))
+
+EventEnum(
+    """\
+    Special I/O handle creation modes when creating the handle with the
+    @eref{IoCreateHandle} event.
+    """,
+    'IoCreationFlag',
+    EnumEntry(
+        """No flag is set.""",
+        'OTF2_IO_CREATION_FLAG_NONE',
+        value='0'),
+    EnumEntry(
+        """\
+        If the file does not exist, it will be created.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_CREAT}
+        @ioequivalent{ISOC,"w+"\, "a"\, "a+"}
+        @ioequivalent{MPI-IO,MPI_MODE_CREATE}
+        </no-wrap>
+        """,
+        'OTF2_IO_CREATION_FLAG_CREATE',
+        value='1 << 0'),
+    EnumEntry(
+        """\
+        Truncate file to length 0 if possible.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_TRUNC}
+        @ioequivalent{ISOC,"w"\, "w+"}
+        </no-wrap>
+        """,
+        'OTF2_IO_CREATION_FLAG_TRUNCATE',
+        value='1 << 1'),
+    EnumEntry(
+        """\
+        Open operation will fail if pathname is not a directory.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_DIRECTORY}
+        </no-wrap>
+        """,
+        'OTF2_IO_CREATION_FLAG_DIRECTORY',
+        value='1 << 2'),
+    EnumEntry(
+        """\
+        Ensure that this call creates the file.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_EXCL}
+        @ioequivalent{ISOC,"x" (GNU libc extension)}
+        @ioequivalent{MPI-IO,MPI_MODE_EXCL}
+        </no-wrap>
+        """,
+        'OTF2_IO_CREATION_FLAG_EXCLUSIVE',
+        value='1 << 3'),
+    EnumEntry(
+        """\
+        File is a terminal device and should not be promoted to a controlling
+        terminal, if non existed before.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_NOCTTY}
+        </no-wrap>
+        """,
+        'OTF2_IO_CREATION_FLAG_NO_CONTROLLING_TERMINAL',
+        value='1 << 4'),
+    EnumEntry(
+        """\
+        If pathname is a symbolic link, then the open operation will fail.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_NOFOLLOW}
+        </no-wrap>
+        """,
+        'OTF2_IO_CREATION_FLAG_NO_FOLLOW',
+        value='1 << 5'),
+    EnumEntry(
+        """\
+        File is only a location in the filesystem tree and is not suitable
+        for reading and writing.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_PATH}
+        </no-wrap>
+        """,
+        'OTF2_IO_CREATION_FLAG_PATH',
+        value='1 << 6'),
+    EnumEntry(
+        """\
+        Create an unnamed temporary file.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_TMPFILE}
+        </no-wrap>
+        """,
+        'OTF2_IO_CREATION_FLAG_TEMPORARY_FILE',
+        value='1 <<7'),
+    EnumEntry(
+        """\
+        Ensure that the file size can be represented by a 64-bit datatype.
+
+        <no-wrap>
+        @ioequivalentc{POSIX,O_LARGEFILE,
+                       not listed as a @emph{file creation flag}\, though it
+                       cannot be changed after creation either}
+        </no-wrap>
+        """,
+        'OTF2_IO_CREATION_FLAG_LARGEFILE',
+        value='1 << 8'),
+    EnumEntry(
+        """\
+        Gives the advice that no reposition will happen on this I/O handle. E.g.,
+        no seek operation or similar, only sequential read or write operations.
+
+        <no-wrap>
+        @ioequivalent{MPI-IO,MPI_MODE_SEQUENTIAL}
+        </no-wrap>
+        """,
+        'OTF2_IO_CREATION_FLAG_NO_SEEK',
+        value='1 << 9'),
+    EnumEntry(
+        """\
+        Gives the advice that this will be the only @emph{active} @eref{IoHandle}
+        of the @eref{IoParadigm} which will operate on the referenced @eref{IoFile}
+        at any time. E.g., no other @eref{IoHandle} of the same @eref{IoParadigm}
+        and the same @eref{IoFile} will be @emph{active}.
+
+        <no-wrap>
+        @ioequivalent{MPI-IO,MPI_MODE_UNIQUE_OPEN}
+        </no-wrap>
+        """,
+        'OTF2_IO_CREATION_FLAG_UNIQUE',
+        value='1 << 10'),
+    type=uint32_t,
+    bitset_like=True,
+    since=Version(2,1))
+
+DefEnum(
+    """\
+    Special characteristics associated to an @eref{IoHandle} at the time the
+    handle was created with the @eref{IoCreateHandle} event or later changed
+    with the @eref{IoChangeStatusFlags} event.
+    """,
+    'IoStatusFlag',
+    EnumEntry(
+        """No flag is set.""",
+        'OTF2_IO_STATUS_FLAG_NONE',
+        value='0'),
+    EnumEntry(
+        """\
+        Enable close-on-exec flag.
+
+        <no-wrap>
+        @ioequivalentc{POSIX,O_CLOEXEC\, FD_CLOEXEC,
+                       listed as a @emph{file descriptor flag}\, though
+                       @eref{OTF2_IoStatusFlag}s will not be inherited\, thus
+                       they all behave like @emph{file descriptor flags}}
+        @ioequivalent{ISOC,"e" (GNU libc extension)}
+        </no-wrap>
+        """,
+        'OTF2_IO_STATUS_FLAG_CLOSE_ON_EXEC',
+        value='1 << 0'),
+    EnumEntry(
+        """\
+        I/O write operations are automatically performed at the end of the file.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_APPEND}
+        @ioequivalent{ISOC,"a"\, "a+"}
+        @ioequivalent{MPI-IO,MPI_MODE_APPEND}
+        </no-wrap>
+        """,
+        'OTF2_IO_STATUS_FLAG_APPEND',
+        value='1 << 1'),
+    EnumEntry(
+        """\
+        I/O operations (including the creation) will fail if they would block
+        the issuing process.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_NONBLOCK\, O_NDELAY}
+        </no-wrap>
+        """,
+        'OTF2_IO_STATUS_FLAG_NON_BLOCKING',
+        value='1 << 2'),
+    EnumEntry(
+        """\
+        Enable signal-driven I/O.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_ASYNC}
+        </no-wrap>
+        """,
+        'OTF2_IO_STATUS_FLAG_ASYNC',
+        value='1 << 3'),
+    EnumEntry(
+        """\
+        Write operations on the file will complete according to the requirements
+        of synchronized I/O file integrity completion (data and metadata).
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_SYNC}
+        </no-wrap>
+        """,
+        'OTF2_IO_STATUS_FLAG_SYNC',
+        value='1 << 4'),
+    EnumEntry(
+        """\
+        Write operations on the file will complete according to the requirements
+        of synchronized I/O data integrity completion.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_DSYNC}
+        </no-wrap>
+        """,
+        'OTF2_IO_STATUS_FLAG_DATA_SYNC',
+        value='1 << 5'),
+    EnumEntry(
+        """\
+        Instruct I/O operations to reduce caching effects.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_DIRECT}
+        </no-wrap>
+        """,
+        'OTF2_IO_STATUS_FLAG_AVOID_CACHING',
+        value='1 << 6'),
+    EnumEntry(
+        """\
+        Read access to a file won't update its last access time.
+
+        <no-wrap>
+        @ioequivalent{POSIX,O_NOATIME}
+        </no-wrap>
+        """,
+        'OTF2_IO_STATUS_FLAG_NO_ACCESS_TIME',
+        value='1 << 7'),
+    EnumEntry(
+        """\
+        Delete the file when closing the @eref{IoHandle}.
+
+        Though the @eref{IoDestroyHandle} event does not imply the deletion. A
+        separate @eref{IoDeleteFile} event must be issued for this.
+
+        <no-wrap>
+        @ioequivalent{MPI-IO,MPI_MODE_DELETE_ON_CLOSE}
+        </no-wrap>
+        """,
+        'OTF2_IO_STATUS_FLAG_DELETE_ON_CLOSE',
+        value='1 << 8'),
+    type=uint32_t,
+    bitset_like=True,
+    since=Version(2,1))
+
+EventEnum(
+    """Options for repositioning a file offset with file seek operations.""",
+    'IoSeekOption',
+    EnumEntry(
+        """\
+        The offset is applied to the start of the file.
+
+        <no-wrap>
+        @ioequivalent{POSIX,SEEK_SET}
+        @ioequivalent{ISOC,SEEK_SET}
+        @ioequivalent{MPI-IO,MPI_SEEK_SET}
+        </no-wrap>
+        """,
+        'OTF2_IO_SEEK_FROM_START'),
+    EnumEntry(
+        """\
+        The offset is applied to the current file position.
+
+        <no-wrap>
+        @ioequivalent{POSIX,SEEK_CUR}
+        @ioequivalent{ISOC,SEEK_CUR}
+        @ioequivalent{MPI-IO,MPI_SEEK_CUR}
+        </no-wrap>
+        """,
+        'OTF2_IO_SEEK_FROM_CURRENT'),
+    EnumEntry(
+        """\
+        The offset is applied to the end of the file.
+
+        <no-wrap>
+        @ioequivalent{POSIX,SEEK_END}
+        @ioequivalent{ISOC,SEEK_END}
+        @ioequivalent{MPI-IO,MPI_SEEK_END}
+        </no-wrap>
+        """,
+        'OTF2_IO_SEEK_FROM_END'),
+    EnumEntry(
+        """\
+        The offset is applied to the next position in the file containing data.
+
+        <no-wrap>
+        @ioequivalent{POSIX,SEEK_DATA}
+        </no-wrap>
+        """,
+        'OTF2_IO_SEEK_DATA'),
+    EnumEntry(
+        """\
+        The offset is applied to the next position in the file containing no data.
+
+        <no-wrap>
+        @ioequivalent{POSIX,SEEK_HOLE}
+        </no-wrap>
+        """,
+        'OTF2_IO_SEEK_HOLE'),
+    since=Version(2,1))
+
+EventEnum(
+    """\
+    Operation mode of an I/O file operation.
+    """,
+    'IoOperationMode',
+    EnumEntry(
+        """\
+        Read operation.
+        """,
+        'OTF2_IO_OPERATION_MODE_READ'),
+    EnumEntry(
+        """\
+        Write operation.
+        """,
+        'OTF2_IO_OPERATION_MODE_WRITE'),
+    EnumEntry(
+        """\
+        Flush operation.
+        """,
+        'OTF2_IO_OPERATION_MODE_FLUSH'),
+    since=Version(2,1))
+
+EventEnum(
+    """Flags for I/O operations to indicate specific semantics of the operation.""",
+    'IoOperationFlag',
+    EnumEntry(
+        """No special semantics.""",
+        'OTF2_IO_OPERATION_FLAG_NONE',
+        value='0'),
+    EnumEntry(
+        """\
+        The I/O operation was performed in a non-blocking mode.
+        """,
+        'OTF2_IO_OPERATION_FLAG_NON_BLOCKING',
+        value='1 << 0'),
+    EnumEntry(
+        """\
+        The I/O operation is performed collectively over the communicator of the
+        referenced @eref{IoHandle} handle.
+        """,
+        'OTF2_IO_OPERATION_FLAG_COLLECTIVE',
+        value='1 << 1'),
+    type=uint32_t,
+    bitset_like=True,
+    since=Version(2,1))

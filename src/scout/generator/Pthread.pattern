@@ -1,0 +1,200 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2019                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+#--- Pthread-related performance patterns ------------------------------------
+
+PATTERN "PTHREAD_TIME" = [
+    PARENT    = "EXECUTION"
+    NAME      = "POSIX threads"
+    DOCNAME   = "POSIX Threads Time"
+    CLASS     = "PatternPthread"
+    INFO      = "Time spent in the POSIX threads API"
+    DESCR     = {
+        Time spent in instrumented POSIX threads API calls.  In particular, this
+        includes thread management and synchronization activities.
+    }
+    DIAGNOSIS = {
+        Expand the metric tree to determine which classes of POSIX thread
+        activities contribute the most time.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "PTHREAD_MANAGEMENT" = [
+    PARENT    = "PTHREAD_TIME"
+    NAME      = "Pthread Management"
+    DOCNAME   = "POSIX Threads Management Time"
+    CLASS     = "PatternPthread_Mgmt"
+    INFO      = "Time spent in POSIX threads management"
+    DESCR     = {
+        Time spent managing (i.e., creating, joining, cancelling, etc.) POSIX
+        threads.
+    }
+    DIAGNOSIS = {
+        Excessive POSIX threads management time in <tt>pthread_join</tt>
+        indicates load imbalance which causes wait states in the joining
+        threads waiting for the other thread to finish.  Examine the join
+        times and try to re-distribute the computation in the corresponding
+        worker threads to achieve a better load balance.
+        </dd><p><dd>
+        Also, correlate the thread management time to the @ref(VISITS) of
+        management routines.  If visit counts are high, consider using a
+        thread pool to reduce the number of thread management operations.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "PTHREAD_SYNCHRONIZATION" = [
+    PARENT    = "PTHREAD_TIME"
+    NAME      = "Pthread Synchronization"
+    DOCNAME   = "POSIX Threads Synchronization Time"
+    CLASS     = "PatternPthread_Sync"
+    INFO      = "Time spent in POSIX threads synchronization calls"
+    DESCR     = {
+        Time spent in POSIX threads synchronization calls, i.e., mutex and
+        condition variable operations.
+    }
+    DIAGNOSIS = {
+        Expand the metric tree further to determine the proportion of time in
+        different classes of POSIX thread synchronization operations.  Expand the
+        calltree to identify which callpaths are responsible for the most
+        synchronization time.  Also examine the distribution of synchronization
+        time on each participating thread for indication of lock contention
+        effects.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "PTHREAD_LOCK_API" = [
+    PARENT    = "PTHREAD_SYNCHRONIZATION"
+    NAME      = "Pthread Mutex"
+    DOCNAME   = "POSIX Threads Mutex API Synchronization Time"
+    CLASS     = "PatternPthread_Sync_LockAPI"
+    INFO      = "Time spent in POSIX threads mutex API calls"
+    DESCR     = {
+        Time spent in POSIX threads mutex API calls.
+    }
+    DIAGNOSIS = {
+        Locate the most costly usage of mutex operations and determine whether
+        they are necessary to ensure correctness or could be safely removed
+        (based on algorithm analysis).  Consider re-writing the algorithm to
+        use lock-free data structures.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "PTHREAD_LOCK_CONTENTION_MUTEX_LOCK" = [
+    PARENT    = "PTHREAD_LOCK_API"
+    NAME      = "Pthread Mutex Lock Contention"
+    DOCNAME   = "POSIX Threads Mutex Contention Time"
+    CLASS     = "PatternPthread_Lock_Contention_Mutex_Lock"
+    INFO      = "Time lost waiting for a POSIX threads mutex to be acquired"
+    TYPE      = "PTHREAD"
+    DESCR     = {
+        Time lost waiting for a mutex lock to be acquired while another thread
+        still holds the corresponding lock.
+        </dd><p><dd>
+        @img(LockContention.png)
+    }
+    DIAGNOSIS = {
+        A large amount of waiting time in mutex locks can be an indication of too
+        much balance, since many threads try to acquire locks almost at the same
+        time.  Examine the waiting times for each thread and try to distribute
+        the preceding computation on the threads to allow a staggered arrival at
+        the lock API call.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "PTHREAD_CONTENTION_MUTEX_LOCK" = {
+            if (data->mIdle > 0)
+            {
+                m_severity[event.get_cnode()] += data->mIdle;
+
+                // instance tracking
+                cbmanager.notify(THREAD_LOCK_CONTENTION_PTHREADMUTEX_WAIT, event, data);
+            }
+        }
+    ]
+]
+
+
+PATTERN "PTHREAD_CONDITIONAL" = [
+    PARENT    = "PTHREAD_SYNCHRONIZATION"
+    NAME      = "Pthread Condition"
+    DOCNAME   = "POSIX Threads Condition API Synchronization Time"
+    CLASS     = "PatternPthread_Sync_Conditional"
+    INFO      = "Time spent in POSIX threads condition API calls"
+    DESCR     = {
+        Time spent in POSIX threads condition API calls.
+    }
+    DIAGNOSIS = {
+        Locate the most costly usage of condition operations and determine whether
+        they are necessary to ensure correctness or could be safely removed (based
+        on algorithm analysis).  Consider re-writing the algorithm to use data
+        structures without the need for condition variables.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "PTHREAD_LOCK_CONTENTION_CONDITIONAL" = [
+    PARENT    = "PTHREAD_CONDITIONAL"
+    NAME      = "Pthread Condition Lock Contention"
+    DOCNAME   = "POSIX Threads Condition Contention Time"
+    CLASS     = "PatternPthread_Lock_Contention_Conditional"
+    INFO      = "Time lost waiting for a POSIX threads mutex to be acquired in a condition operation"
+    TYPE      = "PTHREAD"
+    DESCR     = {
+        Time lost waiting for a mutex lock to be acquired in a condition API
+        call while another thread still holds the corresponding lock.
+        </dd><p><dd>
+        @img(LockContention.png)
+    }
+    DIAGNOSIS = {
+        A large amount of waiting time in condition operations can be an indication
+        of imbalance.  Examine the waiting times for each thread and try to
+        distribute the preceding computation, in particular the work of the
+        threads responsible for fulfilling the condition.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    CALLBACKS = [
+        "PTHREAD_CONTENTION_CONDITIONAL" = {
+            if (data->mIdle > 0)
+            {
+                m_severity[event.get_cnode()] += data->mIdle;
+
+                // instance tracking
+                cbmanager.notify(THREAD_LOCK_CONTENTION_PTHREADCONDITION_WAIT, event, data);
+            }
+        }
+    ]
+]

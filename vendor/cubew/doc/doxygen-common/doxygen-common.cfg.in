@@ -1,0 +1,301 @@
+# Doxyfile 1.8.10
+#
+# This file describes the settings to be used by the documentation system
+# doxygen (www.doxygen.org) for both the user and developer documentation
+# of all components of Scalasca.
+
+
+# --- Project settings ------------------------------------------------------
+
+PROJECT_LOGO = \
+    @abs_top_srcdir@/doc/doxygen-common/ScalascaIcon.png
+
+
+# --- Common configuration settings -----------------------------------------
+
+DOXYFILE_ENCODING    = UTF-8
+HAVE_DOT             = NO
+QUIET                = YES
+WARNINGS             = YES
+WARN_IF_UNDOCUMENTED = YES
+WARN_IF_DOC_ERROR    = YES
+WARN_NO_PARAMDOC     = YES
+
+
+# --- Input settings --------------------------------------------------------
+
+INPUT = \
+    @abs_top_srcdir@/doc/doxygen-common/license.dox
+
+AUTOLINK_SUPPORT       = YES
+BUILTIN_STL_SUPPORT    = YES
+CPP_CLI_SUPPORT        = NO
+EXCLUDE_PATTERNS       = */.git/*
+EXCLUDE_SYMLINKS       = YES
+EXTENSION_MAPPING      = h=C
+EXTRACT_ALL            = YES
+FILE_PATTERNS          = *.h *.cpp *.c *.dox
+GROUP_NESTED_COMPOUNDS = NO
+IDL_PROPERTY_SUPPORT   = NO
+INPUT_ENCODING         = UTF-8
+JAVADOC_AUTOBRIEF      = NO
+MARKDOWN_SUPPORT       = YES
+MULTILINE_CPP_IS_BRIEF = YES
+QT_AUTOBRIEF           = NO
+RECURSIVE              = YES
+SIP_SUPPORT            = NO
+SUBGROUPING            = YES
+TAB_SIZE               = 8
+
+
+# --- Preprocessor settings -------------------------------------------------
+
+ENABLE_PREPROCESSING = YES
+EXPAND_ONLY_PREDEF   = NO
+MACRO_EXPANSION      = NO
+SEARCH_INCLUDES      = NO
+SKIP_FUNCTION_MACROS = YES
+
+
+# --- Output settings -------------------------------------------------------
+
+ALLEXTERNALS            = NO
+ALLOW_UNICODE_NAMES     = NO
+ALPHABETICAL_INDEX      = YES
+ALWAYS_DETAILED_SEC     = NO
+BRIEF_MEMBER_DESC       = YES
+CASE_SENSE_NAMES        = YES
+CLASS_DIAGRAMS          = YES
+COLS_IN_ALPHA_INDEX     = 5
+CREATE_SUBDIRS          = NO
+DISTRIBUTE_GROUP_DOC    = NO
+EXTERNAL_GROUPS         = NO
+EXTERNAL_PAGES          = NO
+FORCE_LOCAL_INCLUDES    = NO
+FULL_PATH_NAMES         = YES
+GENERATE_DEPRECATEDLIST = YES
+HIDE_COMPOUND_REFERENCE = NO
+HIDE_IN_BODY_DOCS       = YES
+HIDE_SCOPE_NAMES        = NO
+HIDE_UNDOC_RELATIONS    = NO
+INHERIT_DOCS            = NO
+INLINE_GROUPED_CLASSES  = NO
+INLINE_INHERITED_MEMB   = NO
+INLINE_SIMPLE_STRUCTS   = NO
+INLINE_SOURCES          = NO
+MAX_INITIALIZER_LINES   = 30
+OPTIMIZE_FOR_FORTRAN    = NO
+OPTIMIZE_OUTPUT_FOR_C   = NO
+OPTIMIZE_OUTPUT_JAVA    = NO
+OPTIMIZE_OUTPUT_VHDL    = NO
+OUTPUT_LANGUAGE         = English
+REFERENCED_BY_RELATION  = NO
+REFERENCES_RELATION     = NO
+REFERENCES_LINK_SOURCE  = NO
+REPEAT_BRIEF            = NO
+SEPARATE_MEMBER_PAGES   = NO
+SHORT_NAMES             = NO
+SHOW_FILES              = YES
+SHOW_GROUPED_MEMB_INC   = NO
+SHOW_INCLUDE_FILES      = YES
+SHOW_NAMESPACES         = YES
+SOURCE_BROWSER          = NO
+SORT_BRIEF_DOCS         = NO
+SORT_BY_SCOPE_NAME      = NO
+SORT_GROUP_NAMES        = YES
+SORT_MEMBER_DOCS        = YES
+SORT_MEMBERS_CTORS_1ST  = YES
+STRICT_PROTO_MATCHING   = NO
+STRIP_CODE_COMMENTS     = YES
+TYPEDEF_HIDES_STRUCT    = NO
+VERBATIM_HEADERS        = NO
+
+
+# --- HTML settings ---------------------------------------------------------
+
+DISABLE_INDEX         = NO
+ENUM_VALUES_PER_LINE  = 4
+EXT_LINKS_IN_WINDOW   = YES
+EXTERNAL_SEARCH       = NO
+FORMULA_FONTSIZE      = 10
+FORMULA_TRANSPARENT   = YES
+GENERATE_DOCSET       = NO
+GENERATE_ECLIPSEHELP  = NO
+GENERATE_HTML         = YES
+GENERATE_HTMLHELP     = NO
+GENERATE_QHP          = NO
+GENERATE_TREEVIEW     = NO
+HTML_COLORSTYLE_HUE   = 73
+HTML_COLORSTYLE_SAT   = 93
+HTML_COLORSTYLE_GAMMA = 100
+HTML_DYNAMIC_SECTIONS = NO
+HTML_EXTRA_FILES      = \
+    @abs_top_srcdir@/doc/doxygen-common/CubeLogo.png \
+    @abs_top_srcdir@/doc/doxygen-common/tab_active.png \
+    @abs_top_srcdir@/doc/doxygen-common/tab_inactive.png
+HTML_EXTRA_STYLESHEET = \
+    @abs_top_srcdir@/doc/doxygen-common/scalasca.css
+HTML_FILE_EXTENSION   = .html
+HTML_FOOTER           = \
+    @abs_top_srcdir@/doc/doxygen-common/footer.html
+HTML_TIMESTAMP        = NO
+SEARCHENGINE          = YES
+SERVER_BASED_SEARCH   = NO
+USE_HTAGS             = NO
+USE_MATHJAX           = NO
+
+
+# --- Other output formats --------------------------------------------------
+
+GENERATE_AUTOGEN_DEF = NO
+GENERATE_DOCBOOK     = NO
+GENERATE_LATEX       = NO
+GENERATE_MAN         = NO
+GENERATE_PERLMOD     = NO
+GENERATE_RTF         = NO
+GENERATE_XML         = NO
+
+
+# --- Custom commands -------------------------------------------------------
+
+# @exception_safety { description }
+#
+# Starts a new paragraph describing the exception safety guarantees of a
+# function.  Use @parblock/@endparblock if the description covers multiple
+# paragraphs.
+#
+ALIASES += \
+    exception_safety="\
+        \n@par Exception safety\n"
+
+# @exception_nothrow [ { description } ]
+#
+# Starts a new paragraph describing the exception safety guarantees of a
+# function using a default text for the no-throw guarantee.  Optionally, an
+# extended description can be provided, e.g., to document requirements on
+# template arguments to fulfill the guarantee.  Use @parblock/@endparblock
+# if the description covers multiple paragraphs.
+#
+ALIASES += \
+    exception_nothrow="\
+        @exception_safety\
+        <b class=\"paramname\">No-throw guarantee:</b> \
+        never throws exceptions.\
+        <br>\n"
+
+# @exception_strong [ { description } ]
+#
+# Starts a new paragraph describing the exception safety guarantees of a
+# function using a default text for the strong guarantee.  Optionally, an
+# extended description can be provided, e.g., to document requirements on
+# template arguments to fulfill the guarantee.  Use @parblock/@endparblock
+# if the description covers multiple paragraphs.
+#
+ALIASES += \
+    exception_strong="\
+        @exception_safety\
+        <b class=\"paramname\">Strong guarantee:</b> \
+        no effects in case an exception is thrown.\
+        <br>\n"
+
+# @exception_basic [ { description } ]
+#
+# Starts a new paragraph describing the exception safety guarantees of a
+# function using a default text for the basic guarantee.  Optionally, an
+# extended description can be provided, e.g., to document requirements on
+# template arguments to fulfill the guarantee.  Use @parblock/@endparblock
+# if the description covers multiple paragraphs.
+#
+ALIASES += \
+    exception_basic="\
+        @exception_safety\
+        <b class=\"paramname\">Basic guarantee:</b> \
+        if an exception is thrown, a valid state is preserved and no \
+        resources are leaked.\
+        <br>\n"
+
+# @thread_safety { description }
+#
+# Starts a new paragraph describing the thread safety guarantees of a class
+# or function.  Use @parblock/@endparblock if the description covers multiple
+# paragraphs.
+#
+ALIASES += \
+    thread_safety="\
+        \n@par Thread safety\n"
+
+        
+        
+        
+        
+
+ALIASES                += kojak=KOJAK \
+                         scalasca=Scalasca \
+                         cube=CUBE \
+                         cube3=CUBE3 \
+                         cubeqt=CUBE-QT \
+                         expert=EXPERT \
+                         earl=EARL \
+                         epik=EPIK \
+                         opari=OPARI \
+                         scout=SCOUT \
+                         hpc=HPC \
+                         mpi=MPI \
+                         pmpi=PMPI \
+                         openmp=OpenMP \
+                         pomp=POMP \
+                         ibm=IBM \
+                         bluegene="Blue Gene" \
+                         crayxt="Cray XT" \
+                         necsx="NEC SX" \
+                         sicortex=SiCortex \
+                         papi=PAPI \
+                         epilog=EPILOG \
+                         submenu="\if LATEX \latexonly $\Rightarrow$ \endlatexonly \elseif HTML => \endif " \
+                         texsubmenu="$\Rightarrow$" \
+                         htmlsubmenu="=>" \
+                         fo="\latexonly\begin{quotation}\textbf{Note:}\endlatexonly\htmlonly<em><b>Note:</b><span style=\"left-margin=3ex;right-margin=3ex\">\endhtmlonly " \
+                         efo="\latexonly\end{quotation}\endlatexonly\htmlonly</span></em>\endhtmlonly" \
+                         beginfigure="\if LATEX \latexonly\begin{figure}[ht]\endlatexonly \endif" \
+                         endfigure{3}="\if LATEX \latexonly\caption{\1}\label{\2_\3}\end{figure} \endlatexonly \elseif HTML \"Figure  \1\" @anchor \3 \endif" \
+                         textsc{1}="\latexonly\textsc{\1}\endlatexonly\htmlonly<span style=\"font-variant:small-caps\">\1</span>\endhtmlonly" \
+                         textbtt{1}="<tt><strong>\1</strong></tt>" \
+                         emph{1}="<em>\1</em>" \
+                         dispp{1}="\if LATEX \latexonly\texttt{\1}\endlatexonly \elseif HTML <tt>\1</tt> \endif" \
+                         disp{1}="<tt>\1</tt>" \
+                         captiondisp{1}="\if LATEX \texttt{\1} \elseif HTML <tt>\1</tt> \endif" \
+                         captionemph{1}="\if LATEX \textit{\1} \elseif HTML <em>\1</em> \endif" \
+                         sc{1}="\if LATEX \latexonly{\sc \1}\endlatexonly \elseif HTML <i>\1</i> \endif" \
+                         textbf{1}="<strong>\1</strong>" \
+                         texttt{1}="<tt>\1</tt>" \
+                         textbtt{1}="<tt><strong>\1</strong></tt>" \
+                         textit{1}="<i>\1</i>" \
+                         footnote{1}="\if LATEX \latexonly\footnote{\1}\endlatexonly \elseif HTML ( \1 ) \endif " \
+                         centerline{1}="\if LATEX \latexonly\centerline{\1}\endlatexonly \elseif HTML <center> \1 </center> \endif " \        
+                         clearpage="\if LATEX \latexonly\clearpage\endlatexonly \endif " \        
+                         figref{1}="\if LATEX \latexonly\ref{fig:\1}\xspace \endlatexonly \elseif HTML @ref \1 \endif  " \
+                         htmlimg{3}=" \if HTML @anchor \2 @image html \1 \"\3\"  \endif "  \
+                         teximg{4}=" \latexonly\begin{figure}[ht]\begin{center}\includegraphics[\4]{\1}\caption{\3}\label{fig:\2}\end{center}\end{figure}\endlatexonly " \
+                         doubleteximg{6}="\latexonly\begin{figure}[ht]\begin{center}\includegraphics[\2]{\1}\\[1ex]\includegraphics[\4]{\3}\caption{\6}\label{fig:\5}\end{center}\end{figure}\endlatexonly " \
+                         doublehtmlimg{6}="\if HTML @image html \1 \"\" <br> @image html \3 \"\6\" \endif" \
+                         doubleimg{6}="@doublehtmlimg{\1,\2,\3,\4,\5,\6} @doubleteximg{\1,\2,\3,\4,\5,\6}" \
+                         noncteximg{2}="  \latexonly\includegraphics[\2]{\1}\endlatexonly  " \
+                         nonchtmlimg{1}=" \if HTML @image html \1 \endif " \
+                         noncimg{2}=" @noncteximg{\1,\2} @nonchtmlimg{\1} " \
+                         img{4}="  @htmlimg{\1,\2,\3} @teximg{\1,\2,\3,\4} " \
+                         seclabel{1}="\latexonly\label{\1}\endlatexonly" \
+                         secref{1}="\if LATEX \latexonly\ref{userguide_\1}\xspace \endlatexonly \else '@ref \1' \endif " \
+                         appref{1}="\if LATEX \latexonly\ref{appendix_\1}\xspace \endlatexonly \else '@ref \1' \endif " \
+                         apptitledref{2}="\if LATEX \latexonly\ref{appendix_\1}\xspace \endlatexonly \else '@ref \1 \"\2\"' \endif " \
+                         apiref{1}="\if LATEX \latexonly\ref{cube3-api_\1}\xspace\endlatexonly \else '@ref \1' \endif " \
+                         subref{1}="\if LATEX \latexonly\ref{userguide_\1}\xspace\endlatexonly \else '@ref \1' \endif " \
+                         chapref{1}="\if LATEX \latexonly\ref{\1}\xspace \endlatexonly \else '@ref \1' \endif " \
+                         bibliography="\if LATEX \latexonly\begin{thebibliography}{99}\n\endlatexonly \elseif HTML \htmlonly <dl> \endhtmlonly\endif " \
+                         endbibliography="\if LATEX \n\latexonly\end{thebibliography}\endlatexonly \elseif HTML \htmlonly </dd></dl> \endhtmlonly\endif " \
+                         bibitem{1}="\if LATEX \n\latexonly\bibitem{\1}\endlatexonly \elseif HTML \htmlonly<dt>\endhtmlonly @anchor \1 [<b>\1</b>] \htmlonly</dt><dd>\endhtmlonly\endif " \
+                         cite{1}="\if LATEX \latexonly\cite{\1}\xspace \endlatexonly \elseif HTML [@ref \1 \"\1\"] \endif " \
+                         cite{2}="\if LATEX \latexonly\cite{\1,\2}\xspace \endlatexonly \elseif HTML [@ref \1 \"\1\", @ref \2 \"\2\"] \endif " \
+                         verb{1}="\latexonly\verb+\1+\endlatexonly\htmlonly<tt>\1</tt>\endhtmlonly "
+
+        
+        

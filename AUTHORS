@@ -1,0 +1,48 @@
+The Scalasca Trace Tools package includes significant contributions
+from the following individuals (in alphabetical order based on last
+name):
+
+Daniel Becker
+Nikhil Bhatia
+David Böhme
+Christian Feld
+Wolfgang Frings
+Markus Geimer
+Max Görtz
+Marc-André Hermanns
+Michael Knobloch
+Andreas Knüpfer
+David Krings
+Andrej Kühnal
+John C. Linford
+Bernd Mohr
+Ronal Muresano
+Farzona Pulatova
+Pavel Saviankou
+Marc Schlütter
+Alexandre Strube
+Zoltán Szebenyi
+Anke Visser
+Felix Voigtlaender
+Felix Wolf
+Brian J. N. Wylie
+Ilya Zhukov
+
+
+In addition, the build system and common utils code include significant
+contributions from (in alphabetical order based on last name):
+
+Christian Herold
+Daniel Lorenz
+Peter Philippen
+Dirk Schmidl
+Ronny Tschüter
+Bert Wesarg
+William Williams
+
+
+Of course, many people not listed above further contributed to the
+development of the Scalasca Trace Tools by reporting problems,
+suggesting improvements, or submitting patches.  In case we have
+accidentally missed to list your name and you want it to be added,
+please let us know.

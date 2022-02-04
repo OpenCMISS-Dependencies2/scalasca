@@ -1,0 +1,40 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+PEARL_REPLAY_SRC = $(SRC_ROOT)src/pearl/replay
+
+
+##--- Libraries -------------------------------------------------------------
+
+## PEARL replay library
+lib_LTLIBRARIES += \
+    libpearl.replay.la
+libpearl_replay_la_SOURCES = \
+    $(PEARL_REPLAY_SRC)/CallbackData.cpp \
+    $(PEARL_REPLAY_SRC)/CallbackManager.cpp \
+    $(PEARL_REPLAY_SRC)/CompoundTask.cpp \
+    $(PEARL_REPLAY_SRC)/ReplayTask.cpp \
+    $(PEARL_REPLAY_SRC)/Task.cpp \
+    $(PEARL_REPLAY_SRC)/TaskWrapper.cpp \
+    $(PEARL_REPLAY_SRC)/pearl_replay.cpp
+libpearl_replay_la_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR)
+libpearl_replay_la_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    -version-info $(PEARL_INTERFACE_VERSION)

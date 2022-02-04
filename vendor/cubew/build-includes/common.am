@@ -1,0 +1,89 @@
+##*************************************************************************##
+##  CUBE        http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2018                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2015                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+include ../build-config/common/common.am
+
+## AM_CPPFLAGS: The contents of this variable are passed to every compilation
+## that invokes the C preprocessor; it is a list of arguments to the
+## preprocessor. For instance, -I and -D options should be listed here.
+##
+## Automake already provides some -I options automatically, in a separate
+## variable that is also passed to every compilation that invokes the C
+## preprocessor. In particular it generates -I., -I$(srcdir), and a -I
+## pointing to the directory holding config.h (if you've used
+## AC_CONFIG_HEADERS or AM_CONFIG_HEADER). You can disable the default -I
+## options using the nostdinc option.
+##
+## AM_CPPFLAGS is ignored in preference to a per-executable (or per-library)
+## _CPPFLAGS variable if it is defined.
+##
+## -I$(srcdir)/../src: path to config.h
+## -I$(srcdir)/../vendor/include: external includes are found here, if any
+
+UTILS_CPPFLAGS = \
+    -I../src/utils/include \
+    -I$(INC_ROOT)src/utils/include \
+    -I$(INC_DIR_COMMON_UTILS)
+    
+
+AM_CFLAGS = -I$(srcdir)/src -DWITH_CUBE4  -I$(srcdir)/../common/utils/include
+AM_LDFLAGS  =
+
+
+## Add entities using += to the following primaries in locale Makefile.inc.ams
+bin_SCRIPTS =
+nobase_include_HEADERS =
+
+
+
+cubew_headersdir = $(prefix)/include/@PACKAGE@
+dist_cubew_headers =
+
+
+dist_cubew_headers_HEADERS =
+
+INSTALL_EXEC_HOOK =
+install-exec-hook: $(INSTALL_EXEC_HOOK)
+
+UNINSTALL_HOOK =
+uninstall-hook: $(UNINSTALL_HOOK)
+
+
+# TESTS_ENVIRONMENT =
+
+CUBE_C_WRITER_TESTS =
+CUBE_PARALLEL_WRITER_TESTS =
+
+CUBE_FRONTEND_SELF_TESTS=
+CUBE_BACKEND_SELF_TESTS=
+CUBE_UNITE_TESTS=
+
+# list of examples to be installed into --prefix/share/CUBE/doc/examples directory
+INST_BACKEND_EXAMPLES =
+INST_FRONTEND_EXAMPLES =
+INST_FRONTEND_PLUGIN_EXAMPLES =
+INST_FILES =
+#
+
+# check_LIBRARIES =
+# check_LTLIBRARIES =
+#examplesdir = $(datadir)/@PACKAGE_NAME@/examples
+#examples_PROGRAMS =
+#dist_examples_HEADERS =
+MOSTLYCLEANFILES =
+
+
+beautify:

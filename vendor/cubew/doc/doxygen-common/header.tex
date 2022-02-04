@@ -1,0 +1,127 @@
+%%*************************************************************************%%
+%%  CUBE        http://www.scalasca.org/                                   %%
+%%*************************************************************************%%
+%%  Copyright (c) 1998-2021                                                %%
+%%  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          %%
+%%                                                                         %%
+%%  Copyright (c) 2009-2013                                                %%
+%%  German Research School for Simulation Sciences GmbH,                   %%
+%%  Laboratory for Parallel Programming                                    %%
+%%                                                                         %%
+%%  This software may be modified and distributed under the terms of       %%
+%%  a BSD-style license.  See the COPYING file in the package base         %%
+%%  directory for details.                                                 %%
+%%*************************************************************************%%
+
+
+%--- Preamble ---------------------------------------------------------------
+
+\documentclass[paper=a4,%
+               fontsize=10pt,%
+               twoside,%
+               DIV=11,
+               BCOR=12mm]{scrbook}
+
+% Fixes issues with float/listings packages in conjunction with KOMAscript
+\usepackage{scrhack}
+
+% Include configuration
+\include{config}
+\include{title}
+
+
+%--- Include required packages ----------------------------------------------
+
+% Packages required by doxygen
+\usepackage{calc}
+\usepackage{doxygen}
+\PassOptionsToPackage{export}{adjustbox}
+\usepackage{adjustbox}
+\usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+\usepackage{makeidx}
+\usepackage{multicol}
+\usepackage{multirow}
+\PassOptionsToPackage{warn}{textcomp}
+\usepackage{textcomp}
+\usepackage[nointegrals]{wasysym}
+\usepackage[table]{xcolor}
+
+% Font selection
+\usepackage[T1]{fontenc}
+\usepackage{bera}
+\usepackage{microtype}
+
+% Page & text layout
+\setlength{\emergencystretch}{15pt}
+\setlength{\parindent}{0cm}
+\setlength{\parskip}{0.2cm}
+
+% Headers & footers
+\usepackage[headsepline,footsepline,plainfootsepline,automark]{scrlayer-scrpage}
+\pagestyle{scrheadings}
+\setkomafont{pageheadfoot}{\sffamily}
+\addtokomafont{pagehead}{\itshape}
+\lehead{\leftmark}
+\rohead{\rightmark}
+\ofoot{\thepage}
+\ModifyLayer[addvoffset=.5ex]{scrheadings.foot.odd}
+\ModifyLayer[addvoffset=.5ex]{scrheadings.foot.even}
+\ModifyLayer[addvoffset=.5ex]{plain.scrheadings.foot.odd}
+\ModifyLayer[addvoffset=.5ex]{plain.scrheadings.foot.even}
+
+% Indices & bibliography
+\usepackage{natbib}
+\setcounter{tocdepth}{3}
+\setcounter{secnumdepth}{5}
+\makeindex
+
+% Scalasca-specific packages
+\usepackage{scalasca}
+\usepackage{pdfpages}
+\usepackage{tabularx}
+
+% Hyperlinks (required, but should be loaded last)
+\usepackage{ifpdf}
+\ifpdf
+  \usepackage[pdftex,pagebackref=true]{hyperref}
+\else
+  \usepackage[ps2pdf,pagebackref=true]{hyperref}
+\fi
+\hypersetup{%
+    pdftitle={\PackageName~\CoverTitle},
+    pdfauthor={The Scalasca Development Team},
+    pdfsubject={\CoverTitle},
+    plainpages=false,
+    colorlinks=true,%
+    linkcolor=blue,%
+    citecolor=blue,%
+    urlcolor=blue,
+    unicode%
+}
+
+
+%--- Commands ---------------------------------------------------------------
+
+% Doxygen inserts a hyphenation hint (using the custom command '\+') before
+% each upper case letter inside a word. While this may be useful for function
+% names in camel case, it may cause some strange effects for continuous text.
+% We therefore define the \+ command here to ignore these hyphenation hints
+% alltogether.
+\newcommand{\+}{}
+
+
+%=== C O N T E N T S ========================================================
+
+\begin{document}
+    % Front cover
+    \hypersetup{pageanchor=false}
+    \frontmatter
+    \includepdf{frontcover.pdf}
+    \include{license}
+    \clearpage
+
+    % ToC
+    \tableofcontents
+    \mainmatter
+    \hypersetup{pageanchor=true}

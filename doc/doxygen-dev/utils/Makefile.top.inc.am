@@ -1,0 +1,43 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 2020                                                     ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+UTILS_DEV_API_DOCS_SRC = doc/doxygen-dev/utils
+
+
+## Extra distribution files (i.e., sources)
+EXTRA_DIST += \
+    $(UTILS_DEV_API_DOCS_SRC)/utils.dox
+
+
+##--- Utils developer API documentation rules -------------------------------
+
+if GIT_CONTROLLED
+if HAVE_DOXYGEN
+
+DEVELOPER_DOCS_TARGETS += \
+    utils-dev-api-docs-html
+utils-dev-api-docs-html: \
+    doc/doxygen-dev/utils/doxygen-utils-dev.cfg \
+    doc/doxygen-common/doxygen-utils.cfg \
+    doc/doxygen-common/doxygen-common.cfg \
+    doc/doxygen-at-make-time.cfg
+	$(AM_V_at)$(MKDIR_P) $(DEVELOPER_TAGS_DIR)
+	$(STT_V_DOXYGEN){ \
+	    OUTPUT_DIR=$(DEVELOPER_DOCS_DIR) \
+	    TAGFILE_DIR=$(DEVELOPER_TAGS_DIR) \
+	    $(DOXYGEN) $(UTILS_DEV_API_DOCS_SRC)/doxygen-utils-dev.cfg; \
+	}
+
+endif HAVE_DOXYGEN
+endif GIT_CONTROLLED

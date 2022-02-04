@@ -1,0 +1,50 @@
+  $ cd ..
+  $ make clean
+  rm -f core
+  rm -f *~ */core */*~ */*.o */npbparams.h */*.obj */*.exe
+  rm -f MPI_dummy/test MPI_dummy/libmpi.a
+  rm -f sys/setparams sys/makesuite sys/setparams.h
+  rm -f btio.*.out*
+
+  $ make bt NPROCS=144 CLASS=D
+     =========================================
+     =      NAS Parallel Benchmarks 3.3      =
+     =      MPI/F77/C                        =
+     =========================================
+
+  cd BT; make NPROCS=144 CLASS=D SUBTYPE= VERSION=
+  make[1]: Entering directory `/tmp/NPB3.3-MPI/BT'
+  make[2]: Entering directory `/tmp/NPB3.3-MPI/sys'
+  cc -g  -o setparams setparams.c
+  make[2]: Leaving directory `/tmp/NPB3.3-MPI/sys'
+  ../sys/setparams bt 144 D
+  make[2]: Entering directory `/tmp/NPB3.3-MPI/BT'
+  scorep mpifort -c  -O2 bt.f
+  scorep mpifort -c  -O2 make_set.f
+  scorep mpifort -c  -O2 initialize.f
+  scorep mpifort -c  -O2 exact_solution.f
+  scorep mpifort -c  -O2 exact_rhs.f
+  scorep mpifort -c  -O2 set_constants.f
+  scorep mpifort -c  -O2 adi.f
+  scorep mpifort -c  -O2 define.f
+  scorep mpifort -c  -O2 copy_faces.f
+  scorep mpifort -c  -O2 rhs.f
+  scorep mpifort -c  -O2 solve_subs.f
+  scorep mpifort -c  -O2 x_solve.f
+  scorep mpifort -c  -O2 y_solve.f
+  scorep mpifort -c  -O2 z_solve.f
+  scorep mpifort -c  -O2 add.f
+  scorep mpifort -c  -O2 error.f
+  scorep mpifort -c  -O2 verify.f
+  scorep mpifort -c  -O2 setup_mpi.f
+  cd ../common; scorep mpifort -c  -O2 print_results.f
+  cd ../common; scorep mpifort -c  -O2 timers.f
+  make[3]: Entering directory `/tmp/NPB3.3-MPI/BT'
+  scorep mpifort -c  -O2 btio.f
+  scorep mpifort -O2 -o ../bin/bt.D.144 bt.o make_set.o initialize.o \
+      exact_solution.o exact_rhs.o set_constants.o adi.o define.o copy_faces.o \
+      rhs.o solve_subs.o x_solve.o y_solve.o z_solve.o add.o error.o verify.o \
+      setup_mpi.o ../common/print_results.o ../common/timers.o btio.o
+  make[3]: Leaving directory `/tmp/NPB3.3-MPI/BT'
+  make[2]: Leaving directory `/tmp/NPB3.3-MPI/BT'
+  make[1]: Leaving directory `/tmp/NPB3.3-MPI/BT'

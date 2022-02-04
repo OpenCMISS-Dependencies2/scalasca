@@ -1,0 +1,45 @@
+/****************************************************************************
+**  SCALASCA    http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 1998-2018                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  Copyright (c) 2009-2013                                                **
+**  German Research School for Simulation Sciences GmbH,                   **
+**  Laboratory for Parallel Programming                                    **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+/**
+@mainpage Scalasca User Guide
+
+Contents
+========
+
+ - @subpage intro
+ - @subpage start
+    - @ref start_instrumentation
+    - @ref start_measurement
+    - @ref start_examination
+    - @ref start_workflow
+       - @ref start_workflow_reference
+       - @ref start_workflow_instrument
+       - @ref start_workflow_initial_summary
+       - @ref start_workflow_filtering
+       - @ref start_workflow_summary
+          - @ref start_workflow_cube
+       - @ref start_workflow_trace
+ - @subpage commands
+    - @ref scalasca
+    - @ref scan
+    - @ref square
+    - @ref scout
+ - @subpage reporting_bugs
+ .
+ - @ref citelist
+ - @ref license
+*/

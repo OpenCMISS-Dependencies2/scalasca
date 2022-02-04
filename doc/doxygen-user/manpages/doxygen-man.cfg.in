@@ -1,0 +1,47 @@
+# Doxyfile 1.8.10
+#
+# This file describes the settings to be used by the documentation system
+# doxygen (www.doxygen.org) for the Scalasca man pages.
+
+
+#--- Include common configuration -------------------------------------------
+
+@INCLUDE = \
+    @abs_top_builddir@/doc/doxygen-common/doxygen-common.cfg
+
+
+#--- Project settings -------------------------------------------------------
+
+PROJECT_NAME   = "Scalasca Trace Tools"
+PROJECT_NUMBER = @PACKAGE_VERSION@
+
+
+#--- Input settings ---------------------------------------------------------
+
+INPUT = \
+    @abs_top_srcdir@/doc/doxygen-user/manpages/scalasca.dox \
+    @abs_top_srcdir@/doc/doxygen-user/manpages/scan.dox \
+    @abs_top_srcdir@/doc/doxygen-user/manpages/square.dox \
+    @abs_top_srcdir@/doc/doxygen-user/manpages/scout.dox
+
+
+#--- Output settings --------------------------------------------------------
+
+# Man pages need special handling; output will go into
+#     $OUTPUT_DIRECTORY/$MAN_OUTPUT/$MAN_SUBDIR
+OUTPUT_DIRECTORY = doc
+
+
+#--- Man pages settings -----------------------------------------------------
+
+GENERATE_MAN  = YES
+MAN_EXTENSION = .1
+MAN_OUTPUT    = doxygen-user
+MAN_SUBDIR    = manpages
+
+ENABLED_SECTIONS += MANPAGE
+
+
+# --- Other output formats --------------------------------------------------
+
+GENERATE_HTML = NO

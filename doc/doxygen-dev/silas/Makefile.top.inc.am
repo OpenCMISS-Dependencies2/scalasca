@@ -1,0 +1,48 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+SILAS_DEV_API_DOCS_SRC = doc/doxygen-dev/silas
+
+
+## Extra distribution files (i.e., sources)
+EXTRA_DIST += \
+    $(SILAS_DEV_API_DOCS_SRC)/silas.dox
+
+
+##--- SILAS developer API documentation rules -------------------------------
+
+if GIT_CONTROLLED
+if HAVE_DOXYGEN
+
+DEVELOPER_DOCS_TARGETS += \
+    silas-dev-api-docs-html
+silas-dev-api-docs-html: \
+    pearl-dev-api-docs-html \
+    doc/doxygen-dev/silas/doxygen-silas-dev.cfg \
+    doc/doxygen-common/doxygen-silas.cfg \
+    doc/doxygen-common/doxygen-common.cfg \
+    doc/doxygen-at-make-time.cfg
+	$(AM_V_at)$(MKDIR_P) $(DEVELOPER_TAGS_DIR)
+	$(STT_V_DOXYGEN){ \
+	    OUTPUT_DIR=$(DEVELOPER_DOCS_DIR) \
+	    TAGFILE_DIR=$(DEVELOPER_TAGS_DIR) \
+	    $(DOXYGEN) $(SILAS_DEV_API_DOCS_SRC)/doxygen-silas-dev.cfg; \
+	}
+
+endif HAVE_DOXYGEN
+endif GIT_CONTROLLED

@@ -1,0 +1,25 @@
+# Doxyfile 1.8.10
+#
+# This file describes the settings to be used by the documentation system
+# doxygen (www.doxygen.org) for both the user and developer documentation
+# of the SCOUT tool.
+
+
+#--- Include common configuration -------------------------------------------
+
+@INCLUDE = \
+    @abs_top_builddir@/doc/doxygen-common/doxygen-common.cfg
+
+
+#--- Project settings -------------------------------------------------------
+
+PROJECT_NAME  = "SCOUT"
+PROJECT_BRIEF = "Scalable Replay-based Trace Analyzer"
+
+
+#--- Output settings --------------------------------------------------------
+
+STRIP_FROM_INC_PATH = \
+    @abs_top_srcdir@/src/scout
+STRIP_FROM_PATH     = \
+    @abs_top_srcdir@/src/scout

@@ -1,0 +1,37 @@
+  $ scalasca -examine -s -f npb-bt.filt scorep_bt_144_sum
+  scorep-score -f npb-bt.filt -r ./scorep_bt_144_sum/profile.cubex \
+      > ./scorep_bt_144_sum/scorep.score_npb-bt.filt
+  INFO: Score report written to ./scorep_bt_144_sum/scorep.score_npb-bt.filt
+
+  $ head -n 25 scorep_bt_144_sum/scorep.score_npb-bt.filt
+
+  Estimated aggregate size of event trace:                   3920MB
+  Estimated requirements for largest trace buffer (max_buf): 28MB
+  Estimated memory requirements (SCOREP_TOTAL_MEMORY):       30MB
+  (hint: When tracing set SCOREP_TOTAL_MEMORY=30MB to avoid intermediate flushes
+   or reduce requirements using USR regions filters.)
+
+  flt   type     max_buf[B]          visits  time[s] time[%] time/     region
+                                                             visit[us]
+   -     ALL 27,597,828,625 152,806,258,921 60341.59   100.0      0.39 ALL
+   -     USR 27,592,847,542 152,791,289,689 50827.11    84.2      0.33 USR
+   -     MPI      4,086,824      10,016,496  9177.48    15.2    916.24 MPI
+   -     COM        894,218       4,952,592   336.80     0.6     68.01 COM
+   -  SCOREP             41             144     0.19     0.0   1305.21 SCOREP
+
+   *     ALL     28,762,789     145,457,413 40241.14    66.7    276.65 ALL-FLT
+   +     FLT 27,570,377,562 152,660,801,508 20100.44    33.3      0.13 FLT
+   *     USR     23,781,706     130,488,181 30726.67    50.9    235.47 USR-FLT
+   -     MPI      4,086,824      10,016,496  9177.48    15.2    916.24 MPI-FLT
+   *     COM        894,218       4,952,592   336.80     0.6     68.01 COM-FLT
+   -  SCOREP             41             144     0.19     0.0   1305.21 SCOREP-FLT
+
+   +     USR  9,123,406,734  50,517,453,756  4716.33     7.8      0.09 matvec_sub_
+   +     USR  9,123,406,734  50,517,453,756  8774.13    14.5      0.17 binvcrhs_
+   +     USR  9,123,406,734  50,517,453,756  6520.04    10.8      0.13 matmul_sub_
+   +     USR    200,157,360   1,108,440,240    89.94     0.1      0.08 exact_solution_
+   -     USR     22,632,168     124,121,508    13.43     0.0      0.11 binvrhs_
+   -     MPI      1,608,942       2,603,232     9.57     0.0      3.68 MPI_Irecv
+   -     MPI      1,608,942       2,603,232    14.83     0.0      5.70 MPI_Isend
+   -     MPI        861,432       4,771,008  7936.43    13.2   1663.47 MPI_Wait
+   -     USR        234,936       1,301,184     3.24     0.0      2.49 lhsabinit_

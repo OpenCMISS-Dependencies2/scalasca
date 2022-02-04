@@ -1,0 +1,195 @@
+#!/bin/sh
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2016                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+VERSION="@VERSION@"
+DOCDIR="@DOCDIR@"
+PKGDATADIR="@PKGDATADIR@"
+CFG_SUMMARY="@CFG_SUMMARY@"
+
+BINDIR=`dirname $0` # installation directory
+EXENAM=`basename $0` # executable name
+
+
+# report usage
+usage () {
+    echo "Scalasca ${VERSION}"
+    echo "Toolset for scalable performance analysis of large-scale parallel applications"
+    echo "usage: ${EXENAM} [OPTION]... ACTION <argument>..."
+    echo "    1. prepare application objects and executable for measurement:"
+    echo "       ${EXENAM} -instrument <compile-or-link-command> # skin (using scorep)"
+    echo "    2. run application under control of measurement system:"
+    echo "       ${EXENAM} -analyze <application-launch-command> # scan"
+    echo "    3. interactively explore measurement analysis report:"
+    echo "       ${EXENAM} -examine <experiment-archive|report>  # square"
+    echo ""
+    echo "Options:"
+    echo "   -c, --show-config     show configuration summary and exit"
+    echo "   -h, --help            show this help and exit"
+    echo "   -n, --dry-run         show actions without taking them"
+    echo "       --quickref        show quick reference guide and exit"
+    echo "       --remap-specfile  show path to remapper specification file and exit"
+    echo "   -v, --verbose         enable verbose commentary"
+    echo "   -V, --version         show version information and exit"
+    echo ""
+}
+
+
+# report installed configuration
+config () {
+    SYSTEM=`uname -a`
+    echo "System:"
+    echo "  ${SYSTEM}"
+    echo
+    cat "${CFG_SUMMARY}"
+}
+
+
+# report location and try to present quick reference guide
+quickref () {
+    REFLOC=manual/QuickReference.pdf
+    REFPDF=$DOCDIR/$REFLOC
+    echo "Scalasca $VERSION - quick reference guide:"
+    if [ ! -f "$REFPDF" ]
+    then
+        echo "Unable to find PDF file, please check $REFLOC in the"
+        echo "Scalasca installation directory."
+        exit 2
+    fi
+    if [ -z "$DISPLAY" ]
+    then
+        echo "DISPLAY variable not set, unable to start PDF viewer."
+        echo "Quick reference guide is located here:"
+        echo "$REFPDF"
+        exit 2
+    fi
+    for viewer in acroread evince okular xpdf gv; do
+        PDFVIEWER=`which $viewer 2>/dev/null`
+        case "$PDFVIEWER" in
+            */$viewer)
+                echo $PDFVIEWER $REFPDF
+                exec $PDFVIEWER $REFPDF &
+                exit 0
+                ;;
+        esac
+    done
+    # no display possible
+    echo "No supported PDF viewer detected. Quick reference guide"
+    echo "is located here:"
+    echo "$REFPDF"
+}
+
+# Process options
+unset ACTION
+unset NO_EXEC
+unset VERBOSE
+while [ $# -ne 0 ]; do
+    # allow --long_option (by removing leading "-")
+    case $1 in
+        --[a-z][a-z]*) arg1=`echo $1 | sed -e 's/^-//'`;;
+        *) arg1=$1;;
+    esac
+    case ${arg1} in
+        -i|-inst|-instrument)
+            shift
+            ACTION="${BINDIR}/skin"
+            if [ ! -x "${ACTION}" ]; then
+                echo "Instrumentation not supported by this installation!"
+                exit 2
+            fi
+            ;;
+        -a|-anal|-analyze|-analyse) # measure, collect
+            shift
+            ACTION="${BINDIR}/scan"
+            if [ ! -x "${ACTION}" ]; then
+                ACTION="${BINDIR}/backend/scan"
+                if [ ! -x "${ACTION}" ]; then
+                    echo "Measurement collection & analysis not supported by this installation!"
+                    exit 2
+                fi
+            fi
+            ;;
+        -e|-exam|-examine|-explore)
+            shift
+            ACTION="${BINDIR}/square"
+            if [ ! -x "${ACTION}" ]; then
+                echo "Analysis report examination not supported by this installation!"
+                exit 2
+            fi
+            ;;
+        -c|-show-config)
+            config
+            exit 0
+            ;;
+        -h|-help|-\?)
+            usage
+            exit 0
+            ;;
+        -n|-dry-run)
+            NO_EXEC=1
+            VERBOSE=1
+            shift
+            ;;
+        -quickref)
+            quickref
+            exit 0
+            ;;
+        -remap-specfile)
+            echo "${PKGDATADIR}/scout.spec"
+            exit 0
+            ;;
+        -v|-verbose)
+            VERBOSE=1
+            shift
+            ;;
+        -V|-version)
+            echo "$VERSION"
+            exit 0
+            ;;
+        *)
+            echo "Unexpected argument: $1"
+            usage
+            exit 1
+            ;;
+    esac
+
+    if [ -n "${ACTION}" ]; then
+        # Preprocess arguments to retain quotes, spaces, etc.
+        ARGS=""
+        for origarg in "$@"; do
+            # Escape special characters in arguments
+            #   -e 's/^x//'              Removes the 'x' at the beginning
+            #   -e 's/\\\\/\\\\\\\\/g'   Replaces '\' by '\\'
+            #   -e 's/"/\\\"/g'          Replaces '"' by '\"'
+            #   -e 's/'\''/\\\'\''/g'    Replaces ''' by '\''
+            #   -e 's/ /\\\ /g'          Replaces ' ' by '\ '
+            #   -e 's/(/\\\(/g'          Replaces '(' by '\('
+            #   -e 's/)/\\\)/g'          Replaces ')' by '\)'
+            arg=`echo "x${origarg}" | sed -e 's/^x//' \
+                                          -e 's/\\\\/\\\\\\\\/g' \
+                                          -e 's/"/\\\"/g' \
+                                          -e 's/'\''/\\\'\''/g' \
+                                          -e 's/ /\\\ /g' \
+                                          -e 's/(/\\\(/g' \
+                                          -e 's/)/\\\)/g'`
+            ARGS="${ARGS} ${arg}"
+        done
+
+        [ -n "${VERBOSE}" ] && echo ${ACTION} ${ARGS}
+        [ -z "${NO_EXEC}" ] && eval ${ACTION} ${ARGS}
+        exit $?
+    fi
+done
+
+[ -n "${NO_EXEC}" ] && echo "Action not specified!"
+usage
+exit 1

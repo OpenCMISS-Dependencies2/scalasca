@@ -1,0 +1,807 @@
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2014                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+PROLOG {
+    // #define OMPDELAYDEBUG
+
+    #include <pearl/Buffer.h>
+    #include <pearl/GlobalDefs.h>
+    #include <pearl/Location.h>
+
+    #include "DelayCostMap.h"
+    #include "DelayOps.h"
+    #include "user_events.h"
+
+    #ifdef _OPENMP
+        #include "OmpDelayOps.h"
+    #endif    // _OPENMP
+    #ifdef OMPDELAYDEBUG
+        #include <fstream>
+        #include <sstream>
+    #endif    // OMPDELAYDEBUG
+
+
+    extern bool enableDelayAnalysis;
+}
+
+
+PATTERN "DELAY_OMP" = [
+    PARENT    = "DELAY"
+    NAME      = "OMP delay costs"
+    DOCNAME   = "OpenMP Delay Costs"
+    TYPE      = "OMP"
+    CLASS     = "PatternDelay_OMP"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays causing wait states in OpenMP constructs"
+    DESCR     = {
+        Total costs and locations of delays that cause wait states in OpenMP
+        constructs.
+    }
+    DIAGNOSIS = {
+        See @ref(DELAY) for details.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_OMPBARRIER_AGGREGATE" = [
+    PARENT    = "DELAY_OMP"
+    NAME      = "OMP Wait at Barrier delay costs"
+    DOCNAME   = "OpenMP Wait at Barrier Delay Costs"
+    CLASS     = "PatternDelay_OmpBarrierAggr"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays causing wait states in front of OpenMP barriers"
+    DESCR     = {
+        Costs and locations of delays that cause wait states in OpenMP barrier
+        synchronizations.
+    }
+    DIAGNOSIS = {
+        See @ref(DELAY) for details.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_OMPBARRIER" = [
+    PARENT    = "DELAY_OMPBARRIER_AGGREGATE"
+    NAME      = "OMP short-term barrier delay costs"
+    DOCNAME   = "Short-term OpenMP Barrier Delay Costs"
+    TYPE      = "OMPDEP"
+    CLASS     = "PatternDelay_OmpBarrier"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that directly cause wait states in OpenMP barriers"
+    DESCR     = {
+        Short-term costs reflect the direct effect of load or communication
+        imbalance on OpenMP barrier wait states.
+    }
+    DIAGNOSIS = {
+        High short-term delay costs indicate a computation or communication
+        overload in/on the affected call paths and processes/threads.
+        Refer to @ref(DELAY_LATESENDER) for more information on reducing delay
+        costs in general.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    DATA      = {
+        #ifdef OMPDELAYDEBUG
+            std::ofstream m_dbg;
+        #endif
+    }
+    CALLBACKS("bwc") = [
+        "OMP_BARRIER" = {
+            const CollectiveInfo& ci(data->mCollinfo);
+
+            data->mInputScales.clear();
+
+            cbmanager.notify(PRE_DELAY_OMP_BARRIER, event, data);
+
+            CalculateOmpBarrierDelay(ci.my, ci.latest, event, data);
+
+            if (ci.my.mRank == ci.latest.mRank)
+            {
+                // Set severities
+                map< uint32_t, TimeMapSum >::const_iterator dWit = data->mCollDelayInfo.find(KEY_WAITTIME);
+
+                if (  (dWit != data->mCollDelayInfo.end())
+                   && (dWit->second.mSum > 0.0))
+                {
+                    for (timemap_t::const_iterator it = dWit->second.mMap.begin();
+                         it != dWit->second.mMap.end();
+                         ++it)
+                    {
+                        m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                    }
+                }
+
+                cbmanager.notify(DELAY_OMP_BARRIER, event, data);
+            }
+        }
+    ]
+]
+
+
+PATTERN "DELAY_OMPBARRIER_LONGTERM" = [
+    PARENT    = "DELAY_OMPBARRIER_AGGREGATE"
+    NAME      = "OMP long-term barrier delay costs"
+    DOCNAME   = "Long-term OpenMP Barrier Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_OmpBarrier_LT"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that indirectly cause wait states in OpenMP barriers through wait-state propagation"
+    DESCR     = {
+        Long-term delay costs reflect indirect effects of load or communication
+        imbalance on wait states.  That is, they cover waiting time that was caused
+        indirectly by wait states which themselves delay subsequent communication
+        operations.
+    }
+    DIAGNOSIS = {
+        High long-term delay costs indicate that computation or communication
+        overload in/on the affected call paths and processes/threads has
+        far-reaching effects.
+        Refer to @ref(DELAY_LATESENDER_LONGTERM) for more information on reducing
+        long-term delay costs in general.
+    }
+    MODE      = "exclusive"
+    UNIT      = "sec"
+    DATA      = {
+        DelayCostMap m_cost;
+    }
+    CALLBACKS("bwc") = [
+        "PRE_RECV" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mLocal->add_buffer(buffer, BUFFER_RCOST_OMPBARRIER);
+        }
+
+        "DELAY_LATE_SENDER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mRemote->get_buffer(BUFFER_RCOST_OMPBARRIER)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_INV_SENDCMP" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mInvLocal->add_buffer(buffer, BUFFER_RCOST_OMPBARRIER);
+        }
+
+        "DELAY_LATE_RECEIVER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mInvRemote->get_buffer(BUFFER_RCOST_OMPBARRIER)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_DELAY_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_OMPBARRIER, m_cost.getCosts(event)));
+        }
+
+        "DELAY_BARRIER" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_OMPBARRIER);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_OMPBARRIER);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N2N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_OMPBARRIER, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N2N" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_OMPBARRIER);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_OMPBARRIER);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_12N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_OMPBARRIER, m_cost.getCosts(event)));
+        }
+
+        "DELAY_12N" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_OMPBARRIER);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_OMPBARRIER);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N21" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_OMPBARRIER, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N21" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_OMPBARRIER);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_OMPBARRIER);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "DELAY_OMP_BARRIER" = {
+            map< uint32_t, ScaleMap >::const_iterator it = data->mSumScales.find(KEY_WAITTIME);
+
+            if (it != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, it->second);
+            }
+        }
+    ]
+]
+
+
+PATTERN "DELAY_OMPIDLE_AGGREGATE" = [
+    PARENT    = "DELAY_OMP"
+    NAME      = "OMP idleness delay costs"
+    DOCNAME   = "OpenMP Thread Idleness Delay Costs"
+    TYPE      = "OMP"
+    CLASS     = "PatternDelay_OmpIdleAggr"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays causing OpenMP worker threads to idle"
+    DESCR     = {
+        Costs and locations of delays that cause OpenMP worker threads to idle.
+    }
+    DIAGNOSIS = {
+        See @ref(DELAY) for details.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    HIDDEN
+]
+
+
+PATTERN "DELAY_OMPIDLE" = [
+    PARENT    = "DELAY_OMPIDLE_AGGREGATE"
+    NAME      = "OMP short-term idleness delay costs"
+    DOCNAME   = "Short-term OpenMP Thread Idleness Delay Costs"
+    TYPE      = "OMPDEP"
+    CLASS     = "PatternDelay_OmpIdle"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays on the OpenMP master thread that leave OpenMP worker threads idle"
+    DESCR     = {
+        Short-term costs reflect the direct effect of sections outside of OpenMP
+        parallel regions on thread idleness.
+    }
+    DIAGNOSIS = {
+        High short-term delay costs for thread idleness indicates that much time
+        is spent outside of OpenMP parallel regions in the affected call paths.
+        </p><br><p>
+        Try to reduce workload in the affected call paths.
+        Alternatively, apply OpenMP parallelism to more sections of the code.
+    }
+    UNIT      = "sec"
+    MODE      = "exclusive"
+    DATA      = {
+        #ifdef OMPDELAYDEBUG
+            std::ofstream m_dbg;
+        #endif
+    }
+    CALLBACKS("bwc") = [
+        "OMP_MGMT_FORK" = {
+            #pragma omp master
+            {
+                // Shortcuts
+                const TmapCacheHandler*  TmH = data->mTmapCacheHandler;
+                const SynchpointHandler* SpH = data->mSynchpointHandler;
+
+                // Normally, the delay info mini-profile would be calculated
+                // between the current event and the previous syncpoint, incl.
+                // its completion time.  In this case, however, the previous
+                // syncpoint stored (if it exists) is the LEAVE event of the
+                // implicit barrier of the preceding parallel region, i.e., the
+                // interval based on the syncpoint is too long.  Thus, search
+                // for the respective THREAD_JOIN event starting from the
+                // syncpoint, and use it to calculate the correct mini-profile.
+                //
+                // Note that the wait map subtracted from the mini-profile can
+                // still be determined based on the syncpoint since there can
+                // be no wait states between the LEAVE of the implicit barrier
+                // and the THREAD_JOIN event of the parallel region.
+                data->mPrevSp = SpH->findPreviousOmpSynchpoint(event);
+                Event joinEvt = data->mPrevSp;
+                while (joinEvt.is_valid() && !joinEvt->isOfType(THREAD_JOIN))
+                {
+                    ++joinEvt;
+                }
+                data->mPropSpMap = SpH->getSynchpointsBetween(data->mPrevSp, event);
+                data->mWaitInfo  = CalculateWaitMap(data->mPropSpMap);
+                data->mDelayInfo = CalculateDiff(TmH->getRuntimes(joinEvt, event),
+                                                 data->mWaitInfo.mMap);
+
+                // shortcuts
+                const TimeMapSum& d(data->mDelayInfo);
+                const TimeMapSum& w(data->mWaitInfo);
+
+                // --- calculate delay costs
+
+                double scale = 0.0;
+
+                if ((d.mSum + w.mSum) > 0)
+                {
+                    scale = (omp_get_num_threads() - 1);
+                }
+
+                // --- set severities
+
+                if (d.mSum > 0)
+                {
+                    for (timemap_t::const_iterator it = d.mMap.begin();
+                         it != d.mMap.end();
+                         ++it)
+                    {
+                        m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+                    }
+                }
+
+                data->mOmpIdleScale = scale;
+
+                cbmanager.notify(DELAY_OMP_IDLE, event, data);
+            }
+        }
+
+        "PREPARE" = {
+            #pragma omp master
+            {
+                // Shortcuts
+                const TmapCacheHandler*  TmH = data->mTmapCacheHandler;
+                const SynchpointHandler* SpH = data->mSynchpointHandler;
+
+                // Normally, the delay info mini-profile would be calculated
+                // between the current event and the previous syncpoint, incl.
+                // its completion time.  In this case, however, the previous
+                // syncpoint stored (if it exists) is the LEAVE event of the
+                // implicit barrier of the preceding parallel region, i.e., the
+                // interval based on the syncpoint is too long.  Thus, search
+                // for the respective THREAD_JOIN event starting from the
+                // syncpoint, and use it to calculate the correct mini-profile.
+                //
+                // Note that the wait map subtracted from the mini-profile can
+                // still be determined based on the syncpoint since there can
+                // be no wait states between the LEAVE of the implicit barrier
+                // and the THREAD_JOIN event of the parallel region.
+                data->mPrevSp = SpH->findPreviousOmpSynchpoint(event);
+                Event joinEvt = data->mPrevSp;
+                while (joinEvt.is_valid() && !joinEvt->isOfType(THREAD_JOIN))
+                {
+                    ++joinEvt;
+                }
+                data->mPropSpMap = SpH->getSynchpointsBetween(data->mPrevSp, event);
+                data->mWaitInfo  = CalculateWaitMap(data->mPropSpMap);
+                data->mDelayInfo = CalculateDiff(TmH->getRuntimes(joinEvt, event),
+                                                 data->mWaitInfo.mMap);
+
+                // shortcuts
+                const TimeMapSum& d(data->mDelayInfo);
+                const TimeMapSum& w(data->mWaitInfo);
+
+                // --- calculate delay costs
+
+                double scale = 0.0;
+
+                if ((d.mSum + w.mSum) > 0)
+                {
+                    scale = (omp_get_num_threads() - 1);
+                }
+
+                // --- set severities
+
+                if (d.mSum > 0)
+                {
+                    for (timemap_t::const_iterator it = d.mMap.begin();
+                         it != d.mMap.end();
+                         ++it)
+                    {
+                        m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+                    }
+                }
+
+                data->mOmpIdleScale = scale;
+
+                cbmanager.notify(DELAY_OMP_IDLE, event, data);
+            }
+        }
+    ]
+]
+
+
+PATTERN "DELAY_OMPIDLE_LONGTERM" = [
+    PARENT    = "DELAY_OMPIDLE_AGGREGATE"
+    NAME      = "OMP long-term idleness delay costs"
+    DOCNAME   = "Long-term OpenMP Thread Idleness Delay Costs"
+    TYPE      = "MPIDEP"
+    CLASS     = "PatternDelay_OmpIdle_LT"
+    CONDITION = "enableDelayAnalysis"
+    INFO      = "Delays that indirectly leave OpenMP worker threads idle"
+    DESCR     = {
+        Long-term delay costs reflect indirect effects of load or communication
+        imbalance on wait states.  That is, they cover waiting time that was caused
+        indirectly by wait states which themselves delay subsequent communication
+        operations.
+        Here, they identify costs and locations of delays that indirectly leave
+        OpenMP worker threads idle due to wait-state propagation.
+        In particular, long-term idle thread delay costs indicate call paths
+        and processes/threads that increase the time worker threads are idling
+        because of MPI wait states outside of OpenMP parallel regions.
+    }
+    DIAGNOSIS = {
+        High long-term delay costs indicate that computation or communication
+        overload in/on the affected call paths and processes/threads has
+        far-reaching effects. That is, the wait states caused by the original
+        computational overload spread along the communication chain to
+        remote locations.
+        </p><br><p>
+        Try to reduce workload in the affected call paths, or shift workload
+        from processes/threads with delay costs to processes/threads that
+        exhibit wait states.
+        Try to implement a more asynchronous communication pattern that can
+        compensate for small imbalances, e.g., by using non-blocking instead
+        of blocking communication.
+    }
+    MODE      = "exclusive"
+    UNIT      = "sec"
+    DATA      = {
+        DelayCostMap m_cost;
+    }
+    CALLBACKS("bwc") = [
+        "PRE_RECV" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mLocal->add_buffer(buffer, BUFFER_RCOST_OMPIDLE);
+        }
+
+        "DELAY_LATE_SENDER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mRemote->get_buffer(BUFFER_RCOST_OMPIDLE)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_INV_SENDCMP" = {
+            Buffer* buffer = new Buffer(16);
+
+            buffer->put_double(m_cost.getCosts(event));
+            data->mInvLocal->add_buffer(buffer, BUFFER_RCOST_OMPIDLE);
+        }
+
+        "DELAY_LATE_RECEIVER" = {
+            // Shortcuts
+            const TimeMapSum& d(data->mDelayInfo);
+            const TimeMapSum& w(data->mWaitInfo);
+
+            if (!((d.mSum + w.mSum) > 0))
+            {
+                return;
+            }
+
+            // --- get remote cost & set severities
+
+            double rcost = data->mInvRemote->get_buffer(BUFFER_RCOST_OMPIDLE)->get_double();
+            double scale = rcost / (d.mSum + w.mSum);
+
+            if (!(scale > 0))
+            {
+                return;
+            }
+
+            for (timemap_t::const_iterator it = d.mMap.begin();
+                 it != d.mMap.end();
+                 ++it)
+            {
+                m_severity[data->mDefs->get_cnode(it->first)] += scale * it->second;
+            }
+
+            // --- set propagating long-term costs
+
+            m_cost.addCosts(data->mPropSpMap, scale);
+        }
+
+        "PRE_DELAY_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_OMPIDLE, m_cost.getCosts(event)));
+        }
+
+        "DELAY_BARRIER" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_OMPIDLE);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_OMPIDLE);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N2N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_OMPIDLE, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N2N" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_OMPIDLE);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_OMPIDLE);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_12N" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_OMPIDLE, m_cost.getCosts(event)));
+        }
+
+        "DELAY_12N" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_OMPIDLE);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_OMPIDLE);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_N21" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_OMPIDLE, m_cost.getCosts(event)));
+        }
+
+        "DELAY_N21" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_OMPIDLE);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_OMPIDLE);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "PRE_DELAY_OMP_BARRIER" = {
+            data->mInputScales.insert(make_pair(KEY_RCOST_OMPIDLE, m_cost.getCosts(event)));
+        }
+
+        "DELAY_OMP_BARRIER" = {
+            // Set severities
+            map< uint32_t, TimeMapSum >::const_iterator dCit = data->mCollDelayInfo.find(KEY_RCOST_OMPIDLE);
+
+            if (  (dCit != data->mCollDelayInfo.end())
+               && (dCit->second.mSum > 0.0))
+            {
+                for (timemap_t::const_iterator it = dCit->second.mMap.begin();
+                     it != dCit->second.mMap.end();
+                     ++it)
+                {
+                    m_severity[data->mDefs->get_cnode(it->first)] += it->second;
+                }
+            }
+
+            // Update long-term costs for propagating wait states in synchronization interval
+            map< uint32_t, ScaleMap >::const_iterator sCit = data->mSumScales.find(KEY_RCOST_OMPIDLE);
+
+            if (sCit != data->mSumScales.end())
+            {
+                m_cost.addCosts(data->mPropSpMap, sCit->second);
+            }
+        }
+
+        "DELAY_OMP_IDLE" = {
+            if (data->mWaitInfo.mSum > 0.0)
+            {
+                m_cost.addCosts(data->mPropSpMap, data->mOmpIdleScale);
+            }
+        }
+    ]
+]

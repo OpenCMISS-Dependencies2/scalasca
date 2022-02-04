@@ -1,0 +1,72 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+PEARL_MPI_SRC = $(SRC_ROOT)src/pearl/MPI
+
+
+#--- Libraries --------------------------------------------------------------
+
+## PEARL MPI library
+lib_LTLIBRARIES += \
+    libpearl.mpi.la
+libpearl_mpi_la_SOURCES = \
+    $(PEARL_MPI_SRC)/EventSet.cpp \
+    $(PEARL_MPI_SRC)/LocalData.cpp \
+    $(PEARL_MPI_SRC)/MpiAmListener.cpp \
+    $(PEARL_MPI_SRC)/MpiAmRequest.cpp \
+    $(PEARL_MPI_SRC)/MpiCancelled_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiCollBegin_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiCollEnd_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiComm.cpp \
+    $(PEARL_MPI_SRC)/MpiDefsFactory.h \
+    $(PEARL_MPI_SRC)/MpiDefsFactory.cpp \
+    $(PEARL_MPI_SRC)/MpiEventFactory.h \
+    $(PEARL_MPI_SRC)/MpiEventFactory.cpp \
+    $(PEARL_MPI_SRC)/MpiGroup.cpp \
+    $(PEARL_MPI_SRC)/MpiMessage.cpp \
+    $(PEARL_MPI_SRC)/MpiReceive_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiReceiveComplete_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiReceiveRequest_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiRequestTested_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiRmaCollBegin_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiRmaCollEnd_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiRmaGats_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiRmaGetEnd_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiRmaGetStart_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiRmaLock_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiRmaPutEnd_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiRmaPutStart_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiRmaUnlock_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiSend_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiSendComplete_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiSendRequest_rep.cpp \
+    $(PEARL_MPI_SRC)/MpiWindow.cpp \
+    $(PEARL_MPI_SRC)/RemoteData.cpp \
+    $(PEARL_MPI_SRC)/RemoteEventSet.cpp \
+    $(PEARL_MPI_SRC)/pearl_mpi.cpp
+libpearl_mpi_la_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(INC_ROOT)src/pearl/base \
+    -I$(INC_ROOT)src/pearl/base/include \
+    -I$(INC_ROOT)src/pearl/thread/include \
+    -I$(PEARL_IPC_INC)
+libpearl_mpi_la_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    -version-info $(PEARL_INTERFACE_VERSION)

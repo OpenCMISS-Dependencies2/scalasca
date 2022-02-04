@@ -1,0 +1,231 @@
+#!/bin/sh
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2017                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2010-2012                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  Copyright (c) 2012                                                     ##
+##  RWTH Aachen University, JARA-HPC                                       ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+# "Functions"
+
+# This function aborts the script if the first parameter is not "0"
+#
+abort_on_error() {
+    if [ "$1" != "0" ]; then
+        echo "EXIT:" $2
+        exit 1
+    fi
+}
+
+# This function aborts on missing cmdline arguments
+abort_on_missing_argument() {
+    if [ "$1" == "" ]; then
+        echo "Missing argument: " $2
+        usage
+    fi
+}
+
+# This function evals the first parameter and aborts on error.
+#
+required_eval() {
+    eval "$1" 2>&1 ${SCARLET_DEBUG_QUIET}
+    abort_on_error $? "$2"
+}
+
+# This function prints the help/usage output
+#
+usage () {
+    cat > /dev/tty <<[[EOT]]
+Scalasca ${VERSION}: measurement archiver
+usage  : `basename $0` [options] <measurement archive>
+options: [-a <FILE>[,<FILE>[,...]]]   # Comma-separated list of auxiliary files
+         [-d <DIR>]                   # Destination directory for tarballs
+         [-f]                         # Archive full measurement archive
+         [-F]                         # Force overwriting existing files
+         [-h]                         # This help message
+         [-z]                         # Compress reports and auxiliary files with bzip2
+         [-q]                         # Quiet (no output)
+         [-r]                         # Archive analysis report data (+ logs, cfg, ...)
+         [-v]                         # Verbose output
+         [-z]                         # Compress reports and auxiliary files with gzip
+[[EOT]]
+}
+
+# This function prints a message in verbosity mode
+#
+debug_msg() {
+    eval 'echo "DEBUG: $1"' 2>&1 ${SCARLET_DEBUG_QUIET}
+}
+
+# This function prints a message in verbosity mode
+#
+info_msg() {
+    eval 'echo "INFO: $1"' 2>&1 ${SCARLET_INFO_QUIET}
+}
+
+# This function prints an error message
+error_msg() {
+    eval 'echo "ERROR: $1"' 2>&1 ${SCARLET_INFO_QUIET}
+}
+
+VERSION="@VERSION@"
+
+SQUARE=`which square 2>/dev/null`
+
+SCARLET_COMPRESSOR_EXT=
+SCARLET_REPORTS=0
+SCARLET_DESTINATION=.
+SCARLET_ARCHIVE=
+SCARLET_AUX_FILES=
+SCARLET_FORCE=0
+SCARLET_PREFIX=
+SCARLET_INFO_QUIET=
+SCARLET_DEBUG_QUIET=">/dev/null"
+SCARLET_TAR_OPTS=cSf
+SCARLET_FULL=0
+SCARLET_TARBALL_EXT=tar
+
+# Process command line arguments
+while getopts ":a:d:fFhjqrvz" arg; do
+    case ${arg} in
+        a)
+            SCARLET_AUX_FILELIST=`echo ${OPTARG} | sed -e "s/,/ /g"`
+            SCARLET_AUX_FILES=
+            for file in $SCARLET_AUX_FILELIST; do
+                if [ -f "$file" ]; then
+                    SCARLET_AUX_FILES="$SCARLET_AUX_FILES $file"
+                else
+                    error_msg "Auxiliary file '$file' not accessible."
+                fi
+            done
+            ;;
+        d)
+            if [ -d "${OPTARG}" ] && [ -w "${OPTARG}" ]; then
+                SCARLET_DESTINATION=`echo ${OPTARG} | sed -e "s,/$,,g"`
+            else
+                error_msg "Destination '${OPTARG}' not writeable."
+            fi
+            ;;
+        f)
+            SCARLET_FULL=1
+            ;;
+        F)
+            SCARLET_FORCE=1
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        j)
+            SCARLET_TAR_OPTS="${SCARLET_TAR_OPTS}j"
+            SCARLET_COMPRESSOR_EXT=bz2
+            SCARLET_TARBALL_EXT="tar.${SCARLET_COMPRESSOR_EXT}"
+            ;;
+        r)
+            SCARLET_REPORTS=1
+            ;;
+        q)
+            SCARLET_INFO_QUIET=">/dev/null"
+            SCARLET_DEBUG_QUIET=">/dev/null"
+            ;;
+        v)
+            SCARLET_TAR_OPTS=cvf
+            unset SCARLET_INFO_QUIET
+            unset SCARLET_DEBUG_QUIET
+            ;;
+        z)
+            SCARLET_TAR_OPTS="${SCARLET_TAR_OPTS}z"
+            SCARLET_COMPRESSOR_EXT=gz
+            SCARLET_TARBALL_EXT="tar.${SCARLET_COMPRESSOR_EXT}"
+            ;;
+        *)
+            echo "Invalid argument: ${arg}"
+            exit 1
+            ;;
+    esac
+done
+shift `expr ${OPTIND} - 1`
+
+# Validate that remaining command line argument is measurement archive
+if [ $# -ne 1 ]; then
+    usage
+    exit 1
+fi
+
+# Check measurement archive
+if [ -d $1 ]; then
+    SCARLET_ARCHIVE=`echo $1 | sed -e "s/\/$//"`
+else
+    exit 1
+fi
+
+SCARLET_PWD=${PWD}
+
+if [ -z "${SCARLET_PREFIX}" ]; then
+    SCARLET_PREFIX=`echo ${SCARLET_ARCHIVE} | sed -e "s/\(.*\)_[a-z]*$/\1/"`
+fi
+
+
+if [ ! -e ${SCARLET_ARCHIVE}/scorep.cfg ]; then
+    echo "Unable to find measurement configuration in ${SCARLET_ARCHIVE}."
+fi
+
+if [ ! -f "${SCARLET_ARCHIVE}/scorep.score" ]; then
+    info_msg "Creating scoring from Scalasca analysis report"
+    square -s ${SCARLET_ARCHIVE} 2>&1 ${SCALASCA_DEBUG_QUIET}
+fi
+
+# Create lightweight tarball
+
+if [ "${SCARLET_REPORTS}" -eq "1" ]; then
+
+    # Gather lightweight files
+    SCARLET_REPORT_SCOREP=`ls ${SCARLET_ARCHIVE}/scorep.* 2> /dev/null`
+    SCARLET_REPORT_SCOUT=`ls ${SCARLET_ARCHIVE}/scout.* 2> /dev/null`
+    SCARLET_REPORT_CUBEX=`ls ${SCARLET_ARCHIVE}/*.cubex 2> /dev/null`
+
+    SCARLET_REPORT_FILES=`echo ${SCARLET_REPORT_SCOREP} ${SCARLET_REPORT_SCOUT} ${SCARLET_REPORT_CUBEX} | xargs -n 1 echo | sort -u`
+
+    if [ -f "${SCARLET_DESTINATION}/${SCARLET_PREFIX}_reports.${SCARLET_TARBALL_EXT}" ] && [ "${SCARLET_FORCE}" != "1" ]; then
+        debug_msg "Skipping tarball creation for report files. Tarball already exists. Use -F to overwrite."
+    else
+        info_msg "Archiving reports to ${SCARLET_DESTINATION}/${SCARLET_PREFIX}_reports.${SCARLET_TARBALL_EXT}"
+        tar ${SCARLET_TAR_OPTS} ${SCARLET_DESTINATION}/${SCARLET_PREFIX}_reports.${SCARLET_TARBALL_EXT} ${SCARLET_REPORT_FILES}
+    fi
+fi
+
+# Create full tarball
+
+if [ "${SCARLET_FULL}" -eq "1" ]; then
+
+    if [ -f "${SCARLET_DESTINATION}/${SCARLET_PREFIX}_full.${SCARLET_TARBALL_EXT}" ] && [ "${SCARLET_FORCE}" != "1" ]; then
+        debug_msg "Skipping tarball creation for full measurement. Tarball already exists. Use -F to overwrite."
+    else
+        info_msg "Archiving full measurement to ${SCARLET_DESTINATION}/${SCARLET_PREFIX}_full.${SCARLET_TARBALL_EXT}"
+        tar ${SCARLET_TAR_OPTS} ${SCARLET_DESTINATION}/${SCARLET_PREFIX}_full.${SCARLET_TARBALL_EXT} ${SCARLET_ARCHIVE}
+    fi
+fi
+
+# Create auxiliary tarball
+
+if [ ! -z "${SCARLET_AUX_FILES}" ]; then
+
+    if [ -f "${SCARLET_DESTINATION}/${SCARLET_PREFIX}_aux.${SCARLET_TARBALL_EXT}" ] && [ "${SCARLET_FORCE}" != "1" ]; then
+        debug_msg "Skipping tarball creation for auxiliary files. Tarball already exists. Use -F to overwrite."
+    else
+        info_msg "Archiving auxiliary files to ${SCARLET_DESTINATION}/${SCARLET_PREFIX}_aux.${SCARLET_TARBALL_EXT}"
+        tar ${SCARLET_TAR_OPTS} ${SCARLET_DESTINATION}/${SCARLET_PREFIX}_aux.${SCARLET_TARBALL_EXT} ${SCARLET_AUX_FILES}
+    fi
+fi

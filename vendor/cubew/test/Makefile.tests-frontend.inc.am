@@ -1,0 +1,27 @@
+##*************************************************************************##
+##  CUBE        http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2016                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2015                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+check_PROGRAMS += 
+
+
+CUBE_FRONTEND_SELF_TESTS     	+=   ../test/test3/run_test_3.sh
+EXTRA_DIST          		+=   $(srcdir)/../test/test3/template.cube
+EXTRA_DIST          		+=   $(srcdir)/../test/test3/example3_2.data
+EXTRA_DIST          		+=   $(srcdir)/../test/test3/example_system_tree.data
+EXTRA_DIST          		+=   $(srcdir)/../test/test3/flex_aggregation_incl.data
+EXTRA_DIST          		+=   $(srcdir)/../test/test3/flex_aggregation_excl.data
+
+CLEANFILES += tests/*

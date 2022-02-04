@@ -1,0 +1,50 @@
+Usage: otf2-estimator [OPTION]...
+This tool estimates the size of OTF2 events.
+It will open a prompt to type in commands.
+
+Options:
+  -V, --version       Print version information.
+  -h, --help          Print this help information.
+
+Commands:
+   list definitions              Lists all known definition names.
+   list events                   Lists all known event names.
+   list types                    Lists all known type names.
+   set <DEFINITION> <NUMBER>     Specifies the number of definitions of a
+                                 type of definitions.
+   get DefChunkSize              Prints the estimated definition chunk size.
+   get Timestamp                 Prints the size of a timestamp.
+   get AttributeList [TYPES...]  Prints the estimated size for an attribute
+                                 list with the given number of entries and
+                                 types.
+   get <EVENT> [ARGS...]         Prints the estimated size of records for
+                                 <EVENT>.
+   exit                          Exits the tool.
+
+This tool provides a command line interface to the estimator API of the OTF2
+library. It is based on a stream based protocol.  Commands are send to the
+standard input stream of the program and the result is written to the standard
+output stream of the program.  All definition and event names are in there
+canonical CamelCase form.  Numbers are printed in decimal.  The TYPES are in
+ALL_CAPS.  See the output of the appropriate 'list' commands.  Arguments are
+separated with an arbitrary number of white space.  The 'get' commands are using
+everything after the first white space separator verbatim as a key, which is
+then printed in the output line and appended with the estimated size.
+
+Here is a simple example.  We have at most 4 region definitions and one metric
+definition.  We want to know the size of a timestamp, enter, and leave event,
+and a metric event with 4 values.
+
+cat <<EOC | otf2-estimator
+set Region 4
+set Metric 1
+get Timestamp
+get Enter
+get Leave
+get Metric  4
+exit
+EOC
+Timestamp 9
+Enter 3
+Leave 3
+Metric  4 44

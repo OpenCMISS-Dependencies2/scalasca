@@ -1,0 +1,211 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 1998-2020                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  Copyright (c) 2009-2013                                                ##
+##  German Research School for Simulation Sciences GmbH,                   ##
+##  Laboratory for Parallel Programming                                    ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+SCOUT_SRC = $(SRC_ROOT)src/scout
+
+
+##--- Libraries -------------------------------------------------------------
+
+## Common SCOUT convenience library
+## (files which are always compiled using serial compiler)
+noinst_LTLIBRARIES += \
+    libscout.common.la
+libscout_common_la_SOURCES = \
+    $(SCOUT_SRC)/AnalysisHandler.h \
+    $(SCOUT_SRC)/Callstack.h \
+    $(SCOUT_SRC)/Callstack.cpp \
+    $(SCOUT_SRC)/DelayCostMap.h \
+    $(SCOUT_SRC)/DelayCostMap.cpp \
+    $(SCOUT_SRC)/DelayOps.h \
+    $(SCOUT_SRC)/DelayOps.cpp \
+    $(SCOUT_SRC)/OmpPattern.h \
+    $(SCOUT_SRC)/OmpPattern.cpp \
+    $(SCOUT_SRC)/OpenArchiveTask.h \
+    $(SCOUT_SRC)/OpenArchiveTask.cpp \
+    $(SCOUT_SRC)/PthreadPattern.h \
+    $(SCOUT_SRC)/PthreadPattern.cpp \
+    $(SCOUT_SRC)/Quantile.h \
+    $(SCOUT_SRC)/Quantile.cpp \
+    $(SCOUT_SRC)/ReplayControlHandler.h \
+    $(SCOUT_SRC)/ReplayControlHandler.cpp \
+    $(SCOUT_SRC)/TaskData.h \
+    $(SCOUT_SRC)/TaskData.cpp \
+    $(SCOUT_SRC)/TimeRank.h \
+    $(SCOUT_SRC)/TimeRank.cpp \
+    $(SCOUT_SRC)/TimedPhase.h \
+    $(SCOUT_SRC)/TimedPhase.cpp \
+    $(SCOUT_SRC)/fixed_map.hh \
+    $(SCOUT_SRC)/fixed_set.hh
+libscout_common_la_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(INC_ROOT)src/pearl/thread \
+    $(CUBE_WRITER_CPPFLAGS)
+
+
+##--- Programs --------------------------------------------------------------
+
+## SCOUT (serial variant)
+bin_PROGRAMS += \
+    scout.ser
+scout_ser_SOURCES = \
+    $(SCOUT_SRC)/AnalyzeTask.h \
+    $(SCOUT_SRC)/AnalyzeTask.cpp \
+    $(SCOUT_SRC)/CbData.h \
+    $(SCOUT_SRC)/CbData.cpp \
+    $(SCOUT_SRC)/CheckedTask.h \
+    $(SCOUT_SRC)/CheckedTask.cpp \
+    $(SCOUT_SRC)/Logging.h \
+    $(SCOUT_SRC)/Logging.cpp \
+    $(SCOUT_SRC)/Pattern.h \
+    $(SCOUT_SRC)/Pattern.cpp \
+    $(SCOUT_SRC)/Patterns_gen.h \
+    $(SCOUT_SRC)/Patterns_gen.cpp \
+    $(SCOUT_SRC)/Predicates.h \
+    $(SCOUT_SRC)/PreprocessTask.h \
+    $(SCOUT_SRC)/PreprocessTask.cpp \
+    $(SCOUT_SRC)/ReadDefinitionsTask.h \
+    $(SCOUT_SRC)/ReadDefinitionsTask.cpp \
+    $(SCOUT_SRC)/ReadTraceTask.h \
+    $(SCOUT_SRC)/ReadTraceTask.cpp \
+    $(SCOUT_SRC)/ReportData.h \
+    $(SCOUT_SRC)/ReportData.cpp \
+    $(SCOUT_SRC)/ReportWriterTask.h \
+    $(SCOUT_SRC)/ReportWriterTask.cpp \
+    $(SCOUT_SRC)/Roles.h \
+    $(SCOUT_SRC)/StatisticsTask.h \
+    $(SCOUT_SRC)/StatisticsTask.cpp \
+    $(SCOUT_SRC)/SynchpointHandler.h \
+    $(SCOUT_SRC)/SynchpointHandler.cpp \
+    $(SCOUT_SRC)/ThreadCountedLock.h \
+    $(SCOUT_SRC)/Timer.h \
+    $(SCOUT_SRC)/Timer.cpp \
+    $(SCOUT_SRC)/TmapCacheHandler.h \
+    $(SCOUT_SRC)/TmapCacheHandler.cpp \
+    $(SCOUT_SRC)/scout.cpp \
+    $(SCOUT_SRC)/scout_types.h \
+    $(SCOUT_SRC)/user_events.h
+scout_ser_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -DPKGDATADIR=\"$(pkgdatadir)\" \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(INC_ROOT)src/epik \
+    $(CUBE_WRITER_CPPFLAGS)
+scout_ser_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(NOWARN_OMP_PRAGMAS_CXXFLAGS)
+scout_ser_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS) \
+    $(CUBE_WRITER_LDFLAGS)
+scout_ser_LDADD = \
+    libscout.common.la \
+    $(CUBE_WRITER_LIBS) \
+    libpearl.replay.la \
+    libpearl.base.la \
+    libpearl.ipc.mockup.la \
+    libpearl.thread.ser.la
+
+# Explicitly add internal CUBE writer library as automake will not
+# generate a dependency for it automatically (due to using AC_SUBST)
+if !HAVE_EXTERNAL_CUBE_WRITER
+scout_ser_LDADD += ../vendor/cubew/build-backend/libcube4w.la
+endif
+
+
+if OPENMP_SUPPORTED
+
+## SCOUT (OpenMP variant)
+bin_PROGRAMS += \
+    scout.omp
+scout_omp_SOURCES = \
+    $(SCOUT_SRC)/AnalyzeTask.h \
+    $(SCOUT_SRC)/AnalyzeTask.cpp \
+    $(SCOUT_SRC)/CbData.h \
+    $(SCOUT_SRC)/CbData.cpp \
+    $(SCOUT_SRC)/CheckedTask.h \
+    $(SCOUT_SRC)/CheckedTask.cpp \
+    $(SCOUT_SRC)/DelayOps.h \
+    $(SCOUT_SRC)/DelayOps.cpp \
+    $(SCOUT_SRC)/LockTracking.h \
+    $(SCOUT_SRC)/LockTracking.cpp \
+    $(SCOUT_SRC)/Logging.h \
+    $(SCOUT_SRC)/Logging.cpp \
+    $(SCOUT_SRC)/OmpDelayOps.h \
+    $(SCOUT_SRC)/OmpDelayOps.cpp \
+    $(SCOUT_SRC)/OmpEventHandler.h \
+    $(SCOUT_SRC)/OmpEventHandler.cpp \
+    $(SCOUT_SRC)/Pattern.h \
+    $(SCOUT_SRC)/Pattern.cpp \
+    $(SCOUT_SRC)/Patterns_gen.h \
+    $(SCOUT_SRC)/Patterns_gen.cpp \
+    $(SCOUT_SRC)/Predicates.h \
+    $(SCOUT_SRC)/PreprocessTask.h \
+    $(SCOUT_SRC)/PreprocessTask.cpp \
+    $(SCOUT_SRC)/ReadDefinitionsTask.h \
+    $(SCOUT_SRC)/ReadDefinitionsTask.cpp \
+    $(SCOUT_SRC)/ReadTraceTask.h \
+    $(SCOUT_SRC)/ReadTraceTask.cpp \
+    $(SCOUT_SRC)/ReportData.h \
+    $(SCOUT_SRC)/ReportData.cpp \
+    $(SCOUT_SRC)/ReportWriterTask.h \
+    $(SCOUT_SRC)/ReportWriterTask.cpp \
+    $(SCOUT_SRC)/Roles.h \
+    $(SCOUT_SRC)/StatisticsTask.h \
+    $(SCOUT_SRC)/StatisticsTask.cpp \
+    $(SCOUT_SRC)/SynchpointHandler.h \
+    $(SCOUT_SRC)/SynchpointHandler.cpp \
+    $(SCOUT_SRC)/ThreadCountedLock.h \
+    $(SCOUT_SRC)/Timer.h \
+    $(SCOUT_SRC)/Timer.cpp \
+    $(SCOUT_SRC)/TmapCacheHandler.h \
+    $(SCOUT_SRC)/TmapCacheHandler.cpp \
+    $(SCOUT_SRC)/scout.cpp \
+    $(SCOUT_SRC)/scout_types.h \
+    $(SCOUT_SRC)/user_events.h
+scout_omp_CPPFLAGS = \
+    $(AM_CPPFLAGS) \
+    -DPKGDATADIR=\"$(pkgdatadir)\" \
+    -I$(PUBLIC_INC_DIR) \
+    -I$(INC_DIR_COMMON_UTILS) \
+    -I$(INC_ROOT)src/epik \
+    $(CUBE_WRITER_CPPFLAGS)
+scout_omp_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(OPENMP_CXXFLAGS)
+scout_omp_LDFLAGS = \
+    $(AM_LDFLAGS) \
+    $(LINKMODE_FLAGS) \
+    $(CUBE_WRITER_LDFLAGS)
+scout_omp_LDADD = \
+    libscout.common.la \
+    $(CUBE_WRITER_LIBS) \
+    libpearl.replay.la \
+    libpearl.base.la \
+    libpearl.ipc.mockup.la \
+    libpearl.thread.omp.la
+
+# Explicitly add internal CUBE writer library as automake will not
+# generate a dependency for it automatically (due to using AC_SUBST)
+if !HAVE_EXTERNAL_CUBE_WRITER
+scout_omp_LDADD += ../vendor/cubew/build-backend/libcube4w.la
+endif
+
+endif OPENMP_SUPPORTED

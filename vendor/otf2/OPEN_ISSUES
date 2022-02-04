@@ -1,0 +1,83 @@
+
+                          OTF2 2.3 OPEN ISSUES
+                          ====================
+                                                           Effective: Mar 2021
+
+This file lists known limitations and unimplemented features of
+the OTF2 component.
+
+--------------------------------------------------------------------------------
+
+* Platform support
+
+  - OTF2 has been tested on the following platforms:
+
+    + Cray XC (see 'Shared libraries on Cray systems' below)
+    + various Linux (Intel, AMD, IBM, ARM) clusters with GNU,
+      Intel, NVIDIA, and IBM compilers. Note that some compilers
+      are based on Clang.
+    + macOS
+    + MinGW (but SIONlib is known to not work on this platform)
+
+    The provided configure options (see INSTALL) may provide a good
+    basis for building and testing the toolset on other systems.
+
+  - The following platforms have not been tested recently:
+
+    + IBM Blue Gene/Q
+    + IBM Blue Gene/P
+    + Cray XT, XE, XK
+    + Sun Solaris/SPARC-based clusters
+    + IBM SP & BladeCenter clusters, only static libraries supported
+    + SGI Altix/ICE
+
+    However the supplied buildsystem might still work on these
+    systems.
+
+  - The following platforms have not been tested:
+
+    + NEC SX-9
+    + IBM Blue Gene/L
+    + SiCortex systems
+    + other NEC SX systems
+
+  - Shared libraries on Cray systems: it is possible to build shared
+    libraries on Cray systems just by using the '--enable-shared'
+    configure option. Note that in order to link to these libraries,
+    you need to pass the '-dynamic' flag to the compiler wrapper;
+    static is the default linking mode on Cray systems.
+
+--------------------------------------------------------------------------------
+
+* Python bindings
+
+  - Python bindings are only fully supported on AMD64.
+    On other architectures, functions taking AttributeValue arguments by value
+    may crash due to an issue in ctypes / libffi.
+
+    See also:
+    + https://bugs.python.org/issue26628
+    + https://github.com/atgreen/libffi/issues/33
+
+  - Definitions containing Groups of both Metrics *and* other definitions
+    written by the high level otf2 module may be written in non-monotonic order
+    in the trace.
+
+  - Parallel trace processing with collective callbacks etc. is not supported
+    in the high level interface
+
+--------------------------------------------------------------------------------
+
+* OTF2 misc.
+
+  - ZLIB compression of trace files is disabled.
+
+  - The MODIFY mode of OTF2, which can be used to rewrite time stamps
+    in trace files, is untested.
+
+  - OTF2 currently assumes "homogeneous" systems, meaning that the
+    clocks of all nodes/cores run at the same clock frequency.
+
+--------------------------------------------------------------------------------
+
+Please report bugs, wishes, and suggestions to <support@score-p.org>.

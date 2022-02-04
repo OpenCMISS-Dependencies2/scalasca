@@ -1,0 +1,2672 @@
+<doc>
+    <mirrors>
+        <murl>http://apps.fz-juelich.de/scalasca/releases/scalasca/@PACKAGE_MAJOR@.@PACKAGE_MINOR@/help/</murl>
+        <murl>http://perftools.pages.jsc.fz-juelich.de/cicd/scalasca/tags/scalasca-@PACKAGE_VERSION@/patterns/</murl>
+        <murl>http://perftools.pages.jsc.fz-juelich.de/cicd/scalasca/tags/latest/patterns/</murl>
+    </mirrors>
+</doc>
+<metrics>
+    <metric>
+        <!-- This metric is copied from the trace analysis -->
+        <disp_name>Time</disp_name>
+        <uniq_name>time</uniq_name>
+        <dtype>FLOAT</dtype>
+        <uom>sec</uom>
+        <url>@mirror@scalasca_patterns.html#time</url>
+        <descr>Total CPU allocation time (includes time allocated for idle threads)</descr>
+        <metric type="PREDERIVED_EXCLUSIVE">
+            <disp_name>Execution</disp_name>
+            <uniq_name>execution</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <url>@mirror@scalasca_patterns.html#execution</url>
+            <descr>Execution time (does not include time allocated for idle threads)</descr>
+            <cubepl>
+                ${execution}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+            </cubepl>
+            <cubeplinit>
+            {
+                //--- Global callpath type masks ----------------------------
+                // Each type mask field contains one entry for each callpath,
+                // by default set to 0.  It is set to 1 if the callpath is of
+                // the corresponding category.
+
+                // Generic masks
+                global(execution);
+                global(overhead);
+
+                // MPI-specific masks
+                global(mpi);
+                global(mpi_mgmt_startup);
+                global(mpi_mgmt_comm);
+                global(mpi_mgmt_file);
+                global(mpi_mgmt_win);
+                global(mpi_sync_collective);
+                global(mpi_sync_rma_active);
+                global(mpi_sync_rma_passive);
+                global(mpi_comm_p2p);
+                global(mpi_comm_collective);
+                global(mpi_comm_rma);
+                global(mpi_comm_rma_puts);
+                global(mpi_comm_rma_gets);
+                global(mpi_comm_rma_atomics);
+                global(mpi_file_individual);
+                global(mpi_file_collective);
+                global(mpi_file_iops);
+                global(mpi_file_irops);
+                global(mpi_file_iwops);
+                global(mpi_file_cops);
+                global(mpi_file_crops);
+                global(mpi_file_cwops);
+
+                // OpenMP-specific masks
+                global(omp_sync_ebarrier);
+                global(omp_sync_ibarrier);
+                global(omp_sync_critical);
+                global(omp_sync_lock_api);
+                global(omp_sync_ordered);
+                global(omp_sync_taskwait);
+                global(omp_flush);
+
+                // Pthread-specific masks
+                global(pthread_mgmt);
+                global(pthread_sync_mutex);
+                global(pthread_sync_condition);
+
+                // OpenACC-specific masks
+                global(openacc);
+                global(openacc_setup);
+                global(openacc_comm);
+                global(openacc_sync);
+                global(openacc_kernel_launches);
+
+                // OpenCL-specific masks
+                global(opencl);
+                global(opencl_setup);
+                global(opencl_comm);
+                global(opencl_sync);
+                global(opencl_kernel_launches);
+                global(opencl_kernel_executions);
+
+                // CUDA-specific masks
+                global(cuda);
+                global(cuda_setup);
+                global(cuda_comm);
+                global(cuda_sync);
+                global(cuda_kernel_launches);
+                global(cuda_kernel_executions);
+
+
+                //--- Paradigm flags ----------------------------------------
+                // These flags indicate which of the supported parallel
+                // programming paradigms are used in the experiment to
+                // later enable/disable the corresponding metric subtrees.
+
+                ${includesMPI}           = 0;
+                ${includesOpenMP}        = 0;
+                ${includesPthread}       = 0;
+                ${includesOpenACC}       = 0;
+                ${includesOpenCL}        = 0;
+                ${includesOpenCLkernels} = 0;
+                ${includesCUDA}          = 0;
+                ${includesCUDAkernels}   = 0;
+
+
+                //--- Callpath categorization -------------------------------
+                // Each callpath is categorized by type and its global type
+                // mask entry is set accordingly.
+
+                ${i} = 0;
+                while ( ${i} < ${cube::#callpaths} )
+                {
+                    ${execution}[${i}] = 1;
+
+                    //--- MPI-specific categorization ---
+                    if ( ${cube::region::paradigm}[${cube::callpath::calleeid}[${i}]] eq "mpi" )
+                    {
+                        ${includesMPI} = 1;
+
+                        if ( not ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] eq "PARALLEL" ) )
+                        {
+                            ${mpi}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^MPI_(Init(_thread|ialized){0,1}|Finalize(d){0,1})$/ )
+                        {
+                            ${mpi_mgmt_startup}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^MPI_(Cart_(coords|create|get|map|rank|shift|sub)|Cartdim_get|Comm_(accept|compare|connect|create(_group|_keyval){0,1}|delete_attr|disconnect|dup(_with_info){0,1}|free(_keyval){0,1}|get_(attr|info|name|parent)|group|idup|join|rank|remote_(group|size)|set_(attr|info|name)|size|spawn(_multiple){0,1}|split(_type){0,1}|test_inter)|Dims_create|Dist_graph_(create(_adjacent){0,1}|neighbors(_count){0,1})|Graph_(create|get|map|neighbors(_count){0,1})|Graphdims_get|Intercomm_(create|merge)|Topo_test|(Close|Open)_port|(Lookup|Publish|Unpublish)_name)$/ )
+                        {
+                            ${mpi_mgmt_comm}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^MPI_File_(close|delete|get_(amode|atomicity|byte_offset|group|info|position(_shared){0,1}|size|type_extent|view)|open|preallocate|seek(_shared){0,1}|set_(atomicity|info|size|view)|sync)$/ )
+                        {
+                            ${mpi_mgmt_file}[${i}] = 1;
+
+                            if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /(delete|get|seek)/ )
+                            {
+                                ${mpi_file_iops}[${i}] = 1;
+                            }
+                            else
+                            {
+                                ${mpi_file_cops}[${i}] = 1;
+                            };
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^MPI_Win_(allocate(_shared){0,1}|attach|create(_dynamic|_keyval){0,1}|delete_attr|detach|free(_keyval){0,1}|get_(attr|group|info|name)|set_(attr|info|name)|shared_query)$/ )
+                        {
+                            ${mpi_mgmt_win}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::role}[${cube::callpath::calleeid}[${i}]] eq "barrier" )
+                        {
+                            ${mpi_sync_collective}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^MPI_Win_(complete|fence|post|start|test|wait)$/ )
+                        {
+                            ${mpi_sync_rma_active}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^MPI_Win_((flush(_local){0,1}|lock|unlock)(_all){0,1}|sync)$/ )
+                        {
+                            ${mpi_sync_rma_passive}[${i}] = 1;
+                        };
+
+                        if (
+                            ( ${cube::region::role}[${cube::callpath::calleeid}[${i}]] eq "point2point" )
+                            or
+                            ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^MPI_(Test|Wait)(all|any|some){0,1}$/ )
+                           )
+                        {
+                            ${mpi_comm_p2p}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::role}[${cube::callpath::calleeid}[${i}]] =~ /^(one2all|all2one|all2all|other collective)$/ )
+                        {
+                            ${mpi_comm_collective}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::role}[${cube::callpath::calleeid}[${i}]] =~ /^(rma|atomic)$/ )
+                        {
+                            ${mpi_comm_rma}[${i}] = 1;
+
+                            if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^MPI_(Put|Rput)$/ )
+                            {
+                                ${mpi_comm_rma_puts}[${i}] = 1;
+                            };
+
+                            if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^MPI_(Get|Rget)$/ )
+                            {
+                                ${mpi_comm_rma_gets}[${i}] = 1;
+                            };
+
+                            if ( ${cube::region::role}[${cube::callpath::calleeid}[${i}]] eq "atomic" )
+                            {
+                                ${mpi_comm_rma_atomics}[${i}] = 1;
+                            };
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^MPI_File_i{0,1}(read|write)(_at|_shared){0,1}$/ )
+                        {
+                            ${mpi_file_individual}[${i}] = 1;
+                            ${mpi_file_iops}[${i}]       = 1;
+
+                            if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /read/ )
+                            {
+                                ${mpi_file_irops}[${i}] = 1;
+                            }
+                            else
+                            {
+                                ${mpi_file_iwops}[${i}] = 1;
+                            };
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^MPI_File_((iread|iwrite)_(all|at_all)|(read|write)_(all|at_all|ordered)(_begin|_end){0,1})$/ )
+                        {
+                            ${mpi_file_collective}[${i}] = 1;
+                            ${mpi_file_cops}[${i}]       = 1;
+
+                            if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /read/ )
+                            {
+                                ${mpi_file_crops}[${i}] = 1;
+                            }
+                            else
+                            {
+                                ${mpi_file_cwops}[${i}] = 1;
+                            };
+                        };
+                    }
+
+                    //--- OpenMP-specific categorization ---
+                    elseif ( ${cube::region::paradigm}[${cube::callpath::calleeid}[${i}]] eq "openmp" )
+                    {
+                        ${includesOpenMP} = 1;
+
+                        if ( ${cube::region::role}[${cube::callpath::calleeid}[${i}]] eq "barrier" )
+                        {
+                            ${omp_sync_ebarrier}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::role}[${cube::callpath::calleeid}[${i}]] eq "implicit barrier" )
+                        {
+                            ${omp_sync_ibarrier}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::role}[${cube::callpath::calleeid}[${i}]] =~ /^(atomic|critical)$/ )
+                        {
+                            ${omp_sync_critical}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^omp_(destroy|init|set|test|unset)(_nest){0,1}_lock$/ )
+                        {
+                            ${omp_sync_lock_api}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::role}[${cube::callpath::calleeid}[${i}]] eq "ordered" )
+                        {
+                            ${omp_sync_ordered}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::role}[${cube::callpath::calleeid}[${i}]] eq "taskwait" )
+                        {
+                            ${omp_sync_taskwait}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::role}[${cube::callpath::calleeid}[${i}]] eq "flush" )
+                        {
+                            ${omp_flush}[${i}] = 1;
+                        };
+                    }
+
+                    //--- Pthread-specific categorization ---
+                    elseif ( ${cube::region::paradigm}[${cube::callpath::calleeid}[${i}]] eq "pthread" )
+                    {
+                        ${includesPthread} = 1;
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^pthread_(cancel|create|detach|exit|join)$/ )
+                        {
+                            ${pthread_mgmt}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^pthread_mutex_(destroy|init|lock|trylock|unlock)$/ )
+                        {
+                            ${pthread_sync_mutex}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^pthread_cond_(broadcast|destroy|init|signal|timedwait|wait)$/ )
+                        {
+                            ${pthread_sync_condition}[${i}] = 1;
+                        };
+                    }
+
+                    //--- OpenACC-specific categorization
+                    elseif ( ${cube::region::paradigm}[${cube::callpath::calleeid}[${i}]] eq "openacc" )
+                    {
+                        ${includesOpenACC} = 1;
+
+                        ${openacc}[${i}] = 1;
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^acc_(init|shutdown)(@.*)?$/ )
+                        {
+                            ${openacc_setup}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^acc_(upload|download)(@.*)?$/ )
+                        {
+                            ${openacc_comm}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^acc_wait(@.*)?$/ )
+                        {
+                            ${openacc_sync}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^acc_launch_kernel(@.*)?$/ )
+                        {
+                            ${openacc_kernel_launches}[${i}] = 1;
+                        };
+                    }
+
+                    //--- OpenCL-specific categorization
+                    elseif ( ${cube::region::paradigm}[${cube::callpath::calleeid}[${i}]] eq "opencl" )
+                    {
+                        ${includesOpenCL} = 1;
+
+                        if ( not ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] eq "BUFFER FLUSH" ) )
+                        {
+                            ${opencl}[${i}] = 1;
+                        }
+                        else
+                        {
+                            ${opencl}[${i}]    = 0;
+                            ${execution}[${i}] = 0;
+                            ${overhead}[${i}]  = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^cl(GetPlatformIDs|GetPlatformInfo|GetDeviceIDs|GetDeviceInfo|CreateSubDevices|RetainDevice|ReleaseDevice|CreateContext|CreateContextFromType|RetainContext|ReleaseContext|GetContextInfo|CreateProgramWithSource|CreateProgramWithBinary|RetainProgram|ReleaseProgram|GetProgramInfo|GetProgramBuildInfo|CreateKernelsInProgram|CreateProgramWithBuiltInKernels|BuildProgram|CompileProgram|LinkProgram|CreateKernel|RetainKernel|ReleaseKernel|GetEventInfo|RetainEvent|ReleaseEvent|GetEventProfilingInfo|CreateUserEvent|SetUserEventStatus|SetEventCallback|CreateCommandQueue|CreateCommandQueueWithProperties|RetainCommandQueue|ReleaseCommandQueue|GetCommandQueueInfo|SetCommandQueueProperty|GetKernelInfo|GetKernelWorkGroupInfo|GetKernelArgInfo|Flush|UnloadCompiler|UnloadPlatformCompiler|GetExtensionFunctionAddress|GetExtensionFunctionAddressForPlatform|SetMemObjectDestructorCallback|GetMemObjectInfo|GetPipeInfo|GetSupportedImageFormats|GetImageInfo|GetSamplerInfo|CreateProgramWithIL|GetKernelSubGroupInfo|GetHostTimer|GetDeviceAndHostTimer|CloneKernel|SetDefaultDeviceCommandQueue|SetProgramReleaseCallback|SetProgramSpecializationConstant)$/ )
+                        {
+                            ${opencl_setup}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^cl(CreateBuffer|CreateSubBuffer|EnqueueReadBuffer|EnqueueReadBufferRect|EnqueueWriteBuffer|EnqueueWriteBufferRect|EnqueueFillBuffer|EnqueueCopyBuffer|EnqueueCopyBufferRect|EnqueueMapBuffer|EnqueueUnmapMemObject|EnqueueMigrateMemObjects|CreatePipe|SVMAlloc|SVMFree|EnqueueSVMFree|EnqueueSVMMemcpy|EnqueueSVMMemFill|EnqueueSVMMap|EnqueueSVMUnmap|CreateImage|CreateImage2D|CreateImage3D|EnqueueReadImage|EnqueueWriteImage|EnqueueCopyImage|EnqueueCopyImageToBuffer|EnqueueCopyBufferToImage|EnqueueMapImage|EnqueueFillImage|CreateSamplerWithProperties|CreateSampler|ReleaseSampler|RetainSampler|RetainMemObject|ReleaseMemObject|EnqueueSVMMigrateMem)$/ )
+                        {
+                            ${opencl_comm}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^cl(Finish|WaitForEvents|EnqueueWaitForEvents|EnqueueBarrier|EnqueueMarker|EnqueueMarkerWithWaitList|EnqueueBarrierWithWaitList)$/ )
+                        {
+                            ${opencl_sync}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] eq "WAIT FOR COMMAND QUEUE" )
+                        {
+                            ${opencl_sync}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^cl(SetKernelArg|SetKernelArgSVMPointer|SetKernelExecInfo|EnqueueNDRangeKernel|EnqueueTask|EnqueueNativeKernel)$/ )
+                        {
+                            ${opencl_kernel_launches}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::mod}[${cube::callpath::calleeid}[${i}]] seq "OPENCL_KERNEL" )
+                        {
+                            ${includesOpenCLkernels} = 1;
+
+                            ${opencl_kernel_executions}[${i}] = 1;
+                        };
+                    }
+
+                    //--- CUDA-specific categorization
+                    elseif ( ${cube::region::paradigm}[${cube::callpath::calleeid}[${i}]] eq "cuda" )
+                    {
+                        ${includesCUDA} = 1;
+
+                        if ( not ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] eq "BUFFER FLUSH" ) )
+                        {
+                            ${cuda}[${i}] = 1;
+                        }
+                        else
+                        {
+                            ${cuda}[${i}]      = 0;
+                            ${execution}[${i}] = 0;
+                            ${overhead}[${i}]  = 1;
+                        };
+
+                        // CUDA Runtime API: general CUDA management, e.g. device, stream, event, execution, occupancy
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^cuda(ChooseDevice|DeviceGetAttribute|DeviceGetByPCIBusId|DeviceGetCacheConfig|DeviceGetLimit|DeviceGetPCIBusId|DeviceGetSharedMemConfig|DeviceGetStreamPriorityRange|DeviceReset|DeviceSetCacheConfig|DeviceSetLimit|DeviceSetSharedMemConfig|GetDevice|GetDeviceCount|GetDeviceFlags|GetDeviceProperties|SetDevice|SetDeviceFlags|SetValidDevices|ThreadExit|ThreadGetCacheConfig|ThreadGetLimit|ThreadSetCacheConfig|ThreadSetLimit|StreamCreate|StreamCreateWithFlags|StreamCreateWithPriority|StreamDestroy|EventCreate|EventCreateWithFlags|EventDestroy|FuncSetCacheConfig|CtxResetPersistingL2Cache|DeviceGetNvSciSyncAttributes|DeviceGetP2PAttribute|DeviceGetTexture1DLinearMaxWidth|EventElapsedTime|EventQuery|EventRecord|EventRecordWithFlags|FuncGetAttributes|FuncSetAttribute|FuncSetSharedMemConfig|GetParameterBuffer|IpcCloseMemHandle|IpcGetEventHandle|IpcGetMemHandle|IpcOpenEventHandle|IpcOpenMemHandle|OccupancyAvailableDynamicSMemPerBlock|OccupancyMaxActiveBlocksPerMultiprocessor|OccupancyMaxActiveBlocksPerMultiprocessorWithFlags|SetDoubleForDevice|SetDoubleForHost|StreamAddCallback|StreamAttachMemAsync|StreamBeginCapture|StreamCopyAttributes|StreamEndCapture|StreamGetAttribute|StreamGetCaptureInfo|StreamGetFlags|StreamGetPriority|StreamIsCapturing|StreamQuery|StreamSetAttribute|ThreadExchangeStreamCaptureMode)$/ )
+                        {
+                            ${cuda_setup}[${i}] = 1;
+                        };
+
+                        // CUDA Runtime API: memory management (memset functions considered in kernel launch section)
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^cuda(Free|FreeArray|FreeHost|FreeMipmappedArray|HostAlloc|Malloc|Malloc3D|Malloc3DArray|MallocArray|MallocHost|MallocManaged|MallocMipmappedArray|MallocPitch|Memcpy|Memcpy2D|Memcpy2DArrayToArray|Memcpy2DAsync|Memcpy2DFromArray|Memcpy2DFromArrayAsync|Memcpy2DToArray|Memcpy2DToArrayAsync|Memcpy3D|Memcpy3DAsync|MemcpyPeer|MemcpyPeerAsync|MemcpyArrayToArray|MemcpyAsync|MemcpyFromArray|MemcpyFromArrayAsync|MemcpyFromSymbol|MemcpyFromSymbolAsync|MemcpyToArray|MemcpyToArrayAsync|MemcpyToSymbol|MemcpyToSymbolAsync|ArrayGetInfo|ArrayGetSparseProperties|GetMipmappedArrayLevel|GetSymbolAddress|GetSymbolSize|HostGetDevicePointer|HostGetFlags|HostRegister|HostUnregister|MemAdvise|MemGetInfo|MemPrefetchAsync|MemRangeGetAttribute|MemRangeGetAttributes|Memcpy3DPeer|Memcpy3DPeerAsync|MipmappedArrayGetSparseProperties|PointerGetAttributes)$/ )
+                        {
+                            ${cuda_comm}[${i}] = 1;
+                        };
+
+                        // CUDA Runtime API: synchronization
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^cuda(StreamWaitEvent|StreamSynchronize|EventSynchronize|DeviceSynchronize|ThreadSynchronize)$/ )
+                        {
+                            ${cuda_sync}[${i}] = 1;
+                        };
+
+                        // CUDA Runtime API: kernel launches
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^cuda(LaunchKernel|Launch|GetParameterBufferV2|Memset|Memset2D|Memset2DAsync|Memset3D|Memset3DAsync|MemsetAsync|LaunchCooperativeKernel|LaunchCooperativeKernelMultiDevice|LaunchHostFunc)$/ )
+                        {
+                            ${cuda_kernel_launches}[${i}] = 1;
+                        };
+
+                        // CUDA Driver API: general CUDA management, e.g. initialization, version, device,
+                        // primary context, context, streams, events, occupancy
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^cu(Init|DeviceGet|DeviceGetAttribute|DeviceGetCount|DeviceGetName|DeviceTotalMem|DeviceComputeCapability|DeviceGetProperties|DevicePrimaryCtxGetState|DevicePrimaryCtxRelease|DevicePrimaryCtxReset|DevicePrimaryCtxRetain|DevicePrimaryCtxSetFlags|CtxCreate|CtxDestroy|CtxGetApiVersion|CtxGetCacheConfig|CtxGetCurrent|CtxGetDevice|CtxGetFlags|CtxGetLimit|CtxGetSharedMemConfig|CtxGetStreamPriorityRange|CtxPopCurrent|CtxPushCurrent|CtxSetCacheConfig|CtxSetCurrent|CtxSetLimit|CtxSetSharedMemConfig|CtxAttach|CtxDetach|LinkCreate|LinkDestroy|EventCreate|EventDestroy|StreamCreate|StreamCreateWithPriority|StreamDestroy|CtxResetPersistingL2Cache|DeviceGetLuid|DeviceGetNvSciSyncAttributes|DeviceGetTexture1DLinearMaxWidth|DeviceGetUuid|DriverGetVersion|EventElapsedTime|EventQuery|EventRecord|EventRecordWithFlagsFuncGetAttribute|FuncSetAttribute|FuncSetBlockShape|FuncSetCacheConfig|FuncSetSharedMemConfig|FuncSetSharedSize|LinkAddData|LinkAddFile|LinkComplete|ModuleGetFunction|ModuleGetGlobal|ModuleGetSurfRef|ModuleGetTexRef|ModuleLoad|ModuleLoadData|ModuleLoadDataEx|ModuleLoadFatBinary|ModuleUnload|OccupancyAvailableDynamicSMemPerBlock|OccupancyMaxActiveBlocksPerMultiprocessor|OccupancyMaxActiveBlocksPerMultiprocessorWithFlags|OccupancyMaxPotentialBlockSize|OccupancyMaxPotentialBlockSizeWithFlags|ParamSetSize|ParamSetTexRef|ParamSetf|ParamSeti|ParamSetv|StreamAddCallback|StreamAttachMemAsync|StreamBeginCapture|StreamCopyAttributes|StreamEndCapture|StreamGetAttribute|StreamGetCaptureInfo|StreamGetCtx|StreamGetFlags|StreamGetPriority|StreamIsCapturing|StreamQuery|StreamSetAttribute|ThreadExchangeStreamCaptureMode)(_v[0-9]+)?$/ )
+                        {
+                            ${cuda_setup}[${i}] = 1;
+                        };
+
+                        // CUDA Driver API: memory management, incl. virtual memory, unified addressing
+                        // (memset functions considered in kernel launch section)
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^cu(Array3DCreate|ArrayCreate|ArrayDestroy|MemAlloc|MemAllocHost|MemAllocManaged|MemAllocPitch|Memcpy|Memcpy2D|Memcpy2DAsync|Memcpy2DUnaligned|Memcpy3D|Memcpy3DAsync|Memcpy3DPeer|Memcpy3DPeerAsync|MemcpyAsync|MemcpyAtoA|MemcpyAtoD|MemcpyAtoH|MemcpyAtoHAsync|MemcpyDtoA|MemcpyDtoD|MemcpyDtoDAsync|MemcpyDtoH|MemcpyDtoHAsync|MemcpyHtoA|MemcpyHtoAAsync|MemcpyHtoD|MemcpyHtoDAsync|MemcpyPeer|MemcpyPeerAsync|MipmappedArrayCreate|MipmappedArrayDestroy|MemFree|MemFreeHost|MemHostAlloc|Array3DGetDescriptor|ArrayGetDescriptor|ArrayGetSparseProperties|DeviceGetByPCIBusId|DeviceGetPCIBusId|IpcCloseMemHandle|IpcGetEventHandle|IpcGetMemHandle|IpcOpenEventHandle|IpcOpenMemHandle|MemAddressFree|MemAddressReserve|MemAdvise|MemCreate|MemExportToShareableHandle|MemGetAccess|MemGetAddressRange|MemGetAllocationGranularity|MemGetAllocationPropertiesFromHandle|MemGetInfo|MemHostGetDevicePointer|MemHostGetFlags|MemHostRegister|MemHostUnregister|MemImportFromShareableHandle|MemMap|MemMapArrayAsync|MemPrefetchAsync|MemRangeGetAttribute|MemRangeGetAttributes|MemRelease|MemRetainAllocationHandle|MemSetAccess|MemUnmap|MipmappedArrayGetLevel|MipmappedArrayGetSparseProperties|PointerGetAttribute|PointerGetAttributes|PointerSetAttribute)(_v[0-9]+)?$/ )
+                        {
+                            ${cuda_comm}[${i}] = 1;
+                        };
+
+                        // CUDA Driver API: synchronization
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^cu(CtxSynchronize|StreamWaitEvent|StreamSynchronize|EventSynchronize)(_v[0-9]+)?$/ )
+                        {
+                            ${cuda_sync}[${i}] = 1;
+                        };
+
+                        // CUDA Driver API: kernel launches
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^cu(LaunchKernel|Launch|LaunchGrid|LaunchGridAsync|MemsetD16|MemsetD16Async|MemsetD2D16|MemsetD2D16Async|MemsetD2D32|MemsetD2D32Async|MemsetD2D8|MemsetD2D8Async|MemsetD32|MemsetD32Async|MemsetD8|MemsetD8Async|LaunchCooperativeKernel|LaunchCooperativeKernelMultiDevice|LaunchHostFunc)(_v[0-9]+)?$/ )
+                        {
+                            ${cuda_kernel_launches}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] eq "DEVICE SYNCHRONIZE" )
+                        {
+                            ${cuda_sync}[${i}] = 1;
+                        };
+
+                        if ( ${cube::region::mod}[${cube::callpath::calleeid}[${i}]] seq "CUDA_KERNEL" )
+                        {
+                            ${includesCUDAkernels} = 1;
+
+                            ${cuda_kernel_executions}[${i}] = 1;
+                        };
+                    }
+
+                    elseif ( ${cube::region::paradigm}[${cube::callpath::calleeid}[${i}]] eq "measurement" )
+                    {
+                        if ( ${cube::region::name}[${cube::callpath::calleeid}[${i}]] =~ /^(TRACE BUFFER FLUSH|TRACING)$/ )
+                        {
+                            ${execution}[${i}] = 0;
+                            ${overhead}[${i}]  = 1;
+                        };
+                    };
+
+                    ${i} = ${i} + 1;
+                };
+
+
+                //--- Disable unused metric subtrees ------------------------
+
+                if ( ${includesMPI} == 0 )
+                {
+                    cube::metric::set::mpi("value", "VOID");
+                    cube::metric::set::mpi_management("value", "VOID");
+                    cube::metric::set::mpi_init_exit("value", "VOID");
+                    cube::metric::set::mpi_init_completion("value", "VOID");
+                    cube::metric::set::mpi_finalize_wait("value", "VOID");
+                    cube::metric::set::mpi_mgmt_comm("value", "VOID");
+                    cube::metric::set::mpi_mgmt_file("value", "VOID");
+                    cube::metric::set::mpi_mgmt_win("value", "VOID");
+                    cube::metric::set::mpi_rma_wait_at_create("value", "VOID");
+                    cube::metric::set::mpi_rma_wait_at_free("value", "VOID");
+                    cube::metric::set::mpi_synchronization("value", "VOID");
+                    cube::metric::set::mpi_sync_collective("value", "VOID");
+                    cube::metric::set::mpi_barrier_wait("value", "VOID");
+                    cube::metric::set::mpi_barrier_completion("value", "VOID");
+                    cube::metric::set::mpi_rma_synchronization("value", "VOID");
+                    cube::metric::set::mpi_rma_sync_active("value", "VOID");
+                    cube::metric::set::mpi_rma_sync_late_post("value", "VOID");
+                    cube::metric::set::mpi_rma_early_wait("value", "VOID");
+                    cube::metric::set::mpi_rma_late_complete("value", "VOID");
+                    cube::metric::set::mpi_rma_wait_at_fence("value", "VOID");
+                    cube::metric::set::mpi_rma_early_fence("value", "VOID");
+                    cube::metric::set::mpi_rma_sync_passive("value", "VOID");
+                    cube::metric::set::mpi_rma_sync_lock_competition("value", "VOID");
+                    cube::metric::set::mpi_rma_sync_wait_for_progress("value", "VOID");
+                    cube::metric::set::mpi_communication("value", "VOID");
+                    cube::metric::set::mpi_point2point("value", "VOID");
+                    cube::metric::set::mpi_latesender("value", "VOID");
+                    cube::metric::set::mpi_latesender_wo("value", "VOID");
+                    cube::metric::set::mpi_lswo_different("value", "VOID");
+                    cube::metric::set::mpi_lswo_same("value", "VOID");
+                    cube::metric::set::mpi_latereceiver("value", "VOID");
+                    cube::metric::set::mpi_collective("value", "VOID");
+                    cube::metric::set::mpi_earlyreduce("value", "VOID");
+                    cube::metric::set::mpi_earlyscan("value", "VOID");
+                    cube::metric::set::mpi_latebroadcast("value", "VOID");
+                    cube::metric::set::mpi_wait_nxn("value", "VOID");
+                    cube::metric::set::mpi_nxn_completion("value", "VOID");
+                    cube::metric::set::mpi_rma_communication("value", "VOID");
+                    cube::metric::set::mpi_rma_comm_late_post("value", "VOID");
+                    cube::metric::set::mpi_rma_comm_lock_competition("value", "VOID");
+                    cube::metric::set::mpi_rma_comm_wait_for_progress("value", "VOID");
+                    cube::metric::set::mpi_io("value", "VOID");
+                    cube::metric::set::mpi_io_individual("value", "VOID");
+                    cube::metric::set::mpi_io_collective("value", "VOID");
+                    cube::metric::set::syncs("value", "VOID");
+                    cube::metric::set::syncs_p2p("value", "VOID");
+                    cube::metric::set::syncs_send("value", "VOID");
+                    cube::metric::set::mpi_slr_count("value", "VOID");
+                    cube::metric::set::syncs_recv("value", "VOID");
+                    cube::metric::set::mpi_sls_count("value", "VOID");
+                    cube::metric::set::mpi_slswo_count("value", "VOID");
+                    cube::metric::set::syncs_coll("value", "VOID");
+                    cube::metric::set::syncs_rma("value", "VOID");
+                    cube::metric::set::syncs_rma_active("value", "VOID");
+                    cube::metric::set::syncs_rma_passive("value", "VOID");
+                    cube::metric::set::mpi_rma_pairsync_count("value", "VOID");
+                    cube::metric::set::mpi_rma_pairsync_unneeded_count("value", "VOID");
+                    cube::metric::set::comms("value", "VOID");
+                    cube::metric::set::comms_p2p("value", "VOID");
+                    cube::metric::set::comms_send("value", "VOID");
+                    cube::metric::set::mpi_clr_count("value", "VOID");
+                    cube::metric::set::comms_recv("value", "VOID");
+                    cube::metric::set::mpi_cls_count("value", "VOID");
+                    cube::metric::set::mpi_clswo_count("value", "VOID");
+                    cube::metric::set::comms_coll("value", "VOID");
+                    cube::metric::set::comms_cxch("value", "VOID");
+                    cube::metric::set::comms_csrc("value", "VOID");
+                    cube::metric::set::comms_cdst("value", "VOID");
+                    cube::metric::set::comms_rma("value", "VOID");
+                    cube::metric::set::comms_rma_puts("value", "VOID");
+                    cube::metric::set::comms_rma_gets("value", "VOID");
+                    cube::metric::set::comms_rma_atomics("value", "VOID");
+                    cube::metric::set::mpi_file_ops("value", "VOID");
+                    cube::metric::set::mpi_file_iops("value", "VOID");
+                    cube::metric::set::mpi_file_irops("value", "VOID");
+                    cube::metric::set::mpi_file_iwops("value", "VOID");
+                    cube::metric::set::mpi_file_cops("value", "VOID");
+                    cube::metric::set::mpi_file_crops("value", "VOID");
+                    cube::metric::set::mpi_file_cwops("value", "VOID");
+                    cube::metric::set::bytes("value", "VOID");
+                    cube::metric::set::bytes_p2p("value", "VOID");
+                    cube::metric::set::bytes_sent("value", "VOID");
+                    cube::metric::set::bytes_rcvd("value", "VOID");
+                    cube::metric::set::bytes_coll("value", "VOID");
+                    cube::metric::set::bytes_cout("value", "VOID");
+                    cube::metric::set::bytes_cin("value", "VOID");
+                    cube::metric::set::bytes_rma("value", "VOID");
+                    cube::metric::set::bytes_put("value", "VOID");
+                    cube::metric::set::bytes_get("value", "VOID");
+                    cube::metric::set::delay_mpi("value", "VOID");
+                    cube::metric::set::delay_p2p("value", "VOID");
+                    cube::metric::set::delay_latesender_aggregate("value", "VOID");
+                    cube::metric::set::delay_latesender("value", "VOID");
+                    cube::metric::set::delay_latesender_longterm("value", "VOID");
+                    cube::metric::set::delay_latereceiver_aggregate("value", "VOID");
+                    cube::metric::set::delay_latereceiver("value", "VOID");
+                    cube::metric::set::delay_latereceiver_longterm("value", "VOID");
+                    cube::metric::set::delay_collective("value", "VOID");
+                    cube::metric::set::delay_barrier_aggregate("value", "VOID");
+                    cube::metric::set::delay_barrier("value", "VOID");
+                    cube::metric::set::delay_barrier_longterm("value", "VOID");
+                    cube::metric::set::delay_n2n_aggregate("value", "VOID");
+                    cube::metric::set::delay_n2n("value", "VOID");
+                    cube::metric::set::delay_n2n_longterm("value", "VOID");
+                    cube::metric::set::delay_12n_aggregate("value", "VOID");
+                    cube::metric::set::delay_12n("value", "VOID");
+                    cube::metric::set::delay_12n_longterm("value", "VOID");
+                    cube::metric::set::delay_n21_aggregate("value", "VOID");
+                    cube::metric::set::delay_n21("value", "VOID");
+                    cube::metric::set::delay_n21_longterm("value", "VOID");
+                    cube::metric::set::waitstates_propagating_vs_terminal("value", "VOID");
+                    cube::metric::set::mpi_wait_propagating("value", "VOID");
+                    cube::metric::set::mpi_wait_propagating_ls("value", "VOID");
+                    cube::metric::set::mpi_wait_propagating_lr("value", "VOID");
+                    cube::metric::set::mpi_wait_terminal("value", "VOID");
+                    cube::metric::set::mpi_wait_terminal_ls("value", "VOID");
+                    cube::metric::set::mpi_wait_terminal_lr("value", "VOID");
+                    cube::metric::set::waitstates_direct_vs_indirect("value", "VOID");
+                    cube::metric::set::mpi_wait_direct("value", "VOID");
+                    cube::metric::set::mpi_wait_direct_latesender("value", "VOID");
+                    cube::metric::set::mpi_wait_direct_latereceiver("value", "VOID");
+                    cube::metric::set::mpi_wait_indirect("value", "VOID");
+                    cube::metric::set::mpi_wait_indirect_latesender("value", "VOID");
+                    cube::metric::set::mpi_wait_indirect_latereceiver("value", "VOID");
+                };
+                if ( ${includesOpenMP} == 0 )
+                {
+                    cube::metric::set::omp_time("value", "VOID");
+                    cube::metric::set::omp_management("value", "VOID");
+                    cube::metric::set::omp_fork("value", "VOID");
+                    cube::metric::set::omp_synchronization("value", "VOID");
+                    cube::metric::set::omp_barrier("value", "VOID");
+                    cube::metric::set::omp_ebarrier("value", "VOID");
+                    cube::metric::set::omp_ebarrier_wait("value", "VOID");
+                    cube::metric::set::omp_ibarrier("value", "VOID");
+                    cube::metric::set::omp_ibarrier_wait("value", "VOID");
+                    cube::metric::set::omp_critical("value", "VOID");
+                    cube::metric::set::omp_lock_contention_critical("value", "VOID");
+                    cube::metric::set::omp_lock_api("value", "VOID");
+                    cube::metric::set::omp_lock_contention_api("value", "VOID");
+                    cube::metric::set::omp_ordered("value", "VOID");
+                    cube::metric::set::omp_taskwait("value", "VOID");
+                    cube::metric::set::omp_flush("value", "VOID");
+                    cube::metric::set::omp_idle_threads("value", "VOID");
+                    cube::metric::set::omp_limited_parallelism("value", "VOID");
+                    cube::metric::set::delay_omp("value", "VOID");
+                    cube::metric::set::delay_ompbarrier_aggregate("value", "VOID");
+                    cube::metric::set::delay_ompbarrier("value", "VOID");
+                    cube::metric::set::delay_ompbarrier_longterm("value", "VOID");
+                    cube::metric::set::delay_ompidle_aggregate("value", "VOID");
+                    cube::metric::set::delay_ompidle("value", "VOID");
+                    cube::metric::set::delay_ompidle_longterm("value", "VOID");
+                };
+                if ( ${includesPthread} == 0 )
+                {
+                    cube::metric::set::pthread_time("value", "VOID");
+                    cube::metric::set::pthread_management("value", "VOID");
+                    cube::metric::set::pthread_synchronization("value", "VOID");
+                    cube::metric::set::pthread_lock_api("value", "VOID");
+                    cube::metric::set::pthread_lock_contention_mutex_lock("value", "VOID");
+                    cube::metric::set::pthread_conditional("value", "VOID");
+                    cube::metric::set::pthread_lock_contention_conditional("value", "VOID");
+                };
+                if ( ${includesOpenACC} == 0 )
+                {
+                    cube::metric::set::openacc_time("value", "VOID");
+                    cube::metric::set::openacc_setup("value", "VOID");
+                    cube::metric::set::openacc_sync("value", "VOID");
+                    cube::metric::set::openacc_comm("value", "VOID");
+                    cube::metric::set::openacc_kernel_launches("value", "VOID");
+                };
+                if ( ${includesOpenCL} == 0 )
+                {
+                    cube::metric::set::opencl_time("value", "VOID");
+                    cube::metric::set::opencl_setup("value", "VOID");
+                    cube::metric::set::opencl_sync("value", "VOID");
+                    cube::metric::set::opencl_comm("value", "VOID");
+                    cube::metric::set::opencl_kernel_launches("value", "VOID");
+                };
+                if ( ${includesOpenCLkernels} == 0 )
+                {
+                    cube::metric::set::opencl_kernel_executions("value", "VOID");
+                };
+                if ( ${includesCUDA} == 0 )
+                {
+                    cube::metric::set::cuda_time("value", "VOID");
+                    cube::metric::set::cuda_setup("value", "VOID");
+                    cube::metric::set::cuda_sync("value", "VOID");
+                    cube::metric::set::cuda_comm("value", "VOID");
+                    cube::metric::set::cuda_kernel_launches("value", "VOID");
+                };
+                if ( ${includesCUDAkernels} == 0 )
+                {
+                    cube::metric::set::cuda_kernel_executions("value", "VOID");
+                };
+                if ( ( ${includesMPI} + ${includesOpenMP} ) == 0 )
+                {
+                    cube::metric::set::delay("value", "VOID");
+                    cube::metric::set::critical_path("value", "VOID");
+                    cube::metric::set::critical_path_imbalance("value", "VOID");
+                    cube::metric::set::performance_impact("value", "VOID");
+                    cube::metric::set::performance_impact_criticalpath("value", "VOID");
+                    cube::metric::set::critical_path_activities("value", "VOID");
+                    cube::metric::set::critical_imbalance_impact("value", "VOID");
+                    cube::metric::set::intra_partition_imbalance("value", "VOID");
+                    cube::metric::set::inter_partition_imbalance("value", "VOID");
+                    cube::metric::set::non_critical_path_activities("value", "VOID");
+                };
+
+                return 0;
+            }
+            </cubeplinit>
+            <metric type="POSTDERIVED">
+                <disp_name>Computation</disp_name>
+                <uniq_name>comp</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <url>@mirror@scalasca_patterns.html#comp</url>
+                <descr>Time spent on computation</descr>
+                <cubepl>
+                    metric::execution() - metric::mpi() - metric::omp_time() - metric::pthread_time() - metric::openacc_time() - metric::opencl_time() - metric::cuda_time()
+                </cubepl>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>OpenCL kernels</disp_name>
+                    <uniq_name>opencl_kernel_executions</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#opencl_kernel_executions</url>
+                    <descr>Time spent executing OpenCL kernels</descr>
+                    <cubepl>
+                        ${opencl_kernel_executions}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>CUDA kernels</disp_name>
+                    <uniq_name>cuda_kernel_executions</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#cuda_kernel_executions</url>
+                    <descr>Time spent executing CUDA kernels</descr>
+                    <cubepl>
+                        ${cuda_kernel_executions}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+            </metric>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>MPI</disp_name>
+                <uniq_name>mpi</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <url>@mirror@scalasca_patterns.html#mpi</url>
+                <descr>Time spent in MPI calls</descr>
+                <cubepl>
+                    ${mpi}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                </cubepl>
+                <metric type="POSTDERIVED">
+                    <disp_name>Management</disp_name>
+                    <uniq_name>mpi_management</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#mpi_management</url>
+                    <descr>Time spent in MPI management operations</descr>
+                    <cubepl>
+                        metric::mpi_init_exit() + metric::mpi_mgmt_comm() + metric::mpi_mgmt_file() + metric::mpi_mgmt_win()
+                    </cubepl>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Init/Finalize</disp_name>
+                        <uniq_name>mpi_init_exit</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_init_exit</url>
+                        <descr>Time spent in MPI initialization/finalization calls</descr>
+                        <cubepl>
+                            ${mpi_mgmt_startup}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Initialization Completion</disp_name>
+                            <uniq_name>mpi_init_completion</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_init_completion</url>
+                            <descr>Time needed to finish MPI initialization</descr>
+                        </metric>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Wait at Finalize</disp_name>
+                            <uniq_name>mpi_finalize_wait</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_finalize_wait</url>
+                            <descr>Waiting time in front of MPI_Finalize</descr>
+                        </metric>
+                    </metric>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Communicator</disp_name>
+                        <uniq_name>mpi_mgmt_comm</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_mgmt_comm</url>
+                        <descr>Time spent in MPI communicator management calls</descr>
+                        <cubepl>
+                            ${mpi_mgmt_comm}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                    </metric>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>File</disp_name>
+                        <uniq_name>mpi_mgmt_file</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_mgmt_file</url>
+                        <descr>Time spent in MPI file management calls</descr>
+                        <cubepl>
+                            ${mpi_mgmt_file}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                    </metric>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Window</disp_name>
+                        <uniq_name>mpi_mgmt_win</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_mgmt_win</url>
+                        <descr>Time spent in MPI window management calls</descr>
+                        <cubepl>
+                            ${mpi_mgmt_win}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Wait at Create</disp_name>
+                            <uniq_name>mpi_rma_wait_at_create</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_rma_wait_at_create</url>
+                            <descr>Time spent in MPI_Win_create, waiting for the last process to enter the call</descr>
+                        </metric>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Wait at Free</disp_name>
+                            <uniq_name>mpi_rma_wait_at_free</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_rma_wait_at_free</url>
+                            <descr>Time spent in MPI_Win_free, waiting for the last process to enter the call</descr>
+                        </metric>
+                    </metric>
+                </metric>
+                <metric type="POSTDERIVED">
+                    <disp_name>Synchronization</disp_name>
+                    <uniq_name>mpi_synchronization</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#mpi_synchronization</url>
+                    <descr>Time spent in MPI synchronization calls</descr>
+                    <cubepl>
+                        metric::mpi_sync_collective() + metric::mpi_rma_synchronization()
+                    </cubepl>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Collective</disp_name>
+                        <uniq_name>mpi_sync_collective</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_sync_collective</url>
+                        <descr>Time spent in MPI barriers</descr>
+                        <cubepl>
+                            ${mpi_sync_collective}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Wait at Barrier</disp_name>
+                            <uniq_name>mpi_barrier_wait</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_barrier_wait</url>
+                            <descr>Waiting time in front of MPI barriers</descr>
+                        </metric>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Barrier Completion</disp_name>
+                            <uniq_name>mpi_barrier_completion</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_barrier_completion</url>
+                            <descr>Time needed to finish MPI barriers</descr>
+                        </metric>
+                    </metric>
+                    <metric type="POSTDERIVED">
+                        <disp_name>One-sided</disp_name>
+                        <uniq_name>mpi_rma_synchronization</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_rma_synchronization</url>
+                        <descr>Time spent in MPI one-sided synchronization calls</descr>
+                        <cubepl>
+                            metric::mpi_rma_sync_active() + metric::mpi_rma_sync_passive()
+                        </cubepl>
+                        <metric type="PREDERIVED_EXCLUSIVE">
+                            <disp_name>Active Target</disp_name>
+                            <uniq_name>mpi_rma_sync_active</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_rma_sync_active</url>
+                            <descr>Time spent in MPI one-sided active target synchronization calls</descr>
+                            <cubepl>
+                                ${mpi_sync_rma_active}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                            </cubepl>
+                            <metric>
+                                <!-- This metric is copied from the trace analysis -->
+                                <disp_name>Late Post</disp_name>
+                                <uniq_name>mpi_rma_sync_late_post</uniq_name>
+                                <dtype>FLOAT</dtype>
+                                <uom>sec</uom>
+                                <url>@mirror@scalasca_patterns.html#mpi_rma_sync_late_post</url>
+                                <descr>Time spent in MPI one-sided active target synchronization waiting for exposure epoch to start</descr>
+                            </metric>
+                            <metric>
+                                <!-- This metric is copied from the trace analysis -->
+                                <disp_name>Early Wait</disp_name>
+                                <uniq_name>mpi_rma_early_wait</uniq_name>
+                                <dtype>FLOAT</dtype>
+                                <uom>sec</uom>
+                                <url>@mirror@scalasca_patterns.html#mpi_rma_early_wait</url>
+                                <descr>Time spent in MPI_Win_wait waiting for last exposure epoch to finish</descr>
+                                <metric>
+                                    <!-- This metric is copied from the trace analysis -->
+                                    <disp_name>Late Complete</disp_name>
+                                    <uniq_name>mpi_rma_late_complete</uniq_name>
+                                    <dtype>FLOAT</dtype>
+                                    <uom>sec</uom>
+                                    <url>@mirror@scalasca_patterns.html#mpi_rma_late_complete</url>
+                                    <descr>Time spent waiting in MPI_Win_wait between last RMA access and last MPI_Win_complete</descr>
+                                </metric>
+                            </metric>
+                            <metric>
+                                <!-- This metric is copied from the trace analysis -->
+                                <disp_name>Wait at Fence</disp_name>
+                                <uniq_name>mpi_rma_wait_at_fence</uniq_name>
+                                <dtype>FLOAT</dtype>
+                                <uom>sec</uom>
+                                <url>@mirror@scalasca_patterns.html#mpi_rma_wait_at_fence</url>
+                                <descr>Time spent in MPI_Win_fence, waiting for other processes</descr>
+                                <metric>
+                                    <!-- This metric is copied from the trace analysis -->
+                                    <disp_name>Early Fence</disp_name>
+                                    <uniq_name>mpi_rma_early_fence</uniq_name>
+                                    <dtype>FLOAT</dtype>
+                                    <uom>sec</uom>
+                                    <url>@mirror@scalasca_patterns.html#mpi_rma_early_fence</url>
+                                    <descr>Waiting time in MPI_Win_fence due to pending RMA operations</descr>
+                                </metric>
+                            </metric>
+                        </metric>
+                        <metric type="PREDERIVED_EXCLUSIVE">
+                            <disp_name>Passive Target</disp_name>
+                            <uniq_name>mpi_rma_sync_passive</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_rma_sync_passive</url>
+                            <descr>Time spent in MPI one-sided passive target synchronization calls</descr>
+                            <cubepl>
+                                ${mpi_sync_rma_passive}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                            </cubepl>
+                            <metric>
+                                <!-- This metric is copied from the trace analysis -->
+                                <disp_name>Lock Contention</disp_name>
+                                <uniq_name>mpi_rma_sync_lock_competition</uniq_name>
+                                <dtype>FLOAT</dtype>
+                                <uom>sec</uom>
+                                <url>@mirror@scalasca_patterns.html#mpi_rma_sync_lock_competition</url>
+                                <descr>Time spent waiting in MPI_Win_lock/MPI_Win_unlock acquiring a lock for a window</descr>
+                            </metric>
+                            <metric>
+                                <!-- This metric is copied from the trace analysis -->
+                                <disp_name>Wait for Progress</disp_name>
+                                <uniq_name>mpi_rma_sync_wait_for_progress</uniq_name>
+                                <dtype>FLOAT</dtype>
+                                <uom>sec</uom>
+                                <url>@mirror@scalasca_patterns.html#mpi_rma_sync_wait_for_progress</url>
+                                <descr>Time spent waiting in MPI_Win_lock/MPI_Win_unlock waiting for progress on the target</descr>
+                            </metric>
+                        </metric>
+                    </metric>
+                </metric>
+                <metric type="POSTDERIVED">
+                    <disp_name>Communication</disp_name>
+                    <uniq_name>mpi_communication</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#mpi_communication</url>
+                    <descr>Time spent in MPI communication calls</descr>
+                    <cubepl>
+                        metric::mpi_point2point() + metric::mpi_collective() + metric::mpi_rma_communication()
+                    </cubepl>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Point-to-point</disp_name>
+                        <uniq_name>mpi_point2point</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_point2point</url>
+                        <descr>Time spent in MPI point-to-point communication</descr>
+                        <cubepl>
+                            ${mpi_comm_p2p}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Late Sender</disp_name>
+                            <uniq_name>mpi_latesender</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_latesender</url>
+                            <descr>Time in MPI point-to-point receive operation waiting for a message</descr>
+                            <metric>
+                                <!-- This metric is copied from the trace analysis -->
+                                <disp_name>Messages in Wrong Order</disp_name>
+                                <uniq_name>mpi_latesender_wo</uniq_name>
+                                <dtype>FLOAT</dtype>
+                                <uom>sec</uom>
+                                <url>@mirror@scalasca_patterns.html#mpi_latesender_wo</url>
+                                <descr>Late Sender situation due to MPI messages received in the wrong order</descr>
+                                <metric>
+                                    <!-- This metric is copied from the trace analysis -->
+                                    <disp_name>From different sources</disp_name>
+                                    <uniq_name>mpi_lswo_different</uniq_name>
+                                    <dtype>FLOAT</dtype>
+                                    <uom>sec</uom>
+                                    <url>@mirror@scalasca_patterns.html#mpi_lswo_different</url>
+                                    <descr>Late Sender, Wrong Order situation due to MPI messages received from different sources</descr>
+                                </metric>
+                                <metric>
+                                    <!-- This metric is copied from the trace analysis -->
+                                    <disp_name>From same source</disp_name>
+                                    <uniq_name>mpi_lswo_same</uniq_name>
+                                    <dtype>FLOAT</dtype>
+                                    <uom>sec</uom>
+                                    <url>@mirror@scalasca_patterns.html#mpi_lswo_same</url>
+                                    <descr>Late Sender, Wrong Order situation due to MPI messages received from the same source</descr>
+                                </metric>
+                            </metric>
+                        </metric>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Late Receiver</disp_name>
+                            <uniq_name>mpi_latereceiver</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_latereceiver</url>
+                            <descr>Time in MPI point-to-point send operation waiting for the receiver to become ready</descr>
+                        </metric>
+                    </metric>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Collective</disp_name>
+                        <uniq_name>mpi_collective</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_collective</url>
+                        <descr>Time spent in MPI collective communication</descr>
+                        <cubepl>
+                            ${mpi_comm_collective}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Early Reduce</disp_name>
+                            <uniq_name>mpi_earlyreduce</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_earlyreduce</url>
+                            <descr>Waiting time due to an early receiver in MPI n-to-1 operations</descr>
+                        </metric>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Early Scan</disp_name>
+                            <uniq_name>mpi_earlyscan</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_earlyscan</url>
+                            <descr>Waiting time due to an early receiver in an MPI scan operation</descr>
+                        </metric>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Late Broadcast</disp_name>
+                            <uniq_name>mpi_latebroadcast</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_latebroadcast</url>
+                            <descr>Waiting time due to a late sender in MPI 1-to-n operations</descr>
+                        </metric>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Wait at N x N</disp_name>
+                            <uniq_name>mpi_wait_nxn</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_wait_nxn</url>
+                            <descr>Waiting time due to inherent synchronization in MPI n-to-n operations</descr>
+                        </metric>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>N x N Completion</disp_name>
+                            <uniq_name>mpi_nxn_completion</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_nxn_completion</url>
+                            <descr>Time needed to finish an MPI n-to-n collective operation</descr>
+                        </metric>
+                    </metric>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>One-sided</disp_name>
+                        <uniq_name>mpi_rma_communication</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_rma_communication</url>
+                        <descr>Time spent in MPI one-sided communication</descr>
+                        <cubepl>
+                            ${mpi_comm_rma}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Late Post</disp_name>
+                            <uniq_name>mpi_rma_comm_late_post</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_rma_comm_late_post</url>
+                            <descr>Time spent in MPI one-sided communication operations waiting for exposure epoch to start</descr>
+                        </metric>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Lock Contention</disp_name>
+                            <uniq_name>mpi_rma_comm_lock_competition</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_rma_comm_lock_competition</url>
+                            <descr>Time spent waiting in MPI_Win_lock/MPI_Win_unlock acquiring a lock for a window</descr>
+                        </metric>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Wait for Progress</disp_name>
+                            <uniq_name>mpi_rma_comm_wait_for_progress</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#mpi_rma_comm_wait_for_progress</url>
+                            <descr>Time spent waiting in MPI_Win_lock/MPI_Win_unlock waiting for progress on the target</descr>
+                        </metric>
+                    </metric>
+                </metric>
+                <metric type="POSTDERIVED">
+                    <disp_name>File I/O</disp_name>
+                    <uniq_name>mpi_io</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#mpi_io</url>
+                    <descr>Time spent in MPI file I/O calls</descr>
+                    <cubepl>
+                        metric::mpi_io_individual() + metric::mpi_io_collective()
+                    </cubepl>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Individual</disp_name>
+                        <uniq_name>mpi_io_individual</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_io_individual</url>
+                        <descr>Time spent in individual MPI file I/O calls</descr>
+                        <cubepl>
+                            ${mpi_file_individual}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                    </metric>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Collective</disp_name>
+                        <uniq_name>mpi_io_collective</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_io_collective</url>
+                        <descr>Time spent in collective MPI file I/O calls</descr>
+                        <cubepl>
+                            ${mpi_file_collective}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                    </metric>
+                </metric>
+            </metric>
+            <metric type="POSTDERIVED">
+                <disp_name>OpenMP</disp_name>
+                <uniq_name>omp_time</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <url>@mirror@scalasca_patterns.html#omp_time</url>
+                <descr>Time spent in the OpenMP run-time system and API</descr>
+                <cubepl>
+                    metric::omp_management() + metric::omp_synchronization() + metric::omp_flush()
+                </cubepl>
+                <metric>
+                    <!-- This metric is copied from the trace analysis -->
+                    <disp_name>Management</disp_name>
+                    <uniq_name>omp_management</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#omp_management</url>
+                    <descr>Time spent in OpenMP thread management</descr>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Fork</disp_name>
+                        <uniq_name>omp_fork</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#omp_fork</url>
+                        <descr>Time spent in forking OpenMP thread teams</descr>
+                    </metric>
+                </metric>
+                <metric type="POSTDERIVED">
+                    <disp_name>Synchronization</disp_name>
+                    <uniq_name>omp_synchronization</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#omp_synchronization</url>
+                    <descr>Time spent on OpenMP synchronization</descr>
+                    <cubepl>
+                        metric::omp_barrier() + metric::omp_critical() + metric::omp_lock_api() + metric::omp_ordered() + metric::omp_taskwait()
+                    </cubepl>
+                    <metric type="POSTDERIVED">
+                        <disp_name>Barrier</disp_name>
+                        <uniq_name>omp_barrier</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#omp_barrier</url>
+                        <descr>Time spent in OpenMP barrier synchronization</descr>
+                        <cubepl>
+                            metric::omp_ebarrier() + metric::omp_ibarrier()
+                        </cubepl>
+                        <metric type="PREDERIVED_EXCLUSIVE">
+                            <disp_name>Explicit</disp_name>
+                            <uniq_name>omp_ebarrier</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#omp_ebarrier</url>
+                            <descr>Time spent in explicit OpenMP barrier synchronization</descr>
+                            <cubepl>
+                                ${omp_sync_ebarrier}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                            </cubepl>
+                            <metric>
+                                <!-- This metric is copied from the trace analysis -->
+                                <disp_name>Wait at Barrier</disp_name>
+                                <uniq_name>omp_ebarrier_wait</uniq_name>
+                                <dtype>FLOAT</dtype>
+                                <uom>sec</uom>
+                                <url>@mirror@scalasca_patterns.html#omp_ebarrier_wait</url>
+                                <descr>Waiting time in front of explicit OpenMP barriers</descr>
+                            </metric>
+                        </metric>
+                        <metric type="PREDERIVED_EXCLUSIVE">
+                            <disp_name>Implicit</disp_name>
+                            <uniq_name>omp_ibarrier</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#omp_ibarrier</url>
+                            <descr>Time spent in implicit OpenMP barrier synchronization</descr>
+                            <cubepl>
+                                ${omp_sync_ibarrier}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                            </cubepl>
+                            <metric>
+                                <!-- This metric is copied from the trace analysis -->
+                                <disp_name>Wait at Barrier</disp_name>
+                                <uniq_name>omp_ibarrier_wait</uniq_name>
+                                <dtype>FLOAT</dtype>
+                                <uom>sec</uom>
+                                <url>@mirror@scalasca_patterns.html#omp_ibarrier_wait</url>
+                                <descr>Waiting time in front of implicit OpenMP barriers</descr>
+                            </metric>
+                        </metric>
+                    </metric>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Critical</disp_name>
+                        <uniq_name>omp_critical</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#omp_critical</url>
+                        <descr>Time spent waiting at OpenMP critical sections</descr>
+                        <cubepl>
+                            ${omp_sync_critical}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Lock Contention</disp_name>
+                            <uniq_name>omp_lock_contention_critical</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#omp_lock_contention_critical</url>
+                            <descr>Time lost waiting for an OpenMP critical section to become available</descr>
+                        </metric>
+                    </metric>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Lock API</disp_name>
+                        <uniq_name>omp_lock_api</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#omp_lock_api</url>
+                        <descr>Time spent in OpenMP lock API calls</descr>
+                        <cubepl>
+                            ${omp_sync_lock_api}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Lock Contention</disp_name>
+                            <uniq_name>omp_lock_contention_api</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#omp_lock_contention_api</url>
+                            <descr>Time lost waiting for an OpenMP lock to be acquired</descr>
+                        </metric>
+                    </metric>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Ordered</disp_name>
+                        <uniq_name>omp_ordered</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#omp_ordered</url>
+                        <descr>Time spent waiting at OpenMP ordered regions</descr>
+                        <cubepl>
+                            ${omp_sync_ordered}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                    </metric>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Task Wait</disp_name>
+                        <uniq_name>omp_taskwait</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#omp_taskwait</url>
+                        <descr>Time spent waiting in OpenMP taskwait directives</descr>
+                        <cubepl>
+                            ${omp_sync_taskwait}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                    </metric>
+                </metric>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>Flush</disp_name>
+                    <uniq_name>omp_flush</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#omp_flush</url>
+                    <descr>Time spent in OpenMP flush directives</descr>
+                    <cubepl>
+                        ${omp_flush}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+            </metric>
+            <metric type="POSTDERIVED">
+                <disp_name>POSIX threads</disp_name>
+                <uniq_name>pthread_time</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <url>@mirror@scalasca_patterns.html#pthread_time</url>
+                <descr>Time spent in the POSIX threads API</descr>
+                <cubepl>
+                    metric::pthread_management() + metric::pthread_synchronization()
+                </cubepl>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>Management</disp_name>
+                    <uniq_name>pthread_management</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#pthread_management</url>
+                    <descr>Time spent in POSIX threads management</descr>
+                    <cubepl>
+                        ${pthread_mgmt}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+                <metric type="POSTDERIVED">
+                    <disp_name>Synchronization</disp_name>
+                    <uniq_name>pthread_synchronization</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#pthread_synchronization</url>
+                    <descr>Time spent on Pthread synchronization</descr>
+                    <cubepl>
+                        metric::pthread_lock_api() + metric::pthread_conditional()
+                    </cubepl>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Mutex</disp_name>
+                        <uniq_name>pthread_lock_api</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#pthread_lock_api</url>
+                        <descr>Time spent in POSIX threads mutex API calls</descr>
+                        <cubepl>
+                            ${pthread_sync_mutex}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Lock Contention</disp_name>
+                            <uniq_name>pthread_lock_contention_mutex_lock</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#pthread_lock_contention_mutex_lock</url>
+                            <descr>Time lost waiting for a POSIX threads mutex to be acquired</descr>
+                        </metric>
+                    </metric>
+                    <metric type="PREDERIVED_EXCLUSIVE">
+                        <disp_name>Condition</disp_name>
+                        <uniq_name>pthread_conditional</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <url>@mirror@scalasca_patterns.html#pthread_conditional</url>
+                        <descr>Time spent in POSIX threads condition API calls</descr>
+                        <cubepl>
+                            ${pthread_sync_condition}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                        </cubepl>
+                        <metric>
+                            <!-- This metric is copied from the trace analysis -->
+                            <disp_name>Lock Contention</disp_name>
+                            <uniq_name>pthread_lock_contention_conditional</uniq_name>
+                            <dtype>FLOAT</dtype>
+                            <uom>sec</uom>
+                            <url>@mirror@scalasca_patterns.html#pthread_lock_contention_conditional</url>
+                            <descr>Time lost waiting for a POSIX threads mutex to be acquired in a condition operation</descr>
+                        </metric>
+                    </metric>
+                </metric>
+            </metric>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>OpenACC</disp_name>
+                <uniq_name>openacc_time</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <url>@mirror@scalasca_patterns.html#openacc_time</url>
+                <descr>Time spent in the OpenACC run-time system and API</descr>
+                <cubepl>
+                    ${openacc}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                </cubepl>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>Initialization and Finalization</disp_name>
+                    <uniq_name>openacc_setup</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#openacc_setup</url>
+                    <descr>Time needed to initialize and finalize OpenACC</descr>
+                    <cubepl>
+                        ${openacc_setup}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>Memory management</disp_name>
+                    <uniq_name>openacc_comm</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#openacc_comm</url>
+                    <descr>Time spent on memory management including data transfer from host to device and vice versa</descr>
+                    <cubepl>
+                        ${openacc_comm}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>Synchronization</disp_name>
+                    <uniq_name>openacc_sync</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#openacc_sync</url>
+                    <descr>Time spent on OpenACC synchronization</descr>
+                    <cubepl>
+                        ${openacc_sync}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>Kernel launches</disp_name>
+                    <uniq_name>openacc_kernel_launches</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#openacc_kernel_launches</url>
+                    <descr>Time needed to launch OpenACC kernels</descr>
+                    <cubepl>
+                        ${openacc_kernel_launches}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+            </metric>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>OpenCL</disp_name>
+                <uniq_name>opencl_time</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <url>@mirror@scalasca_patterns.html#opencl_time</url>
+                <descr>Time spent in the OpenCL run-time system, API and on device</descr>
+                <cubepl>
+                    ${opencl}[${calculation::callpath::id}] * ( metric::time(e) - metric::opencl_kernel_executions(e) - metric::omp_idle_threads(e) )
+                </cubepl>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>General management</disp_name>
+                    <uniq_name>opencl_setup</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#opencl_setup</url>
+                    <descr>Time needed for general OpenCL setup, e.g. initialization, device and event control, etc.</descr>
+                    <cubepl>
+                        ${opencl_setup}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>Memory management</disp_name>
+                    <uniq_name>opencl_comm</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#opencl_comm</url>
+                    <descr>Time spent on memory management including data transfer from host to device and vice versa</descr>
+                    <cubepl>
+                        ${opencl_comm}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>Synchronization</disp_name>
+                    <uniq_name>opencl_sync</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#opencl_sync</url>
+                    <descr>Time spent on OpenCL synchronization</descr>
+                    <cubepl>
+                        ${opencl_sync}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>Kernel launches</disp_name>
+                    <uniq_name>opencl_kernel_launches</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#opencl_kernel_launches</url>
+                    <descr>Time needed to launch OpenCL kernels</descr>
+                    <cubepl>
+                        ${opencl_kernel_launches}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+            </metric>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>CUDA</disp_name>
+                <uniq_name>cuda_time</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <url>@mirror@scalasca_patterns.html#cuda_time</url>
+                <descr>Time spent in the CUDA run-time system, API and on device</descr>
+                <cubepl>
+                    ${cuda}[${calculation::callpath::id}] * ( metric::time(e) - metric::cuda_kernel_executions(e) - metric::omp_idle_threads(e) )
+                </cubepl>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>General management</disp_name>
+                    <uniq_name>cuda_setup</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#cuda_setup</url>
+                    <descr>Time needed for general CUDA setup, e.g. initialization, control of version, device, primary context, context, streams, events, occupancy, etc.</descr>
+                    <cubepl>
+                        ${cuda_setup}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>Memory management</disp_name>
+                    <uniq_name>cuda_comm</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#cuda_comm</url>
+                    <descr>Time spent on memory management including data transfer from host to device and vice versa. (Note: 'memset' operations are considered in 'Kernel launches').</descr>
+                    <cubepl>
+                        ${cuda_comm}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>Synchronization</disp_name>
+                    <uniq_name>cuda_sync</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#cuda_sync</url>
+                    <descr>Time spent on CUDA synchronization</descr>
+                    <cubepl>
+                        ${cuda_sync}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+                <metric type="PREDERIVED_EXCLUSIVE">
+                    <disp_name>Kernel launches</disp_name>
+                    <uniq_name>cuda_kernel_launches</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#cuda_kernel_launches</url>
+                    <descr>Time spent to launch CUDA kernels, including 'memset' operations.</descr>
+                    <cubepl>
+                        ${cuda_kernel_launches}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+                    </cubepl>
+                </metric>
+            </metric>
+        </metric>
+        <metric type="PREDERIVED_EXCLUSIVE">
+            <disp_name>Overhead</disp_name>
+            <uniq_name>overhead</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <url>@mirror@scalasca_patterns.html#overhead</url>
+            <descr>Time spent performing tasks related to trace generation</descr>
+            <cubepl>
+                ${overhead}[${calculation::callpath::id}] * ( metric::time(e) - metric::omp_idle_threads(e) )
+            </cubepl>
+        </metric>
+        <metric>
+            <!-- This metric is still hard-coded in the Cube remapper -->
+            <disp_name>Idle threads</disp_name>
+            <uniq_name>omp_idle_threads</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <url>@mirror@scalasca_patterns.html#omp_idle_threads</url>
+            <descr>Unused CPU reservation time</descr>
+            <metric>
+                <!-- This metric is still hard-coded in the Cube remapper -->
+                <disp_name>Limited parallelism</disp_name>
+                <uniq_name>omp_limited_parallelism</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <url>@mirror@scalasca_patterns.html#omp_limited_parallelism</url>
+                <descr>Unused CPU reservation time in parallel regions due to limited parallelism</descr>
+            </metric>
+        </metric>
+    </metric>
+    <metric>
+        <!-- This metric is copied from the trace analysis -->
+        <disp_name>Visits</disp_name>
+        <uniq_name>visits</uniq_name>
+        <dtype>INTEGER</dtype>
+        <uom>occ</uom>
+        <url>@mirror@scalasca_patterns.html#visits</url>
+        <descr>Number of visits</descr>
+    </metric>
+    <metric type="POSTDERIVED">
+        <disp_name>MPI synchronizations</disp_name>
+        <uniq_name>syncs</uniq_name>
+        <dtype>INTEGER</dtype>
+        <uom>occ</uom>
+        <url>@mirror@scalasca_patterns.html#syncs</url>
+        <descr>Number of MPI synchronization operations</descr>
+        <cubepl>
+            metric::syncs_p2p() + metric::syncs_coll()  + metric::syncs_rma()
+        </cubepl>
+        <metric type="POSTDERIVED">
+            <disp_name>Point-to-point</disp_name>
+            <uniq_name>syncs_p2p</uniq_name>
+            <dtype>INTEGER</dtype>
+            <uom>occ</uom>
+            <url>@mirror@scalasca_patterns.html#syncs_p2p</url>
+            <descr>Number of MPI point-to-point synchronization operations</descr>
+            <cubepl>
+                metric::syncs_send() + metric::syncs_recv()
+            </cubepl>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Sends</disp_name>
+                <uniq_name>syncs_send</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#syncs_send</url>
+                <descr>Number of MPI point-to-point send synchronization operations</descr>
+                <metric>
+                    <!-- This metric is copied from the trace analysis -->
+                    <disp_name>Late Receivers</disp_name>
+                    <uniq_name>mpi_slr_count</uniq_name>
+                    <dtype>INTEGER</dtype>
+                    <uom>occ</uom>
+                    <url>@mirror@scalasca_patterns.html#mpi_slr_count</url>
+                    <descr>Number of Late Receiver instances in MPI synchronizations</descr>
+                </metric>
+            </metric>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Receives</disp_name>
+                <uniq_name>syncs_recv</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#syncs_recv</url>
+                <descr>Number of MPI point-to-point receive synchronization operations</descr>
+                <metric>
+                    <!-- This metric is copied from the trace analysis -->
+                    <disp_name>Late Senders</disp_name>
+                    <uniq_name>mpi_sls_count</uniq_name>
+                    <dtype>INTEGER</dtype>
+                    <uom>occ</uom>
+                    <url>@mirror@scalasca_patterns.html#mpi_sls_count</url>
+                    <descr>Number of Late Sender instances in MPI synchronizations</descr>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Messages in Wrong Order</disp_name>
+                        <uniq_name>mpi_slswo_count</uniq_name>
+                        <dtype>INTEGER</dtype>
+                        <uom>occ</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_slswo_count</url>
+                        <descr>Number of Late Sender instances in MPI synchronizations where messages are received in wrong order</descr>
+                    </metric>
+                </metric>
+            </metric>
+        </metric>
+        <metric>
+            <!-- This metric is copied from the trace analysis -->
+            <disp_name>Collective</disp_name>
+            <uniq_name>syncs_coll</uniq_name>
+            <dtype>INTEGER</dtype>
+            <uom>occ</uom>
+            <url>@mirror@scalasca_patterns.html#syncs_coll</url>
+            <descr>Number of MPI collective synchronization operations</descr>
+        </metric>
+        <metric type="POSTDERIVED">
+            <disp_name>One-sided</disp_name>
+            <uniq_name>syncs_rma</uniq_name>
+            <dtype>INTEGER</dtype>
+            <uom>occ</uom>
+            <url>@mirror@scalasca_patterns.html#syncs_rma</url>
+            <descr>Number of MPI one-sided synchronization operations</descr>
+            <cubepl>
+                metric::syncs_rma_active() + metric::syncs_rma_passive()
+            </cubepl>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>Active target</disp_name>
+                <uniq_name>syncs_rma_active</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#syncs_rma_active</url>
+                <descr>Number of MPI one-sided active target synchronization operations</descr>
+                <cubepl>
+                    ${mpi_sync_rma_active}[${calculation::callpath::id}] * metric::visits(e)
+                </cubepl>
+            </metric>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>Passive target</disp_name>
+                <uniq_name>syncs_rma_passive</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#syncs_rma_passive</url>
+                <descr>Number of MPI one-sided passive target synchronization operations</descr>
+                <cubepl>
+                    ${mpi_sync_rma_passive}[${calculation::callpath::id}] * metric::visits(e)
+                </cubepl>
+            </metric>
+        </metric>
+    </metric>
+    <metric>
+        <!-- This metric is copied from the trace analysis -->
+        <disp_name>MPI pair-wise one-sided synchronizations</disp_name>
+        <uniq_name>mpi_rma_pairsync_count</uniq_name>
+        <dtype>INTEGER</dtype>
+        <uom>occ</uom>
+        <url>@mirror@scalasca_patterns.html#mpi_rma_pairsync_count</url>
+        <descr>Number of pair-wise MPI one-sided synchronizations</descr>
+        <metric>
+            <!-- This metric is copied from the trace analysis -->
+            <disp_name>Unneeded synchronizations</disp_name>
+            <uniq_name>mpi_rma_pairsync_unneeded_count</uniq_name>
+            <dtype>INTEGER</dtype>
+            <uom>occ</uom>
+            <url>@mirror@scalasca_patterns.html#mpi_rma_pairsync_unneeded_count</url>
+            <descr>Number of unneeded pair-wise MPI one-sided synchronizations</descr>
+        </metric>
+    </metric>
+    <metric type="POSTDERIVED">
+        <disp_name>MPI communications</disp_name>
+        <uniq_name>comms</uniq_name>
+        <dtype>INTEGER</dtype>
+        <uom>occ</uom>
+        <url>@mirror@scalasca_patterns.html#comms</url>
+        <descr>Number of MPI communication operations</descr>
+        <cubepl>
+            metric::comms_p2p() + metric::comms_coll() + metric::comms_rma()
+        </cubepl>
+        <metric type="POSTDERIVED">
+            <disp_name>Point-to-point</disp_name>
+            <uniq_name>comms_p2p</uniq_name>
+            <dtype>INTEGER</dtype>
+            <uom>occ</uom>
+            <url>@mirror@scalasca_patterns.html#comms_p2p</url>
+            <descr>Number of MPI point-to-point communication operations</descr>
+            <cubepl>
+                metric::comms_send() + metric::comms_recv()
+            </cubepl>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Sends</disp_name>
+                <uniq_name>comms_send</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#comms_send</url>
+                <descr>Number of MPI point-to-point send communication operations</descr>
+                <metric>
+                    <!-- This metric is copied from the trace analysis -->
+                    <disp_name>Late Receivers</disp_name>
+                    <uniq_name>mpi_clr_count</uniq_name>
+                    <dtype>INTEGER</dtype>
+                    <uom>occ</uom>
+                    <url>@mirror@scalasca_patterns.html#mpi_clr_count</url>
+                    <descr>Number of Late Receiver instances in MPI communications</descr>
+                </metric>
+            </metric>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Receives</disp_name>
+                <uniq_name>comms_recv</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#comms_recv</url>
+                <descr>Number of MPI point-to-point receive communication operations</descr>
+                <metric>
+                    <!-- This metric is copied from the trace analysis -->
+                    <disp_name>Late Senders</disp_name>
+                    <uniq_name>mpi_cls_count</uniq_name>
+                    <dtype>INTEGER</dtype>
+                    <uom>occ</uom>
+                    <url>@mirror@scalasca_patterns.html#mpi_cls_count</url>
+                    <descr>Number of Late Sender instances MPI in communications</descr>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Messages in Wrong Order</disp_name>
+                        <uniq_name>mpi_clswo_count</uniq_name>
+                        <dtype>INTEGER</dtype>
+                        <uom>occ</uom>
+                        <url>@mirror@scalasca_patterns.html#mpi_clswo_count</url>
+                        <descr>Number of Late Sender instances in MPI communications where messages are received in wrong order</descr>
+                    </metric>
+                </metric>
+            </metric>
+        </metric>
+        <metric type="POSTDERIVED">
+            <disp_name>Collective</disp_name>
+            <uniq_name>comms_coll</uniq_name>
+            <dtype>INTEGER</dtype>
+            <uom>occ</uom>
+            <url>@mirror@scalasca_patterns.html#comms_coll</url>
+            <descr>Number of MPI collective communication operations</descr>
+            <cubepl>
+                metric::comms_cxch() + metric::comms_csrc() + metric::comms_cdst()
+            </cubepl>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Exchange</disp_name>
+                <uniq_name>comms_cxch</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#comms_cxch</url>
+                <descr>Number of MPI collective communications as source and destination</descr>
+            </metric>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>As source</disp_name>
+                <uniq_name>comms_csrc</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#comms_csrc</url>
+                <descr>Number of MPI collective communications as source</descr>
+            </metric>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>As destination</disp_name>
+                <uniq_name>comms_cdst</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#comms_cdst</url>
+                <descr>Number of MPI collective communications as destination</descr>
+            </metric>
+        </metric>
+        <metric type="POSTDERIVED">
+            <disp_name>One-sided</disp_name>
+            <uniq_name>comms_rma</uniq_name>
+            <dtype>INTEGER</dtype>
+            <uom>occ</uom>
+            <url>@mirror@scalasca_patterns.html#comms_rma</url>
+            <descr>Number of MPI one-sided communication operations</descr>
+            <cubepl>
+                metric::comms_rma_puts() + metric::comms_rma_gets() + metric::comms_rma_atomics()
+            </cubepl>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>Puts</disp_name>
+                <uniq_name>comms_rma_puts</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#comms_rma_puts</url>
+                <descr>Number of MPI one-sided put communication operations</descr>
+                <cubepl>
+                    ${mpi_comm_rma_puts}[${calculation::callpath::id}] * metric::visits(e)
+                </cubepl>
+            </metric>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>Gets</disp_name>
+                <uniq_name>comms_rma_gets</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#comms_rma_gets</url>
+                <descr>Number of MPI one-sided get communication operations</descr>
+                <cubepl>
+                    ${mpi_comm_rma_gets}[${calculation::callpath::id}] * metric::visits(e)
+                </cubepl>
+            </metric>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>Atomics</disp_name>
+                <uniq_name>comms_rma_atomics</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#comms_rma_atomics</url>
+                <descr>Number of MPI one-sided atomic communication operations</descr>
+                <cubepl>
+                    ${mpi_comm_rma_atomics}[${calculation::callpath::id}] * metric::visits(e)
+                </cubepl>
+            </metric>
+        </metric>
+    </metric>
+    <metric type="POSTDERIVED">
+        <disp_name>MPI file operations</disp_name>
+        <uniq_name>mpi_file_ops</uniq_name>
+        <dtype>INTEGER</dtype>
+        <uom>occ</uom>
+        <url>@mirror@scalasca_patterns.html#mpi_file_ops</url>
+        <descr>Number of MPI file operations</descr>
+        <cubepl>
+            metric::mpi_file_iops() + metric::mpi_file_cops()
+        </cubepl>
+        <metric type="PREDERIVED_EXCLUSIVE">
+            <disp_name>Individual</disp_name>
+            <uniq_name>mpi_file_iops</uniq_name>
+            <dtype>INTEGER</dtype>
+            <uom>occ</uom>
+            <url>@mirror@scalasca_patterns.html#mpi_file_iops</url>
+            <descr>Number of individual MPI file operations</descr>
+            <cubepl>
+                ${mpi_file_iops}[${calculation::callpath::id}] * metric::visits(e)
+            </cubepl>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>Reads</disp_name>
+                <uniq_name>mpi_file_irops</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#mpi_file_irops</url>
+                <descr>Number of individual MPI file read operations</descr>
+                <cubepl>
+                    ${mpi_file_irops}[${calculation::callpath::id}] * metric::visits(e)
+                </cubepl>
+            </metric>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>Writes</disp_name>
+                <uniq_name>mpi_file_iwops</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#mpi_file_iwops</url>
+                <descr>Number of individual MPI file write operations</descr>
+                <cubepl>
+                    ${mpi_file_iwops}[${calculation::callpath::id}] * metric::visits(e)
+                </cubepl>
+            </metric>
+        </metric>
+        <metric type="PREDERIVED_EXCLUSIVE">
+            <disp_name>Collective</disp_name>
+            <uniq_name>mpi_file_cops</uniq_name>
+            <dtype>INTEGER</dtype>
+            <uom>occ</uom>
+            <url>@mirror@scalasca_patterns.html#mpi_file_cops</url>
+            <descr>Number of collective MPI file operations</descr>
+            <cubepl>
+                ${mpi_file_cops}[${calculation::callpath::id}] * metric::visits(e)
+            </cubepl>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>Reads</disp_name>
+                <uniq_name>mpi_file_crops</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#mpi_file_crops</url>
+                <descr>Number of collective MPI file read operations</descr>
+                <cubepl>
+                    ${mpi_file_crops}[${calculation::callpath::id}] * metric::visits(e)
+                </cubepl>
+            </metric>
+            <metric type="PREDERIVED_EXCLUSIVE">
+                <disp_name>Writes</disp_name>
+                <uniq_name>mpi_file_cwops</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>occ</uom>
+                <url>@mirror@scalasca_patterns.html#mpi_file_cwops</url>
+                <descr>Number of collective MPI file write operations</descr>
+                <cubepl>
+                    ${mpi_file_cwops}[${calculation::callpath::id}] * metric::visits(e)
+                </cubepl>
+            </metric>
+        </metric>
+    </metric>
+    <metric type="POSTDERIVED">
+        <disp_name>MPI bytes transferred</disp_name>
+        <uniq_name>bytes</uniq_name>
+        <dtype>INTEGER</dtype>
+        <uom>bytes</uom>
+        <url>@mirror@scalasca_patterns.html#bytes</url>
+        <descr>Number of bytes transferred in MPI communication/synchronization operations</descr>
+        <cubepl>
+            metric::bytes_p2p() + metric::bytes_coll() + metric::bytes_rma()
+        </cubepl>
+        <metric type="POSTDERIVED">
+            <disp_name>Point-to-point</disp_name>
+            <uniq_name>bytes_p2p</uniq_name>
+            <dtype>INTEGER</dtype>
+            <uom>bytes</uom>
+            <url>@mirror@scalasca_patterns.html#bytes_p2p</url>
+            <descr>Number of bytes transferred in MPI point-to-point communication operations</descr>
+            <cubepl>
+                metric::bytes_sent() + metric::bytes_rcvd()
+            </cubepl>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Sent</disp_name>
+                <uniq_name>bytes_sent</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>bytes</uom>
+                <url>@mirror@scalasca_patterns.html#bytes_sent</url>
+                <descr>Number of bytes sent in MPI point-to-point communication operations</descr>
+            </metric>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Received</disp_name>
+                <uniq_name>bytes_rcvd</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>bytes</uom>
+                <url>@mirror@scalasca_patterns.html#bytes_rcvd</url>
+                <descr>Number of bytes received in MPI point-to-point communication operations</descr>
+            </metric>
+        </metric>
+        <metric type="POSTDERIVED">
+            <disp_name>Collective</disp_name>
+            <uniq_name>bytes_coll</uniq_name>
+            <dtype>INTEGER</dtype>
+            <uom>bytes</uom>
+            <url>@mirror@scalasca_patterns.html#bytes_coll</url>
+            <descr>Number of bytes transferred in MPI collective communication operations</descr>
+            <cubepl>
+                metric::bytes_cout() + metric::bytes_cin()
+            </cubepl>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Outgoing</disp_name>
+                <uniq_name>bytes_cout</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>bytes</uom>
+                <url>@mirror@scalasca_patterns.html#bytes_cout</url>
+                <descr>Number of bytes outgoing in MPI collective communication operations</descr>
+            </metric>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Incoming</disp_name>
+                <uniq_name>bytes_cin</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>bytes</uom>
+                <url>@mirror@scalasca_patterns.html#bytes_cin</url>
+                <descr>Number of bytes incoming in MPI collective communication operations</descr>
+            </metric>
+        </metric>
+        <metric type="POSTDERIVED">
+            <disp_name>One-sided</disp_name>
+            <uniq_name>bytes_rma</uniq_name>
+            <dtype>INTEGER</dtype>
+            <uom>bytes</uom>
+            <url>@mirror@scalasca_patterns.html#bytes_rma</url>
+            <descr>Number of bytes transferred in MPI one-sided communication operations</descr>
+            <cubepl>
+                metric::bytes_put() + metric::bytes_get()
+            </cubepl>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Sent</disp_name>
+                <uniq_name>bytes_put</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>bytes</uom>
+                <url>@mirror@scalasca_patterns.html#bytes_put</url>
+                <descr>Number of bytes sent in MPI one-sided communication operations</descr>
+            </metric>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Received</disp_name>
+                <uniq_name>bytes_get</uniq_name>
+                <dtype>INTEGER</dtype>
+                <uom>bytes</uom>
+                <url>@mirror@scalasca_patterns.html#bytes_get</url>
+                <descr>Number of bytes received in MPI one-sided communication operations</descr>
+            </metric>
+        </metric>
+    </metric>
+    <metric type="POSTDERIVED">
+        <disp_name>Delay costs</disp_name>
+        <uniq_name>delay</uniq_name>
+        <dtype>FLOAT</dtype>
+        <uom>sec</uom>
+        <descr>Costs and location of delays causing wait states</descr>
+        <url>@mirror@scalasca_patterns.html#delay</url>
+        <cubepl>
+            metric::delay_mpi() + metric::delay_omp()
+        </cubepl>
+        <metric type="POSTDERIVED">
+            <disp_name>MPI</disp_name>
+            <uniq_name>delay_mpi</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <descr>Delays causing wait states in MPI operations</descr>
+            <url>@mirror@scalasca_patterns.html#delay_mpi</url>
+            <cubepl>
+                metric::delay_p2p() + metric::delay_collective()
+            </cubepl>
+            <metric type="POSTDERIVED">
+                <disp_name>Point-to-point</disp_name>
+                <uniq_name>delay_p2p</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>Delays causing wait states in MPI point-to-point communication</descr>
+                <url>@mirror@scalasca_patterns.html#delay_p2p</url>
+                <cubepl>
+                    metric::delay_latesender_aggregate() + metric::delay_latereceiver_aggregate()
+                </cubepl>
+                <metric type="POSTDERIVED">
+                    <disp_name>Late Sender</disp_name>
+                    <uniq_name>delay_latesender_aggregate</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <descr>Delays causing MPI Late Sender wait states</descr>
+                    <url>@mirror@scalasca_patterns.html#delay_latesender_aggregate</url>
+                    <cubepl>
+                        metric::delay_latesender() + metric::delay_latesender_longterm()
+                    </cubepl>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Short-term</disp_name>
+                        <uniq_name>delay_latesender</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <descr>Delays that directly cause MPI Late Sender wait states</descr>
+                        <url>@mirror@scalasca_patterns.html#delay_latesender</url>
+                    </metric>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Long-term</disp_name>
+                        <uniq_name>delay_latesender_longterm</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <descr>Delays that indirectly cause MPI Late Sender wait states through wait-state propagation</descr>
+                        <url>@mirror@scalasca_patterns.html#delay_latesender_longterm</url>
+                    </metric>
+                </metric>
+                <metric type="POSTDERIVED">
+                    <disp_name>Late Receiver</disp_name>
+                    <uniq_name>delay_latereceiver_aggregate</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <descr>Delays causing MPI Late Receiver wait states</descr>
+                    <url>@mirror@scalasca_patterns.html#delay_latereceiver_aggregate</url>
+                    <cubepl>
+                        metric::delay_latereceiver() + metric::delay_latereceiver_longterm()
+                    </cubepl>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Short-term</disp_name>
+                        <uniq_name>delay_latereceiver</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <descr>Delays that directly cause MPI Late Receiver wait states</descr>
+                        <url>@mirror@scalasca_patterns.html#delay_latereceiver</url>
+                    </metric>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Long-term</disp_name>
+                        <uniq_name>delay_latereceiver_longterm</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <descr>Delays that indirectly cause MPI Late Receiver wait states through wait-state propagation</descr>
+                        <url>@mirror@scalasca_patterns.html#delay_latereceiver_longterm</url>
+                    </metric>
+                </metric>
+            </metric>
+            <metric type="POSTDERIVED">
+                <disp_name>Collective</disp_name>
+                <uniq_name>delay_collective</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>Delays that cause wait states in MPI collective communication</descr>
+                <url>@mirror@scalasca_patterns.html#delay_collective</url>
+                <cubepl>
+                    metric::delay_barrier_aggregate() + metric::delay_n21_aggregate() + metric::delay_12n_aggregate() + metric::delay_n2n_aggregate()
+                </cubepl>
+                <metric type="POSTDERIVED">
+                    <disp_name>Wait at Barrier</disp_name>
+                    <uniq_name>delay_barrier_aggregate</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <descr>Delays causing wait states in front of MPI barriers</descr>
+                    <url>@mirror@scalasca_patterns.html#delay_barrier_aggregate</url>
+                    <cubepl>
+                        metric::delay_barrier() + metric::delay_barrier_longterm()
+                    </cubepl>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Short-term</disp_name>
+                        <uniq_name>delay_barrier</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <descr>Delays that directly cause wait states in MPI barriers</descr>
+                        <url>@mirror@scalasca_patterns.html#delay_barrier</url>
+                    </metric>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Long-term</disp_name>
+                        <uniq_name>delay_barrier_longterm</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <descr>Delays that indirectly cause wait states in MPI barriers through wait-state propagation</descr>
+                        <url>@mirror@scalasca_patterns.html#delay_barrier_longterm</url>
+                    </metric>
+                </metric>
+                <metric type="POSTDERIVED">
+                    <disp_name>Early Reduce</disp_name>
+                    <uniq_name>delay_n21_aggregate</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <descr>Delays causing wait states in MPI n-to-1 collective communications</descr>
+                    <url>@mirror@scalasca_patterns.html#delay_n21_aggregate</url>
+                    <cubepl>
+                        metric::delay_n21() + metric::delay_n21_longterm()
+                    </cubepl>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Short-term</disp_name>
+                        <uniq_name>delay_n21</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <descr>Delays that directly cause wait states in MPI n-to-1 collective communications</descr>
+                        <url>@mirror@scalasca_patterns.html#delay_n21</url>
+                    </metric>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Long-term</disp_name>
+                        <uniq_name>delay_n21_longterm</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <descr>Delays that indirectly cause wait states in MPI n-to-1 collective communications through wait-state propagation</descr>
+                        <url>@mirror@scalasca_patterns.html#delay_n21_longterm</url>
+                    </metric>
+                </metric>
+                <metric type="POSTDERIVED">
+                    <disp_name>Late Broadcast</disp_name>
+                    <uniq_name>delay_12n_aggregate</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <descr>Delays causing wait states in MPI 1-to-n collective communications</descr>
+                    <url>@mirror@scalasca_patterns.html#delay_12n_aggregate</url>
+                    <cubepl>
+                        metric::delay_12n() + metric::delay_12n_longterm()
+                    </cubepl>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Short-term</disp_name>
+                        <uniq_name>delay_12n</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <descr>Delays that directly cause wait states in MPI 1-to-n collective communications</descr>
+                        <url>@mirror@scalasca_patterns.html#delay_12n</url>
+                    </metric>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Long-term</disp_name>
+                        <uniq_name>delay_12n_longterm</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <descr>Delays that indirectly cause wait states in MPI 1-to-n collective communications through wait-state propagation</descr>
+                        <url>@mirror@scalasca_patterns.html#delay_12n_longterm</url>
+                    </metric>
+                </metric>
+                <metric type="POSTDERIVED">
+                    <disp_name>Wait at N x N</disp_name>
+                    <uniq_name>delay_n2n_aggregate</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <descr>Delays causing wait states in front of MPI n-to-n collective communcations</descr>
+                    <url>@mirror@scalasca_patterns.html#delay_n2n_aggregate</url>
+                    <cubepl>
+                        metric::delay_n2n() + metric::delay_n2n_longterm()
+                    </cubepl>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Short-term</disp_name>
+                        <uniq_name>delay_n2n</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <descr>Delays that directly cause wait states in MPI n-to-n collective communications</descr>
+                        <url>@mirror@scalasca_patterns.html#delay_n2n</url>
+                    </metric>
+                    <metric>
+                        <!-- This metric is copied from the trace analysis -->
+                        <disp_name>Long-term</disp_name>
+                        <uniq_name>delay_n2n_longterm</uniq_name>
+                        <dtype>FLOAT</dtype>
+                        <uom>sec</uom>
+                        <descr>Delays that indirectly cause wait states in MPI n-to-n collective communications through wait-state propagation</descr>
+                        <url>@mirror@scalasca_patterns.html#delay_n2n_longterm</url>
+                    </metric>
+                </metric>
+            </metric>
+        </metric>
+        <metric type="POSTDERIVED">
+            <disp_name>OpenMP</disp_name>
+            <uniq_name>delay_omp</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <descr>Delays causing wait states in OpenMP constructs</descr>
+            <url>@mirror@scalasca_patterns.html#delay_omp</url>
+            <cubepl>
+                metric::delay_ompbarrier_aggregate() + metric::delay_ompidle_aggregate()
+            </cubepl>
+            <metric type="POSTDERIVED">
+                <disp_name>Wait at Barrier</disp_name>
+                <uniq_name>delay_ompbarrier_aggregate</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>Delays causing wait states in front of OpenMP barriers</descr>
+                <url>@mirror@scalasca_patterns.html#delay_ompbarrier_aggregate</url>
+                <cubepl>
+                    metric::delay_ompbarrier() + metric::delay_ompbarrier_longterm()
+                </cubepl>
+                <metric>
+                    <!-- This metric is copied from the trace analysis -->
+                    <disp_name>Short-term</disp_name>
+                    <uniq_name>delay_ompbarrier</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <descr>Delays that directly cause wait states in OpenMP barriers</descr>
+                    <url>@mirror@scalasca_patterns.html#delay_ompbarrier</url>
+                </metric>
+                <metric>
+                    <!-- This metric is copied from the trace analysis -->
+                    <disp_name>Long-term</disp_name>
+                    <uniq_name>delay_ompbarrier_longterm</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <descr>Delays that indirectly cause wait states in OpenMP barriers through wait-state propagation</descr>
+                    <url>@mirror@scalasca_patterns.html#delay_ompbarrier_longterm</url>
+                </metric>
+            </metric>
+            <metric type="POSTDERIVED">
+                <disp_name>Idleness delay costs</disp_name>
+                <uniq_name>delay_ompidle_aggregate</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>Delays causing OpenMP worker threads to idle</descr>
+                <url>@mirror@scalasca_patterns.html#delay_ompidle_aggregate</url>
+                <cubepl>
+                    metric::delay_ompidle() + metric::delay_ompidle_longterm()
+                </cubepl>
+                <metric>
+                    <!-- This metric is copied from the trace analysis -->
+                    <disp_name>Short-term</disp_name>
+                    <uniq_name>delay_ompidle</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <descr>Delays on the OpenMP master thread that leave OpenMP worker threads idle</descr>
+                    <url>@mirror@scalasca_patterns.html#delay_ompidle</url>
+                </metric>
+                <metric>
+                    <!-- This metric is copied from the trace analysis -->
+                    <disp_name>Long-term</disp_name>
+                    <uniq_name>delay_ompidle_longterm</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <descr>Delays that indirectly leave OpenMP worker threads idle</descr>
+                    <url>@mirror@scalasca_patterns.html#delay_ompidle_longterm</url>
+                </metric>
+            </metric>
+        </metric>
+    </metric>
+    <metric type="POSTDERIVED">
+        <disp_name>MPI point-to-point wait states (propagating vs. terminal)</disp_name>
+        <uniq_name>waitstates_propagating_vs_terminal</uniq_name>
+        <dtype>FLOAT</dtype>
+        <uom>sec</uom>
+        <descr>Classification of MPI point-to-point waiting time into propagating and terminal wait states</descr>
+        <url>@mirror@scalasca_patterns.html#waitstates_propagating_vs_terminal</url>
+        <cubepl>
+            metric::mpi_wait_propagating() + metric::mpi_wait_terminal()
+        </cubepl>
+        <metric type="POSTDERIVED">
+            <disp_name>Propagating wait states</disp_name>
+            <uniq_name>mpi_wait_propagating</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <descr>Aggregate amount of MPI point-to-point waiting time that propagates further</descr>
+            <url>@mirror@scalasca_patterns.html#mpi_wait_propagating</url>
+            <cubepl>
+                metric::mpi_wait_propagating_ls() + metric::mpi_wait_propagating_lr()
+            </cubepl>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Late Sender</disp_name>
+                <uniq_name>mpi_wait_propagating_ls</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>MPI Late Sender wait states which cause further waiting time on other processes</descr>
+                <url>@mirror@scalasca_patterns.html#mpi_wait_propagating_ls</url>
+            </metric>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Late Receiver</disp_name>
+                <uniq_name>mpi_wait_propagating_lr</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>MPI Late Receiver wait states which cause further waiting time on other processes</descr>
+                <url>@mirror@scalasca_patterns.html#mpi_wait_propagating_lr</url>
+            </metric>
+        </metric>
+        <metric type="POSTDERIVED">
+            <disp_name>Terminal wait states</disp_name>
+            <uniq_name>mpi_wait_terminal</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <descr>Aggregate amount of MPI point-to-point waiting time that does not propagate further</descr>
+            <url>@mirror@scalasca_patterns.html#mpi_wait_terminal</url>
+            <cubepl>
+                metric::mpi_wait_terminal_ls() + metric::mpi_wait_terminal_lr()
+            </cubepl>
+            <metric type="POSTDERIVED">
+                <disp_name>Late Sender</disp_name>
+                <uniq_name>mpi_wait_terminal_ls</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>MPI Late Sender wait states which do not propagate</descr>
+                <url>@mirror@scalasca_patterns.html#mpi_wait_terminal_ls</url>
+                <cubepl>
+                    metric::mpi_latesender() - metric::mpi_wait_propagating_ls()
+                </cubepl>
+            </metric>
+            <metric type="POSTDERIVED">
+                <disp_name>Late Receiver</disp_name>
+                <uniq_name>mpi_wait_terminal_lr</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>MPI Late Receiver wait states which do not propagate</descr>
+                <url>@mirror@scalasca_patterns.html#mpi_wait_terminal_lr</url>
+                <cubepl>
+                    metric::mpi_latereceiver() - metric::mpi_wait_propagating_lr()
+                </cubepl>
+            </metric>
+        </metric>
+    </metric>
+    <metric type="POSTDERIVED">
+        <disp_name>MPI point-to-point wait states (direct vs. indirect)</disp_name>
+        <uniq_name>waitstates_direct_vs_indirect</uniq_name>
+        <dtype>FLOAT</dtype>
+        <uom>sec</uom>
+        <descr>Classification of MPI point-to-point waiting time into direct and indirect wait states</descr>
+        <url>@mirror@scalasca_patterns.html#waitstates_direct_vs_indirect</url>
+        <cubepl>
+           metric::mpi_wait_direct() + metric::mpi_wait_indirect()
+        </cubepl>
+        <metric type="POSTDERIVED">
+            <disp_name>Direct wait states</disp_name>
+            <uniq_name>mpi_wait_direct</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <descr>MPI point-to-point waiting time that results from direct delay, i.e., is directly caused by load imbalance</descr>
+            <url>@mirror@scalasca_patterns.html#mpi_wait_direct</url>
+            <cubepl>
+                metric::mpi_wait_direct_latesender() + metric::mpi_wait_direct_latereceiver()
+            </cubepl>
+            <metric type="POSTDERIVED">
+                <disp_name>Late Sender</disp_name>
+                <uniq_name>mpi_wait_direct_latesender</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>Waiting time in MPI Late Sender wait states that results from direct delay</descr>
+                <url>@mirror@scalasca_patterns.html#mpi_wait_direct_latesender</url>
+                <cubepl>
+                    metric::mpi_latesender() - metric::mpi_wait_indirect_latesender()
+                </cubepl>
+            </metric>
+            <metric type="POSTDERIVED">
+                <disp_name>Late Receiver</disp_name>
+                <uniq_name>mpi_wait_direct_latereceiver</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>Waiting time in MPI Late Receiver wait states that results from direct delay</descr>
+                <url>@mirror@scalasca_patterns.html#mpi_wait_direct_latereceiver</url>
+                <cubepl>
+                    metric::mpi_latereceiver() - metric::mpi_wait_indirect_latereceiver()
+                </cubepl>
+            </metric>
+        </metric>
+        <metric type="POSTDERIVED">
+            <disp_name>Indirect wait states</disp_name>
+            <uniq_name>mpi_wait_indirect</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <descr>MPI point-to-point waiting time that results from wait-state propagation</descr>
+            <url>@mirror@scalasca_patterns.html#mpi_wait_indirect</url>
+            <cubepl>
+                metric::mpi_wait_indirect_latesender() + metric::mpi_wait_indirect_latereceiver()
+            </cubepl>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Late Sender</disp_name>
+                <uniq_name>mpi_wait_indirect_latesender</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>Indirect waiting time in MPI Late Sender wait states that results from propagation</descr>
+                <url>@mirror@scalasca_patterns.html#mpi_wait_indirect_latesender</url>
+            </metric>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Late Receiver</disp_name>
+                <uniq_name>mpi_wait_indirect_latereceiver</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>Indirect waiting time in MPI Late Receiver wait states that results from propagation</descr>
+                <url>@mirror@scalasca_patterns.html#mpi_wait_indirect_latereceiver</url>
+            </metric>
+        </metric>
+    </metric>
+    <metric>
+        <!-- This metric is copied from the trace analysis -->
+        <disp_name>Critical path</disp_name>
+        <uniq_name>critical_path</uniq_name>
+        <dtype>FLOAT</dtype>
+        <uom>sec</uom>
+        <descr>Profile of the application's critical path</descr>
+        <url>@mirror@scalasca_patterns.html#critical_path</url>
+        <metric type="PREDERIVED_EXCLUSIVE">
+            <disp_name>Imbalance</disp_name>
+            <uniq_name>critical_path_imbalance</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <descr>Imbalanced critical-path routines</descr>
+            <url>@mirror@scalasca_patterns.html#critical_path_imbalance</url>
+            <cubepl rowwise="false">
+            {
+                ${tmp} = 0;
+                if ( metric::critical_path(i) > 0 )
+                {
+                    ${tmp} = max(0, ( metric::fixed::critical_path(i)
+                                      - (
+                                            (
+                                                metric::fixed::time(i)
+                                                - metric::fixed::mpi_finalize_wait(i)
+                                                - metric::fixed::mpi_rma_wait_at_create(i)
+                                                - metric::fixed::mpi_rma_wait_at_free(i)
+                                                - metric::fixed::mpi_barrier_wait(i)
+                                                - metric::fixed::mpi_rma_sync_late_post(i)
+                                                - metric::fixed::mpi_rma_early_wait(i)
+                                                - metric::fixed::mpi_rma_wait_at_fence(i)
+                                                - metric::fixed::mpi_rma_sync_lock_competition(i)
+                                                - metric::fixed::mpi_rma_sync_wait_for_progress(i)
+                                                - metric::fixed::mpi_latesender(i)
+                                                - metric::fixed::mpi_latereceiver(i)
+                                                - metric::fixed::mpi_earlyreduce(i)
+                                                - metric::fixed::mpi_earlyscan(i)
+                                                - metric::fixed::mpi_latebroadcast(i)
+                                                - metric::fixed::mpi_wait_nxn(i)
+                                                - metric::fixed::mpi_rma_comm_late_post(i)
+                                                - metric::fixed::mpi_rma_comm_lock_competition(i)
+                                                - metric::fixed::mpi_rma_comm_wait_for_progress(i)
+                                                - metric::fixed::omp_management(i)
+                                                - metric::fixed::omp_ebarrier_wait(i)
+                                                - metric::fixed::omp_ibarrier_wait(i)
+                                                - metric::fixed::omp_lock_contention_critical(i)
+                                                - metric::fixed::omp_lock_contention_api(i)
+                                                - metric::fixed::omp_ordered(i)
+                                                - metric::fixed::omp_idle_threads(i)
+                                            )
+                                            / ${cube::#locations}
+                                        )
+                                    )
+                                    / metric::fixed::critical_path(i)
+                                )
+                                * metric::critical_path(e);
+                };
+                return ${tmp};
+            }
+            </cubepl>
+        </metric>
+    </metric>
+    <metric type="POSTDERIVED">
+        <disp_name>Performance impact</disp_name>
+        <uniq_name>performance_impact</uniq_name>
+        <dtype>FLOAT</dtype>
+        <uom>sec</uom>
+        <descr>Global performance impact of program activities</descr>
+        <url>@mirror@scalasca_patterns.html#performance_impact</url>
+        <cubepl>
+            metric::performance_impact_criticalpath() + metric::non_critical_path_activities()
+        </cubepl>
+        <metric type="POSTDERIVED">
+            <disp_name>Critical-path activities</disp_name>
+            <uniq_name>performance_impact_criticalpath</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <descr>Overall resource consumption caused by activities on the critical path</descr>
+            <url>@mirror@scalasca_patterns.html#performance_impact_criticalpath</url>
+            <cubepl>
+                metric::critical_path_activities() + metric::critical_imbalance_impact()
+            </cubepl>
+            <metric>
+                <!-- This metric is copied from the trace analysis -->
+                <disp_name>Activity impact</disp_name>
+                <uniq_name>critical_path_activities</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>Resource consumption of activities on the critical path</descr>
+                <url>@mirror@scalasca_patterns.html#critical_path_activities</url>
+            </metric>
+            <metric>
+                <disp_name>Imbalance impact</disp_name>
+                <uniq_name>critical_imbalance_impact</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <descr>Resource consumption of imbalance in critical-path activities</descr>
+                <url>@mirror@scalasca_patterns.html#critical_imbalance_impact</url>
+                <metric type="POSTDERIVED">
+                    <disp_name>Intra-partition imbalance</disp_name>
+                    <uniq_name>intra_partition_imbalance</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <descr>Performance impact of load imbalance within process partitions that perform activities on the critical path</descr>
+                    <url>@mirror@scalasca_patterns.html#intra_partition_imbalance</url>
+                    <cubepl>
+                        metric::critical_imbalance_impact() - metric::inter_partition_imbalance()
+                    </cubepl>
+                </metric>
+                <metric>
+                    <disp_name>Inter-partition imbalance</disp_name>
+                    <uniq_name>inter_partition_imbalance</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <descr>Performance impact of load imbalance between process partitions that perform different activities</descr>
+                    <url>@mirror@scalasca_patterns.html#inter_partition_imbalance</url>
+               </metric>
+            </metric>
+        </metric>
+        <metric>
+            <disp_name>Non-critical-path activities</disp_name>
+            <uniq_name>non_critical_path_activities</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <descr>Overall resource consumption of activities not on the critical path</descr>
+            <url>@mirror@scalasca_patterns.html#non_critical_path_activities</url>
+        </metric>
+    </metric>
+    <metric>
+        <!-- This metric is still hard-coded in the Cube remapper -->
+        <disp_name>Computational imbalance</disp_name>
+        <uniq_name>imbalance</uniq_name>
+        <dtype>FLOAT</dtype>
+        <uom>sec</uom>
+        <url>@mirror@scalasca_patterns.html#imbalance</url>
+        <descr>Computational load imbalance heuristic (see Online Description for details)</descr>
+        <metric>
+            <!-- This metric is still hard-coded in the Cube remapper -->
+            <disp_name>Overload</disp_name>
+            <uniq_name>imbalance_above</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <url>@mirror@scalasca_patterns.html#imbalance_above</url>
+            <descr>Computational load imbalance heuristic (overload)</descr>
+            <metric>
+                <!-- This metric is still hard-coded in the Cube remapper -->
+                <disp_name>Single participant</disp_name>
+                <uniq_name>imbalance_above_single</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <url>@mirror@scalasca_patterns.html#imbalance_above_single</url>
+                <descr>Computational load imbalance heuristic (single participant)</descr>
+            </metric>
+        </metric>
+        <metric>
+            <!-- This metric is still hard-coded in the Cube remapper -->
+            <disp_name>Underload</disp_name>
+            <uniq_name>imbalance_below</uniq_name>
+            <dtype>FLOAT</dtype>
+            <uom>sec</uom>
+            <url>@mirror@scalasca_patterns.html#imbalance_below</url>
+            <descr>Computational load imbalance heuristic (underload)</descr>
+            <metric>
+                <!-- This metric is still hard-coded in the Cube remapper -->
+                <disp_name>Non-participation</disp_name>
+                <uniq_name>imbalance_below_bypass</uniq_name>
+                <dtype>FLOAT</dtype>
+                <uom>sec</uom>
+                <url>@mirror@scalasca_patterns.html#imbalance_below_bypass</url>
+                <descr>Computational load imbalance heuristic (non-participation)</descr>
+                <metric>
+                    <!-- This metric is still hard-coded in the Cube remapper -->
+                    <disp_name>Singularity</disp_name>
+                    <uniq_name>imbalance_below_singularity</uniq_name>
+                    <dtype>FLOAT</dtype>
+                    <uom>sec</uom>
+                    <url>@mirror@scalasca_patterns.html#imbalance_below_singularity</url>
+                    <descr>Computational load imbalance heuristic (non-participation in singularity)</descr>
+                </metric>
+            </metric>
+        </metric>
+    </metric>
+    <!-- Suppress display of "Bytes received" metric from runtime summary when merged with trace analyis result -->
+    <metric viztype="GHOST">
+        <disp_name>Bytes received</disp_name>
+        <uniq_name>bytes_received</uniq_name>
+        <dtype>INTEGER</dtype>
+        <uom>bytes</uom>
+        <url></url>
+        <descr>Number of bytes received in communication operations</descr>
+    </metric>
+</metrics>

@@ -1,0 +1,44 @@
+/****************************************************************************
+**  SCALASCA    http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 1998-2013                                                **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  Copyright (c) 2009-2013                                                **
+**  German Research School for Simulation Sciences GmbH,                   **
+**  Laboratory for Parallel Programming                                    **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+//--- Library description ---------------------------------------------------
+
+/**
+@defgroup PEARL_ipc PEARL.ipc
+@ingroup  PEARL
+@brief    Inter-process communication abstractions.
+
+The PEARL IPC library defines a unified interface for a number of commonly
+used inter-process communication routines.  It abstracts from the details of
+different multi-process programming schemes and allows for client code to be
+written in a generic way.  The entire functionality of the PEARL IPC layer
+is encapsulated in the pearl::detail namespace.
+
+Currently, the following implementations of this interface are available:
+
+- A mockup implementation for single-process codes
+- An implementation using the Message Passing Interface (MPI) standard
+
+When linking a PEARL-based application, the corresponding library
+implementing this communication layer for the desired scheme has to be
+provided to the link command.
+
+@note
+    Depending on the actual implementation, it may or may not be safe to
+    call IPC routines from threads other than the master thread in a
+    multi-threaded scenario.  It is therefore advisable to restrict usage
+    of IPC routines to the master thread to avoid portability issues.
+*/

@@ -1,0 +1,99 @@
+.TH "scalasca" 1 "Mon Apr 19 2021" "Version 2.6" "Scalasca Trace Tools" \" -*- nroff -*-
+.nh
+.SH NAME
+scalasca \- Scalasca information and proxy command 
+.
+.SH "SYNOPSIS"
+.PP
+\fBscalasca\fP [\fIOPTIONS\fP] 
+.br
+\fBscalasca\fP [\fIOPTIONS\fP] \fIACTION\fP \fIACTION_ARGS\fP 
+.SH "DESCRIPTION"
+.PP
+The \fBscalasca\fP command allows to query information about a Scalasca Trace Tools installation, but can also be used as a proxy command for measurement, analysis, post-processing, and report examination tasks\&.
+.PP
+When used without an \fIACTION\fP argument, the \fBscalasca\fP command provides various \fIOPTIONS\fP to query and display information about the Scalasca Trace Tools installation, such as the version number, the configuration summary report, or installation-dependent path information\&. It is also possible to display a quick reference guide (if a suitable PDF viewer is found on the system)\&.
+.PP
+By contrast, if an \fIACTION\fP argument is given, the \fBscalasca\fP command acts as a proxy which simply delegates the requested operation to the underlying specific command\&. It can therefore be considered a single-entry-point convenience command that is easy to remember\&.
+.SH "ACTIONS"
+.PP
+Since \fIACTION\fP arguments enable the delegation of operations, please refer to the documentation of the respective underlying command for possible \fIACTION_ARGS\fP\&. Also, note that \fIACTION_ARGS\fP have to be provided \fBafter\fP the \fIACTION\fP argument\&.
+.PP
+.IP "\fB-a, --analyze, --analyse \fP" 1c
+Run application under the control of the Scalasca measurement collection and analysis nexus \fBscan\fP(1)\&. 
+.PP
+.IP "\fB-e, --examine \fP" 1c
+Examine measurement analysis report using the Scalasca analysis report explorer \fBsquare\fP(1)\&.  
+.PP
+.SS "Deprecated actions"
+.IP "\fB-i, -inst, --instrument \fP" 1c
+Prepare application objects and executable for measurement using the Score-P instrumenter\&. This action only exists for backward compatibility with the Scalasca 1\&.x release series\&. 
+.br
+\fBUsers are strongly encouraged to use the 'scorep' instrumenter command directly to take full advantage of its improved functionality\&.\fP  
+.PP
+.SH "OPTIONS"
+.PP
+.IP "\fB-c, --show-config \fP" 1c
+Print configuration summary, then exit\&. 
+.PP
+.IP "\fB-h, --help \fP" 1c
+Print a brief usage summary, then exit\&. 
+.PP
+.IP "\fB-n, --dry-run \fP" 1c
+Print the command(s) to be launched, but do not execute them\&. 
+.PP
+.IP "\fB--quickref \fP" 1c
+Display quick reference guide, then exit\&. 
+.PP
+.IP "\fB--remap-specfile \fP" 1c
+Show path to remapper specification file used for trace-analysis report post-processing, then exit\&. 
+.PP
+.IP "\fB-v, --verbose \fP" 1c
+Enable verbose mode\&. 
+.PP
+.IP "\fB-V, --version \fP" 1c
+Print version information, then exit\&.  
+.PP
+.SH "EXIT STATUS"
+.PP
+\fBscalasca\fP exits with status 0 on success, and greater than 0 if errors occur\&.
+.SH "BUGS"
+.PP
+Please report bugs to \fIscalasca@fz-juelich.de\fP\&. Make sure to include at least the following information in your bug report:
+.IP "\(bu" 2
+The Scalasca Trace Tools version reported by '\fCscalasca -V\fP'\&.
+.IP "\(bu" 2
+The Scalasca Trace Tools configuration reported by '\fCscalasca -c\fP'\&.
+.IP "\(bu" 2
+The Score-P version reported by '\fCscorep --version\fP'\&.
+.IP "\(bu" 2
+The Score-P configuration reported by '\fCscorep-info config-summary\fP'\&.
+.IP "\(bu" 2
+The exact command line of the failing command\&.
+.IP "\(bu" 2
+The exact failure/error message\&.
+.PP
+.PP
+Also, if the trace analysis fails, please archive a copy of the entire experiment archive directory including the event trace data, as this may be required to aid in debugging\&. However, \fBONLY PROVIDE TRACE DATA IF EXPLICITLY REQUESTED\fP, as the data volume may be excessive\&.
+.SH "EXAMPLES"
+.PP
+\fBscalasca --version\fP
+.br
+Displays the Scalasca Trace Tools version number\&.
+.PP
+\fBscalasca --analyze mpiexec -n 4 foo args\fP
+.br
+Execute the instrumented MPI program \fIfoo\fP with command-line arguments \fIargs\fP, collecting a runtime summary (default)\&. Results in an experiment directory \fIscorep_foo_4_sum\fP\&.
+.PP
+\fBscalasca --examine -s -f filter scorep_foo_4_sum\fP
+.br
+Post-process measurement reports in \fIscorep_foo_4_sum\fP and generate a score report with the run-time measurement filter rules from the file \fIfilter\fP applied\&.
+.SH "SEE ALSO"
+.PP
+\fBscan\fP(1), \fBsquare\fP(1)
+.PP
+The Score-P instrumentation and measurement system documentation is available online at \fIhttps://www.score-p.org\fP\&.
+.PP
+The full Scalasca Trace Tools documentation is available online at \fIhttps://www.scalasca.org\fP\&.
+.PP
+.

@@ -1,0 +1,33 @@
+Name: Cube Writer C library
+Version: 4.6
+Notes:
+    - Small improvements in build system.
+
+Version: 4.5
+    - Small improvements in documentation.
+    
+Version: 4.4.3
+    - Fixed generation of PDF Documentation.
+    - Minor fixes.
+    
+Version: 4.4.2
+    - Support for >8Gb files via PAX headers
+
+Version: 4.4.1
+    - Cleaned up public symbols in library.
+    - Minor fixes.
+
+Version: 4.4
+    - One can mark derived metrics as "non convertible" to prevend convertion into data and as "non cacheable" if their value is runtime dependent
+    - Build system improvements 
+    - Documentation infrastructure refactoring
+    - Improved detection of zlib
+    - Improved memory handling  (enabled during configure if needed)
+      - Memory tracking
+      - Memory tracing 
+    - Bug fixes
+    
+Version: 4.3.4
+    - Various bug fixes in library.
+
+Version 4.3.3

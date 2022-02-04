@@ -1,0 +1,21 @@
+prefix      = @prefix@
+exec_prefix = @exec_prefix@
+libdir      = @libdir@
+incdir      = @includedir@
+
+CXX         = @CXX@
+CPPFLAGS    = -I$(incdir)
+CXXFLAGS    = @OPENMP_CXXFLAGS@
+LDFLAGS     = -L$(libdir)
+OTF2_LIBS   = `otf2-config --libs`
+LDADD       = -lpearl.replay -lpearl.base -lpearl.thread.omp $(OTF2_LIBS)
+
+
+all: pearl_print.omp
+
+clean:
+	rm -f pearl_print.omp
+
+
+pearl_print.omp: pearl_print.cpp
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $< $(LDFLAGS) $(LDADD)

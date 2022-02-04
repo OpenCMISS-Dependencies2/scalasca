@@ -1,0 +1,206 @@
+------------------- Released version 2.6 -----------------------------
+
+ * Build system improvements:
+    - Auto-detect Cray XC platforms with ARM CPUs, supporting Cray,
+      ARM, and GCC compilers
+    - Added support for Clang and AMD AOCC compilers
+    - Updated support for Spectrum MPI
+
+ * Automatic trace analyzer changes & improvements:
+    - Revised "Early Reduce" wait state definition.
+    - Added calculation of "Early Reduce" delay costs.
+    - Fixed various delay cost calculation and propagation issues.
+    - Fixed various inconsistencies between wait-state and root-cause
+      analysis.
+    - Made POSIX threads analysis consistent with Score-P by avoiding
+      thread function stub call paths underneath 'pthread_create'.
+      This also fixes a deadlock when analyzing traces containing
+      "orphaned threads".
+
+ * Measurement nexus (scan) changes:
+    - Added preset mode for multi-run measurements with a preset for
+      POP analysis requirements as an use case.
+    - Added support for multiple file systems in SCAN_TRACE_FILESYS
+      by using a colon separated list of paths.
+
+ * Analysis report postprocessing changes:
+    - Add metric hierarchies for CUDA, OpenCL, and OpenACC.
+      (NOTE: The trace analysis still only supports host-side events!)
+    - Renamed '-c' command-line option of 'square' to '-C' for running
+      sanity checks on newly created reports.
+    - Added new '-c' command-line option to 'square' to allow specifying
+      the number of counters considered during report scoring (for
+      consistency with 'scorep-score').
+    - Added new '-x' command-line option to 'square' to allow passing
+      options directly through to 'scorep-score'.
+    - Avoid unnecessary aggregation/postprocessing of reports with
+      multi-run experiments.
+
+ * Substantial code cleanup.
+
+
+------------------- Released version 2.5 -----------------------------
+
+ * Support for
+    - Score-P v5.0, incl. virtual process/thread topologies
+
+ * Automatic trace analyzer changes & improvements:
+    - Various fixes and improvements in timestamp correction algorithm.
+    - Fixed 'Late Receiver' instance tracking.
+    - Slightly improved analysis report data collation.
+
+ * Added support for multi-run experiments.
+
+ * Code refactoring and various bug fixes.
+
+ * Improved user documentation:
+    - Revised User Guide including command reference.
+    - Added man pages.
+
+
+------------------- Released version 2.4 -----------------------------
+
+ * Support for
+    - Cube v4.4
+
+ * Build system improvements:
+    - Fix build issues with compilers defaulting to C++11 or higher
+      (e.g., Intel 2017, PGI 17).
+    - Fix build issues with PGI 16+ compilers (pgCC no longer available)
+    - Fix build issues on Cray systems, now also properly taking
+      CRAYPE_LINK_TYPE setting into account
+
+ * Automatic trace analyzer changes & improvements:
+    - Fix rare crash/deadlock in critical-path/delay analysis while
+      analyzing MPI persistent communication.
+    - Improved memory management.
+    - Improved handling of OTF2 traces in SIONlib containers.
+    - Improved trace reading times, especially at scale.
+    - Fixed detection of wait states in active-target synchronization
+      based on EPIK traces
+
+ * Code refactoring and various bug fixes.
+
+
+------------------ Released version 2.3.1 ----------------------------
+
+ * Build system improvements:
+    - Fixed build issue with GCC 6.1.
+    - Fixed build issue on the Intel Xeon Phi platform.
+
+
+------------------- Released version 2.3 -----------------------------
+
+ * Support for
+    - Score-P v2.0
+    - OTF2 v2.0
+
+ * Automatic trace analyzer changes & improvements:
+    - Experimental support for Score-P traces collected using
+      sampling (see OPEN_ISSUES for limitations).
+
+ * Improved analysis report postprocessing:
+    - Revised metric hierarchies (organization, metric naming, etc).
+    - Suppress calculation of performance properties that are
+      only relevant for unused parallel programming models.
+
+ * Performance property documentation fixes & improvements.
+
+ * Build system improvements.
+
+ * Code refactoring and various bug fixes.
+
+
+------------------- Released version 2.2.2 ---------------------------
+
+ * Platform support:
+    - Fixed a build issue on the Intel Xeon Phi platform.
+    - Improved support for the 'ibrun' launcher.
+
+ * Automatic trace analyzer changes & improvements:
+    - Worked around rare run-time issue with MVAPICH2.
+
+
+------------------- Released version 2.2.1 ---------------------------
+
+ * Platform support:
+    - Added build system support for Power8/Linux.
+    - Added build system support for 64-bit ARM/Linux (AArch64).
+    - Prefer linking static over dynamic Cube/OTF2 libraries on
+      Fujitsu K/FX10/FX100.
+
+ * Automatic trace analyzer changes & improvements:
+    - Fixed delay-cost propagation through OpenMP barrier wait states.
+    - Various algorithmic optimizations reducing overall analysis
+      time for traces of multi-threaded applications:
+       ~ Improved memory management.
+       ~ Improved trace preprocessing.
+       ~ Improved timestamp correction.
+
+ * Code refactoring and various bug fixes.
+
+
+------------------- Released version 2.2 -----------------------------
+
+ * Support for
+    - Score-P v1.4
+    - OTF2 v1.5, incl. full SIONlib support (if configured)
+    - Cube v4.3
+
+ * Platform support:
+    - Added support for Intel Xeon Phi, native mode only.
+    - Added support for Fujitsu FX100 (thanks to T. Nakamura,
+      Fujitsu Ltd).
+
+ * Automatic trace analyzer changes & improvements:
+    - Added basic support for POSIX threads.
+    - Added basic support for OpenMP tasking.
+    - Added lock contention analysis (OpenMP & POSIX threads).
+    - Added root-cause/delay analysis (MPI & OpenMP).
+    - New command-line options '--[no-]rootcause'.
+
+ * Code refactoring and various bug fixes.
+
+
+------------------- Released version 2.1 -----------------------------
+
+ * Support for
+    - Score-P v1.3
+    - OTF2 v1.4
+
+ * Platform support:
+    - Added support for Fujitsu FX10 & K computer.
+    - Improved support for Cray systems.
+
+ * Automatic trace analyzer changes & improvements:
+    - Added Critical-path analysis.
+    - Improved Late Receiver detection.
+    - New command-line options '--[no-]critical-path' and '--single-pass'.
+    - Fixed crash in data collation when number of OpenMP threads varied
+      among MPI processes.
+
+ * Code refactoring and various small bug fixes.
+
+ * Initial version of updated User Guide (still work in progress).
+
+
+------------------- Released version 2.0 -----------------------------
+
+ * Support for
+    - Score-P v1.2
+    - OTF2 v1.2
+    - Cube v4.2
+
+ * New build system based on GNU autotools.
+
+ * Significant amount of code refactoring.
+
+ * Automatic trace analyzer changes & improvements:
+    - Support for arbitrary deep system trees.
+    - Improved performance of timestamp correction.
+    - Pattern instance tracking and statistics are now enabled by
+      default.
+    - New command-line options '--verbose', '--[no-]time-correct',
+      and '--[no-]statistics'.
+    - Limited backward-compatibility support for handling existing
+      traces in EPILOG format generated by Scalasca v1.

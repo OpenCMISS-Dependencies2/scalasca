@@ -1,0 +1,102 @@
+## -*- mode: makefile -*-
+##*************************************************************************##
+##  SCALASCA    http://www.scalasca.org/                                   ##
+##*************************************************************************##
+##  Copyright (c) 2014-2017                                                ##
+##  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          ##
+##                                                                         ##
+##  This software may be modified and distributed under the terms of       ##
+##  a BSD-style license.  See the COPYING file in the package base         ##
+##  directory for details.                                                 ##
+##*************************************************************************##
+
+
+## Convenience variable
+UTILS_SRC = $(SRC_ROOT)src/utils
+
+
+##--- Programs --------------------------------------------------------------
+
+## Scalasca Application Instrumenter
+bin_SCRIPTS += \
+    skin
+EXTRA_DIST += \
+    $(UTILS_SRC)/skin.in
+CLEANFILES += \
+    skin
+skin: $(UTILS_SRC)/skin.in Makefile
+	$(AM_V_GEN)$(SED) \
+		-e 's|[@]VERSION[@]|$(VERSION)|g' \
+		< $(abs_top_srcdir)/$(UTILS_SRC)/skin.in > skin
+
+
+## Scalasca Analysis Report Explorer
+bin_SCRIPTS += \
+    square
+EXTRA_DIST += \
+    $(UTILS_SRC)/square.in
+CLEANFILES += \
+    square
+square: $(UTILS_SRC)/square.in Makefile
+	$(AM_V_GEN)$(SED) \
+		-e 's|[@]VERSION[@]|$(VERSION)|g' \
+		-e 's|[@]DOCDIR[@]|$(docdir)|g' \
+		-e 's|[@]PKGDATADIR[@]|$(pkgdatadir)|g' \
+		< $(abs_top_srcdir)/$(UTILS_SRC)/square.in > square
+
+
+## Scalasca Archiver
+bin_SCRIPTS += \
+    scarlet
+EXTRA_DIST += \
+    $(UTILS_SRC)/scarlet.in
+CLEANFILES += \
+    scarlet
+scarlet: $(UTILS_SRC)/scarlet.in Makefile
+	$(AM_V_GEN)$(SED) \
+		-e 's|[@]VERSION[@]|$(VERSION)|g' \
+		-e 's|[@]DOCDIR[@]|$(docdir)|g' \
+		-e 's|[@]PKGDATADIR[@]|$(pkgdatadir)|g' \
+		< $(abs_top_srcdir)/$(UTILS_SRC)/scarlet.in > scarlet
+
+
+## MIC wrapper script
+EXTRA_DIST += \
+    $(UTILS_SRC)/mic-wrapper.in
+PHONY_TARGETS += \
+    install-mic-wrapper \
+    uninstall-mic-wrapper
+
+if BUILD_MIC_WRAPPER
+
+BUILT_SOURCES += \
+    mic-wrapper
+CLEANFILES += \
+    mic-wrapper
+mic-wrapper: $(UTILS_SRC)/mic-wrapper.in Makefile
+	$(AM_V_GEN)$(SED) \
+		-e 's|[@]BINDIR[@]|@bindir@|g' \
+		< $(abs_top_srcdir)/$(UTILS_SRC)/mic-wrapper.in \
+		> mic-wrapper
+
+install-mic-wrapper:
+	$(MKDIR_P) $(DESTDIR)${pkglibexecdir}
+	for cmd in scout.ser scout.omp scout.mpi scout.hyb; do \
+		if test -x $(DESTDIR)$(bindir)/$${cmd} || \
+		   test -x $(DESTDIR)$(bindir)/mic/$${cmd}; then \
+			$(INSTALL_SCRIPT) $(abs_top_builddir)/mic-wrapper \
+			    $(DESTDIR)${pkglibexecdir}/$${cmd}; \
+		fi \
+	done
+
+uninstall-mic-wrapper:
+	for cmd in scout.ser scout.omp scout.mpi scout.hyb; do \
+		rm -f $(DESTDIR)${pkglibexecdir}/$${cmd}; \
+	done
+
+else !BUILD_MIC_WRAPPER
+
+install-mic-wrapper:
+uninstall-mic-wrapper:
+
+endif !BUILD_MIC_WRAPPER

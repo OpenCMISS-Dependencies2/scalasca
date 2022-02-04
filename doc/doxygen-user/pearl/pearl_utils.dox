@@ -1,0 +1,46 @@
+/****************************************************************************
+**  SCALASCA    http://www.scalasca.org/                                   **
+*****************************************************************************
+**  Copyright (c) 2016                                                     **
+**  Forschungszentrum Juelich GmbH, Juelich Supercomputing Centre          **
+**                                                                         **
+**  This software may be modified and distributed under the terms of       **
+**  a BSD-style license.  See the COPYING file in the package base         **
+**  directory for details.                                                 **
+****************************************************************************/
+
+
+// --- Module description ---------------------------------------------------
+
+/**
+@defgroup PEARL_utils PEARL.utils
+@brief    Utility classes, functions, and type definitions.
+
+The PEARL.utils module groups utility classes, free functions, and type
+definitions that are used in defining the public API of the PEARL library.
+As such, they are in most cases implementation details, but can also be
+useful when writing applications on top of the PEARL library.
+*/
+
+
+// --- Namespace description ------------------------------------------------
+
+/**
+@namespace pearl::uncopyable
+@ingroup   PEARL_utils
+@brief     Helper namespace to prevent unintended argument-dependent name
+           lookup.
+
+The sole purpose of this internal namespace, whose only member is the class
+pearl::uncopyable::Uncopyable, is to avoid subtle errors due to unintended
+argument-dependent name lookup (ADL).
+
+If the class %Uncopyable were defined in the @ref pearl namespace directly,
+function calls involving arguments of classes derived from %Uncopyable would
+implicitly also trigger a name lookup in the @ref pearl namespace, even
+without an explicit `using` directive.  To avoid this undesired side effect,
+%Uncopyable is defined in a separate, otherwise empty namespace (i.e.,
+without any free function that could be found by ADL).  For convenience,
+however, pearl::uncopyable::Uncopyable is made available in the @ref pearl
+namespace through the typedef pearl::Uncopyable.
+*/
